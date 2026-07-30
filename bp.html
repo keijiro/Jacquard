@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>grid sequencer</title>
+<style>
+  :root {
+    --bg: #16161a;
+    --note-line: #e8e8e4;
+    --note-text: #f2f2ee;
+    --marker: #9a9a96;
+    --dot: #4e4e54;
+    --cell-w: 34px;
+    --cell-h: 36px;
+    --gap: 5px;
+    --note-size: 15px;
+    --len-size: 9px;
+    --acc-gap: 5px;
+    --acc-size: 0.62em;
+    --acc-rise: 0.42em;
+    --flow-dot: 2px;
+    --flow-step: 7px;
+  }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    display: grid;
+    place-items: center;
+    background: var(--bg);
+    font-family: system-ui, -apple-system, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  #grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 18), var(--cell-w));
+    grid-auto-rows: var(--cell-h);
+    gap: var(--gap);
+    padding: 18px;
+  }
+  .cell {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    border-radius: 5px;
+    user-select: none;
+  }
+  .flow {
+    position: absolute;
+    z-index: 0;
+    height: var(--flow-dot);
+    transform: translateY(-50%);
+    background-image: repeating-linear-gradient(to right,
+      var(--note-line) 0 var(--flow-dot),
+      transparent var(--flow-dot) var(--flow-step));
+    opacity: 0.35;
+    pointer-events: none;
+  }
+  .note {
+    border: 1px solid var(--note-line);
+    background: var(--bg);
+    color: var(--note-text);
+    font-size: var(--note-size);
+    line-height: 1;
+  }
+  .label { white-space: nowrap; }
+  .stack {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+  }
+  .len {
+    font-size: var(--len-size);
+    opacity: 0.7;
+    letter-spacing: 0.02em;
+  }
+  .acc {
+    position: relative;
+    display: inline-block;
+    width: var(--acc-gap);
+    height: 1em;
+    vertical-align: baseline;
+    overflow: visible;
+  }
+  .acc > span {
+    position: absolute;
+    left: 50%;
+    bottom: var(--acc-rise);
+    transform: translateX(-50%);
+    font-size: var(--acc-size);
+    line-height: 1;
+  }
+  .linked { position: relative; }
+  .linked::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: calc(-1 * var(--gap) - 1px);
+    width: 1px;
+    height: calc(var(--gap) + 2px);
+    background: var(--note-line);
+    transform: translateX(-50%);
+  }
+  .inv {
+    background: var(--note-line);
+    color: var(--bg);
+  }
+  .ctrl {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+  .marker { color: var(--marker); }
+  .dot {
+    color: var(--dot);
+    font-size: 13px;
+    line-height: 1;
+  }
+  .cell:not(.inv):hover { background: #ffffff14; }
+  .inv:hover { background: #ffffff; }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<script>
+  const cols = 18, rows = 6;
+  const stepRows = 4;
+  const offX = 1, offY = 1;
+
+  const steps = [
+    ["C4/4", "E4", "G4"],
+    [],
+    ["F#4/0.5"],
+    ["SET", "A4"],
+    [],
+    ["G4"],
+    [],
+    [],
+    ["BITS4:3", "F4", "Ab4/1.5", "C5"],
+    [],
+    ["Bb4"],
+    ["PIE:4", "B4", "D5"],
+    [],
+    ["REL", "E5/2"],
+    [],
+    []
+  ];
+
+  const glyph = { "#": "\u266F", "b": "\u266D" };
+
+  const extras = {
+    "0,1": "*CH1"
+  };
+
+
+  function bits(count, on) {
+    const w = 5, h = 8, gap = 2;
+    const total = count * (w + gap) - gap + 1;
+    let rects = "";
+    for (let i = 0; i < count; i++) {
+      const x = i * (w + gap) + 0.5;
+      const paint = i === on - 1
+        ? 'fill="currentColor"'
+        : 'fill="none" stroke="currentColor"';
+      rects += '<rect x="' + x + '" y="0.5" width="' + w +
+               '" height="' + h + '" ' + paint + '/>';
+    }
+    return '<svg width="' + total + '" height="' + (h + 1) +
+           '" viewBox="0 0 ' + total + ' ' + (h + 1) +
+           '" shape-rendering="crispEdges" aria-hidden="true">' + rects + '</svg>';
+  }
+
+  function pie(hour) {
+    const c = 5.5, r = 5;
+    const a = (hour / 12) * Math.PI * 2;
+    const x = (c + r * Math.sin(a)).toFixed(2);
+    const y = (c - r * Math.cos(a)).toFixed(2);
+    const large = hour > 6 ? 1 : 0;
+    const ring = '<circle cx="' + c + '" cy="' + c + '" r="' + r + '"';
+    const wedge = hour >= 12
+      ? ring + ' fill="currentColor"/>'
+      : '<path d="M' + c + ' ' + c + ' L' + c + ' ' + (c - r) +
+        ' A' + r + ' ' + r + ' 0 ' + large + ' 1 ' + x + ' ' + y +
+        ' Z" fill="currentColor"/>';
+    return '<svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true">' +
+           wedge + ring + ' fill="none" stroke="currentColor"/></svg>';
+  }
+
+  function render(cell, value) {
+    if (value.charAt(0) === "*") {
+      cell.classList.add("inv");
+      value = value.slice(1);
+    }
+    const p = /^PIE:([\d.]+)$/.exec(value);
+    if (p) {
+      cell.classList.add("ctrl");
+      cell.innerHTML = pie(Number(p[1]));
+      return;
+    }
+    const b = /^BITS(\d+):(\d+)$/.exec(value);
+    if (b) {
+      cell.classList.add("ctrl");
+      cell.innerHTML = bits(Number(b[1]), Number(b[2]));
+      return;
+    }
+    const m = /^([A-G])([#b]?)(-?\d+)(?:\/([\d.]+))?$/.exec(value);
+    if (!m) {
+      cell.classList.add("ctrl");
+      cell.innerHTML = '<span class="label">' + value + '</span>';
+      return;
+    }
+    const acc = m[2] ? '<span>' + glyph[m[2]] + '</span>' : '';
+    const label = '<span class="label">' + m[1] +
+      '<span class="acc">' + acc + '</span>' + m[3] + '</span>';
+
+    if (m[4] === undefined) {
+      cell.innerHTML = label;
+    } else {
+      cell.innerHTML = '<span class="stack">' + label +
+        '<span class="len">' + m[4] + '</span></span>';
+    }
+  }
+
+  const triangle =
+    '<svg width="7" height="9" viewBox="0 0 7 9" aria-hidden="true">' +
+    '<path d="M0 0 L7 4.5 L0 9 Z" fill="currentColor"/></svg>';
+
+  function valueAt(x, y) {
+    const e = extras[x + "," + y];
+    if (e) return e;
+    const sx = x - offX, sy = y - offY;
+    if (sx < 0 || sx >= steps.length || sy < 0 || sy >= stepRows) return null;
+    return steps[sx][sy] || null;
+  }
+
+  const grid = document.getElementById("grid");
+  grid.style.setProperty("--cols", cols);
+  const frag = document.createDocumentFragment();
+
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.dataset.x = x;
+      cell.dataset.y = y;
+
+      const sx = x - offX, sy = y - offY;
+      const inside = sx >= 0 && sx < steps.length && sy >= 0 && sy < stepRows;
+      const note = valueAt(x, y);
+
+      if (note) {
+        cell.classList.add("note");
+        render(cell, note);
+        cell.setAttribute("aria-label", note.replace(/^\*/, ""));
+        if (valueAt(x, y - 1)) cell.classList.add("linked");
+      } else if (inside && sy === 0) {
+        cell.classList.add("marker");
+        cell.innerHTML = triangle;
+      } else {
+        cell.classList.add("dot");
+        cell.textContent = "\u30FB";
+      }
+      frag.appendChild(cell);
+    }
+  }
+  grid.appendChild(frag);
+
+  const start = grid.querySelector('[data-x="0"][data-y="' + offY + '"]');
+  const markers = grid.querySelectorAll('.marker[data-y="' + offY + '"]');
+  const end = markers[markers.length - 1];
+
+  if (start && end) {
+    const x1 = start.offsetLeft + start.offsetWidth / 2;
+    const x2 = end.offsetLeft + end.offsetWidth / 2;
+    const line = document.createElement("div");
+    line.className = "flow";
+    line.style.left = x1 + "px";
+    line.style.top = (start.offsetTop + start.offsetHeight / 2) + "px";
+    line.style.width = (x2 - x1) + "px";
+    grid.appendChild(line);
+  }
+</script>
+</body>
+</html>
