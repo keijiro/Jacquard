@@ -11,6 +11,8 @@
     --note-text: #f2f2ee;
     --marker: #9a9a96;
     --dot: #4e4e54;
+    --ctrl-bg: #34343c;
+    --ctrl-bg-hover: #44444e;
     --cell-w: 34px;
     --cell-h: 36px;
     --gap: 5px;
@@ -113,6 +115,7 @@
     font-size: 11px;
     letter-spacing: 0.04em;
   }
+  .ctrl:not(.inv) { background: var(--ctrl-bg); }
   .marker { color: var(--marker); }
   .dot {
     color: var(--dot);
@@ -120,6 +123,7 @@
     line-height: 1;
   }
   .cell:not(.inv):hover { background: #ffffff14; }
+  .ctrl:not(.inv):hover { background: var(--ctrl-bg-hover); }
   .inv:hover { background: #ffffff; }
 </style>
 </head>
@@ -134,9 +138,9 @@
     ["C4/4", "E4", "G4"],
     [],
     ["F#4/0.5"],
-    ["SET", "A4"],
+    ["A4", "SET"],
     [],
-    ["G4"],
+    ["G4", "ACC"],
     [],
     [],
     ["BITS4:3", "F4", "Ab4/1.5", "C5"],
@@ -144,7 +148,7 @@
     ["Bb4"],
     ["PIE:4", "B4", "D5"],
     [],
-    ["REL", "E5/2"],
+    ["E5/2", "REL"],
     [],
     []
   ];
@@ -189,10 +193,89 @@
            wedge + ring + ' fill="none" stroke="currentColor"/></svg>';
   }
 
+  // 1px strokes on half-integer coordinates, matching bits() and pie()
+  const ICON = 15;
+  const ICON_TOP = 1.5, ICON_BOTTOM = 13.5;
+
+  function svgIcon(body) {
+    return '<svg width="' + ICON + '" height="' + ICON +
+           '" viewBox="0 0 ' + ICON + ' ' + ICON +
+           '" fill="none" stroke="currentColor" stroke-linecap="round"' +
+           ' stroke-linejoin="round" aria-hidden="true">' + body + '</svg>';
+  }
+
+  function line(x1, y1, x2, y2) {
+    return '<path d="M' + x1 + ' ' + y1 + 'L' + x2 + ' ' + y2 + '"/>';
+  }
+
+  function chevron(cx, tipY, baseY, hw) {
+    return '<path d="M' + (cx - hw) + ' ' + baseY + 'L' + cx + ' ' + tipY +
+           'L' + (cx + hw) + ' ' + baseY + '"/>';
+  }
+
+  function lineCross(px, py, dx, dy, qx, qy, ex, ey) {
+    const t = ((qx - px) * ey - (qy - py) * ex) / (dx * ey - dy * ex);
+    return [px + dx * t, py + dy * t];
+  }
+
+  function poly(pts) {
+    let d = "";
+    for (let i = 0; i < pts.length; i++) {
+      d += (i ? "L" : "M") + pts[i][0].toFixed(2) + " " + pts[i][1].toFixed(2);
+    }
+    return d + "Z";
+  }
+
+  // serif-style delta: thin left and base strokes, heavier right stroke.
+  // each edge is pushed inward by its own weight and the resulting inner
+  // triangle is punched out of the outline, so the corners miter cleanly
+  function delta(cx, apexY, baseY, hw) {
+    const thin = 1, thick = 1.6;
+    const h = baseY - apexY, s = Math.hypot(hw, h);
+    const lx = cx + thin * h / s, ly = apexY + thin * hw / s;
+    const rx = cx - thick * h / s, ry = apexY + thick * hw / s;
+    const by = baseY - thin;
+    const outer = [[cx, apexY], [cx - hw, baseY], [cx + hw, baseY]];
+    const inner = [
+      lineCross(lx, ly, -hw, h, rx, ry, -hw, -h),
+      [lx - hw * (by - ly) / h, by],
+      [rx + hw * (by - ry) / h, by]
+    ];
+    return '<path d="' + poly(outer) + poly(inner) +
+           '" fill="currentColor" fill-rule="evenodd" stroke="none"/>';
+  }
+
+  function fader(cx, cy) {
+    const kw = 6, kh = 3;
+    const top = cy - kh / 2, bottom = cy + kh / 2;
+    return line(cx, ICON_TOP, cx, top) +
+           line(cx, bottom, cx, ICON_BOTTOM) +
+           '<rect x="' + (cx - kw / 2) + '" y="' + top +
+           '" width="' + kw + '" height="' + kh + '" rx="1"/>';
+  }
+
+  function upDown(cx) {
+    const hw = 2, hh = 2.8;
+    return line(cx, ICON_TOP, cx, ICON_BOTTOM) +
+           chevron(cx, ICON_TOP, ICON_TOP + hh, hw) +
+           chevron(cx, ICON_BOTTOM, ICON_BOTTOM - hh, hw);
+  }
+
+  const icons = {
+    SET: svgIcon(fader(7.5, 6)),
+    REL: svgIcon(fader(4.5, 6) + upDown(11.5)),
+    ACC: svgIcon(fader(4.5, 6) + delta(11.5, 4.5, 11.5, 2.8))
+  };
+
   function render(cell, value) {
     if (value.charAt(0) === "*") {
       cell.classList.add("inv");
       value = value.slice(1);
+    }
+    if (icons[value]) {
+      cell.classList.add("ctrl");
+      cell.innerHTML = icons[value];
+      return;
     }
     const p = /^PIE:([\d.]+)$/.exec(value);
     if (p) {
