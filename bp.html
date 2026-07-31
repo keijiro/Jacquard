@@ -23,6 +23,9 @@
     --acc-rise: 0.42em;
     --flow-dot: 2px;
     --flow-step: 7px;
+    --link: #86868c;
+    --link-w: 1px;
+    --link-r: 6;
   }
   html, body {
     margin: 0;
@@ -49,16 +52,30 @@
     border-radius: 5px;
     user-select: none;
   }
-  .flow {
+  .flow, .links {
     position: absolute;
     z-index: 0;
+    pointer-events: none;
+  }
+  .flow {
     height: var(--flow-dot);
     transform: translateY(-50%);
     background-image: repeating-linear-gradient(to right,
       var(--note-line) 0 var(--flow-dot),
       transparent var(--flow-dot) var(--flow-step));
     opacity: 0.35;
-    pointer-events: none;
+  }
+  .links {
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    fill: none;
+    stroke: var(--link);
+    stroke-width: var(--link-w);
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
   .note {
     border: 1px solid var(--note-line);
@@ -130,37 +147,54 @@
 <body>
 <div id="grid"></div>
 <script>
-  const cols = 18, rows = 6;
+  const cols = 18, rows = 10;
   const stepRows = 4;
-  const offX = 1, offY = 1;
 
-  const steps = [
-    ["C4/4", "E4", "G4"],
-    [],
-    ["F#4/0.5"],
-    ["A4", "PABS"],
-    [],
-    ["G4", "PDLT"],
-    [],
-    [],
-    ["NTRG4:3", "F4", "Ab4/1.5", "C5"],
-    [],
-    ["Bb4"],
-    ["PROB:4", "B4", "D5"],
-    [],
-    ["E5/2", "PREL"],
-    [],
-    []
+  // lanes share one grid plane; each starts wherever it is placed and ends
+  // with a TERM cell one column past its last step
+  const lanes = [
+    {
+      x: 1, y: 1, head: "CH1",
+      steps: [
+        ["C4/4", "E4", "G4"],
+        [],
+        ["F#4/0.5"],
+        ["A4", "PABS"],
+        [],
+        ["G4", "PDLT"],
+        [],
+        [],
+        ["NTRG4:3", "F4", "Ab4/1.5", "C5"],
+        ["NTRG4:4", "*JUMP"],
+        ["Bb4"],
+        ["PROB:4", "B4", "D5"],
+        [],
+        ["E5/2", "PREL"],
+        [],
+        []
+      ]
+    },
+    {
+      x: 6, y: 6, head: "JDST",
+      steps: [
+        ["Eb5", "C5", "Ab4"],
+        [],
+        ["Bb4/0.5"],
+        ["PROB:8", "G4"],
+        ["F4"],
+        []
+      ]
+    }
+  ];
+
+  // a JUMP cell hands the sequence to another lane: on reaching it the
+  // sequencer follows the link instead of carrying on along its own rail.
+  // a JUMP always lands on the JDST cell that heads its target lane
+  const links = [
+    { from: [10, 2], lane: 1 }
   ];
 
   const glyph = { "#": "\u266F", "b": "\u266D" };
-
-  const endX = offX + steps.length;
-
-  const extras = {
-    "0,1": "*CH1",
-    [endX + "," + offY]: "*TERM"
-  };
 
 
   function bits(count, on) {
@@ -224,8 +258,37 @@
            '<path d="M' + xr + ' ' + y0 + 'A' + r + ' ' + r + ' 0 0 1 ' +
            xr + ' ' + y1 + '"/>' +
            line(xr, y1, 4.4, y1) +
-           '<path d="M2 ' + y1 + 'L5 ' + (y1 - 2.4) + 'L5 ' + (y1 + 2.4) +
-           'Z" fill="currentColor" stroke="none"/>';
+           arrowHead(2, 5, y1, 2.4);
+  }
+
+  function arrowHead(tipX, baseX, cy, hw) {
+    return '<path d="M' + tipX + ' ' + cy + 'L' + baseX + ' ' + (cy - hw) +
+           'L' + baseX + ' ' + (cy + hw) + 'Z" fill="currentColor"' +
+           ' stroke="none"/>';
+  }
+
+  // Z-shaped arrow rounded off at both turns: the sequence leaves this lane
+  function zigzag() {
+    const y0 = 3.5, y1 = 10.5, x0 = 2.5, x1 = 10.5, x2 = 4.5, x3 = 10.4;
+    const r = 1.7;
+    const len = Math.hypot(x2 - x1, y1 - y0);
+    const ux = (x2 - x1) / len * r, uy = (y1 - y0) / len * r;
+    return '<path d="M' + x0 + ' ' + y0 +
+           'L' + (x1 - r).toFixed(2) + ' ' + y0 +
+           'Q' + x1 + ' ' + y0 + ' ' + (x1 + ux).toFixed(2) + ' ' +
+           (y0 + uy).toFixed(2) +
+           'L' + (x2 - ux).toFixed(2) + ' ' + (y1 - uy).toFixed(2) +
+           'Q' + x2 + ' ' + y1 + ' ' + (x2 + r).toFixed(2) + ' ' + y1 +
+           'L' + x3 + ' ' + y1 + '"/>' +
+           arrowHead(x3 + 3, x3, y1, 2.2);
+  }
+
+  // arrow rising out of a bar: where a jump lands and a lane begins
+  function entry() {
+    const cy = 7.5, x = 2.5;
+    return line(x, 3.5, x, 11.5) +
+           line(x, cy, 10.4, cy) +
+           arrowHead(13.4, 10.4, cy, 2.2);
   }
 
   function lineCross(px, py, dx, dy, qx, qy, ex, ey) {
@@ -280,7 +343,9 @@
     PABS: svgIcon(fader(7.5, 6)),
     PREL: svgIcon(fader(4.5, 6) + upDown(11.5)),
     PDLT: svgIcon(fader(4.5, 6) + delta(11.5, 4.5, 11.5, 2.8)),
-    TERM: svgIcon(uTurn(2.5, 10.5, 9.5))
+    TERM: svgIcon(uTurn(2.5, 10.5, 9.5)),
+    JUMP: svgIcon(zigzag()),
+    JDST: svgIcon(entry())
   };
 
   function render(cell, value) {
@@ -328,11 +393,25 @@
     '<path d="M0 0 L7 4.5 L0 9 Z" fill="currentColor"/></svg>';
 
   function valueAt(x, y) {
-    const e = extras[x + "," + y];
-    if (e) return e;
-    const sx = x - offX, sy = y - offY;
-    if (sx < 0 || sx >= steps.length || sy < 0 || sy >= stepRows) return null;
-    return steps[sx][sy] || null;
+    for (let i = 0; i < lanes.length; i++) {
+      const lane = lanes[i];
+      if (y === lane.y && lane.head && x === lane.x - 1) return "*" + lane.head;
+      if (y === lane.y && x === lane.x + lane.steps.length) return "*TERM";
+      const sx = x - lane.x, sy = y - lane.y;
+      if (sx >= 0 && sx < lane.steps.length && sy >= 0 && sy < stepRows) {
+        return lane.steps[sx][sy] || null;
+      }
+    }
+    return null;
+  }
+
+  // true on a lane's own rail row, where an empty step shows a marker
+  function onRail(x, y) {
+    for (let i = 0; i < lanes.length; i++) {
+      const lane = lanes[i], sx = x - lane.x;
+      if (y === lane.y && sx >= 0 && sx < lane.steps.length) return true;
+    }
+    return false;
   }
 
   const grid = document.getElementById("grid");
@@ -346,8 +425,6 @@
       cell.dataset.x = x;
       cell.dataset.y = y;
 
-      const sx = x - offX, sy = y - offY;
-      const inside = sx >= 0 && sx < steps.length && sy >= 0 && sy < stepRows;
       const note = valueAt(x, y);
 
       if (note) {
@@ -355,7 +432,7 @@
         render(cell, note);
         cell.setAttribute("aria-label", note.replace(/^\*/, ""));
         if (valueAt(x, y - 1)) cell.classList.add("linked");
-      } else if (inside && sy === 0) {
+      } else if (onRail(x, y)) {
         cell.classList.add("marker");
         cell.innerHTML = triangle;
       } else {
@@ -367,19 +444,71 @@
   }
   grid.appendChild(frag);
 
-  const start = grid.querySelector('[data-x="0"][data-y="' + offY + '"]');
-  const end = grid.querySelector('[data-x="' + endX + '"][data-y="' + offY + '"]');
-
-  if (start && end) {
-    const x1 = start.offsetLeft + start.offsetWidth / 2;
-    const x2 = end.offsetLeft + end.offsetWidth / 2;
-    const flow = document.createElement("div");
-    flow.className = "flow";
-    flow.style.left = x1 + "px";
-    flow.style.top = (start.offsetTop + start.offsetHeight / 2) + "px";
-    flow.style.width = (x2 - x1) + "px";
-    grid.appendChild(flow);
+  function center(x, y) {
+    const cell = grid.querySelector('[data-x="' + x + '"][data-y="' + y + '"]');
+    return {
+      x: cell.offsetLeft + cell.offsetWidth / 2,
+      y: cell.offsetTop + cell.offsetHeight / 2
+    };
   }
+
+  for (let i = 0; i < lanes.length; i++) {
+    const lane = lanes[i];
+    const a = center(lane.head ? lane.x - 1 : lane.x, lane.y);
+    const b = center(lane.x + lane.steps.length, lane.y);
+    const rail = document.createElement("div");
+    rail.className = "flow";
+    rail.style.left = Math.min(a.x, b.x) + "px";
+    rail.style.top = a.y + "px";
+    rail.style.width = Math.abs(b.x - a.x) + "px";
+    grid.appendChild(rail);
+  }
+
+  // links run off-axis, nudged right of the column centres and below the row
+  // centres, so they read as a separate layer from the rails they cross. the
+  // half-pixel keeps the 1px stroke on a pixel boundary
+  const linkOff = 7.5;
+
+  function toward(from, to, d) {
+    const dx = to[0] - from[0], dy = to[1] - from[1];
+    const len = Math.hypot(dx, dy) || 1;
+    const t = Math.min(d, len / 2) / len;
+    return [from[0] + dx * t, from[1] + dy * t];
+  }
+
+  function roundedPath(pts, r) {
+    function at(q) {
+      return q[0].toFixed(1) + " " + q[1].toFixed(1);
+    }
+    let d = "M" + at(pts[0]);
+    for (let i = 1; i < pts.length - 1; i++) {
+      d += "L" + at(toward(pts[i], pts[i - 1], r)) +
+           "Q" + at(pts[i]) + " " + at(toward(pts[i], pts[i + 1], r));
+    }
+    return d + "L" + at(pts[pts.length - 1]);
+  }
+
+  const ns = "http://www.w3.org/2000/svg";
+  const layer = document.createElementNS(ns, "svg");
+  layer.setAttribute("class", "links");
+
+  // route each link down out of its cell, across the empty row above the
+  // target lane, then down into that lane's JDST cell
+  for (let i = 0; i < links.length; i++) {
+    const lane = lanes[links[i].lane];
+    const a = center(links[i].from[0], links[i].from[1]);
+    const b = center(lane.x - 1, lane.y);
+    const midY = center(lane.x - 1, lane.y - 1).y + linkOff;
+    const path = document.createElementNS(ns, "path");
+    path.setAttribute("d", roundedPath([
+      [a.x + linkOff, a.y],
+      [a.x + linkOff, midY],
+      [b.x + linkOff, midY],
+      [b.x + linkOff, b.y]
+    ], Number(getComputedStyle(grid).getPropertyValue("--link-r"))));
+    layer.appendChild(path);
+  }
+  grid.appendChild(layer);
 </script>
 </body>
 </html>
