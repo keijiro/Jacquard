@@ -155,8 +155,11 @@
 
   const glyph = { "#": "\u266F", "b": "\u266D" };
 
+  const endX = offX + steps.length;
+
   const extras = {
-    "0,1": "*CH1"
+    "0,1": "*CH1",
+    [endX + "," + offY]: "*TERM"
   };
 
 
@@ -213,6 +216,18 @@
            'L' + (cx + hw) + ' ' + baseY + '"/>';
   }
 
+  // flow runs right along the top, turns back on itself and exits left.
+  // the head is a solid triangle, like the markers it sits among on the rail
+  function uTurn(y0, y1, xr) {
+    const r = (y1 - y0) / 2;
+    return line(2.5, y0, xr, y0) +
+           '<path d="M' + xr + ' ' + y0 + 'A' + r + ' ' + r + ' 0 0 1 ' +
+           xr + ' ' + y1 + '"/>' +
+           line(xr, y1, 4.4, y1) +
+           '<path d="M2 ' + y1 + 'L5 ' + (y1 - 2.4) + 'L5 ' + (y1 + 2.4) +
+           'Z" fill="currentColor" stroke="none"/>';
+  }
+
   function lineCross(px, py, dx, dy, qx, qy, ex, ey) {
     const t = ((qx - px) * ey - (qy - py) * ex) / (dx * ey - dy * ex);
     return [px + dx * t, py + dy * t];
@@ -264,7 +279,8 @@
   const icons = {
     PABS: svgIcon(fader(7.5, 6)),
     PREL: svgIcon(fader(4.5, 6) + upDown(11.5)),
-    PDLT: svgIcon(fader(4.5, 6) + delta(11.5, 4.5, 11.5, 2.8))
+    PDLT: svgIcon(fader(4.5, 6) + delta(11.5, 4.5, 11.5, 2.8)),
+    TERM: svgIcon(uTurn(2.5, 10.5, 9.5))
   };
 
   function render(cell, value) {
@@ -352,18 +368,17 @@
   grid.appendChild(frag);
 
   const start = grid.querySelector('[data-x="0"][data-y="' + offY + '"]');
-  const markers = grid.querySelectorAll('.marker[data-y="' + offY + '"]');
-  const end = markers[markers.length - 1];
+  const end = grid.querySelector('[data-x="' + endX + '"][data-y="' + offY + '"]');
 
   if (start && end) {
     const x1 = start.offsetLeft + start.offsetWidth / 2;
     const x2 = end.offsetLeft + end.offsetWidth / 2;
-    const line = document.createElement("div");
-    line.className = "flow";
-    line.style.left = x1 + "px";
-    line.style.top = (start.offsetTop + start.offsetHeight / 2) + "px";
-    line.style.width = (x2 - x1) + "px";
-    grid.appendChild(line);
+    const flow = document.createElement("div");
+    flow.className = "flow";
+    flow.style.left = x1 + "px";
+    flow.style.top = (start.offsetTop + start.offsetHeight / 2) + "px";
+    flow.style.width = (x2 - x1) + "px";
+    grid.appendChild(flow);
   }
 </script>
 </body>
