@@ -138,17 +138,17 @@
     ["C4/4", "E4", "G4"],
     [],
     ["F#4/0.5"],
-    ["A4", "SET"],
+    ["A4", "PABS"],
     [],
-    ["G4", "ACC"],
+    ["G4", "PDLT"],
     [],
     [],
-    ["BITS4:3", "F4", "Ab4/1.5", "C5"],
+    ["NTRG4:3", "F4", "Ab4/1.5", "C5"],
     [],
     ["Bb4"],
-    ["PIE:4", "B4", "D5"],
+    ["PROB:4", "B4", "D5"],
     [],
-    ["E5/2", "REL"],
+    ["E5/2", "PREL"],
     [],
     []
   ];
@@ -262,9 +262,9 @@
   }
 
   const icons = {
-    SET: svgIcon(fader(7.5, 6)),
-    REL: svgIcon(fader(4.5, 6) + upDown(11.5)),
-    ACC: svgIcon(fader(4.5, 6) + delta(11.5, 4.5, 11.5, 2.8))
+    PABS: svgIcon(fader(7.5, 6)),
+    PREL: svgIcon(fader(4.5, 6) + upDown(11.5)),
+    PDLT: svgIcon(fader(4.5, 6) + delta(11.5, 4.5, 11.5, 2.8))
   };
 
   function render(cell, value) {
@@ -277,13 +277,13 @@
       cell.innerHTML = icons[value];
       return;
     }
-    const p = /^PIE:([\d.]+)$/.exec(value);
+    const p = /^PROB:([\d.]+)$/.exec(value);
     if (p) {
       cell.classList.add("ctrl");
       cell.innerHTML = pie(Number(p[1]));
       return;
     }
-    const b = /^BITS(\d+):(\d+)$/.exec(value);
+    const b = /^NTRG(\d+):(\d+)$/.exec(value);
     if (b) {
       cell.classList.add("ctrl");
       cell.innerHTML = bits(Number(b[1]), Number(b[2]));
