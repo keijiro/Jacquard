@@ -168,7 +168,7 @@
         ["GCYC4:3", "F4", "G#4/1.5", "C5"],
         ["GCYC4:4", "*JUMP"],
         ["A#4"],
-        ["GPRB:4", "B4", "D5"],
+        ["GPRB:35", "B4", "D5"],
         [],
         ["E5/2", "PREL"],
         [],
@@ -176,12 +176,15 @@
       ]
     },
     {
-      x: 6, y: 8, head: "JDST",
+      // a JDST lane records the one JUMP that reaches it, so the pairing is
+      // one to one by construction: no JDST without a JUMP, and no two JUMPs
+      // sharing a JDST
+      x: 6, y: 8, head: "JDST", from: [10, 2],
       steps: [
         ["D#5", "C5", "G#4"],
         [],
         ["A#4/0.5"],
-        ["GPRB:8", "G4"],
+        ["GPRB:70", "G4"],
         ["F4"],
         []
       ]
@@ -199,19 +202,16 @@
     }
   ];
 
-  // a JUMP cell hands the sequence to another lane: on reaching it the
-  // sequencer follows the link instead of carrying on along its own rail.
-  // a JUMP always lands on the JDST cell that heads its target lane
-  const links = [
-    { from: [10, 2], lane: 1 }
-  ];
-
   const sharp = "\u266F";
 
 
-  // GCYC: one box per pass through the loop, the firing one filled
+  // GCYC: one box per pass through the loop, the firing one filled.
+  // the period runs to 8, so the boxes narrow as it grows to keep the row
+  // inside the cell; below 5 they stay at their full width
   function cycle(period, nth) {
-    const w = 5, h = 8, gap = 2;
+    const h = 8;
+    const gap = period > 6 ? 1 : 2;
+    const w = Math.min(5, Math.floor((31 + gap) / period) - gap);
     const total = period * (w + gap) - gap + 1;
     let rects = "";
     for (let i = 0; i < period; i++) {
@@ -227,15 +227,15 @@
            '" shape-rendering="crispEdges" aria-hidden="true">' + rects + '</svg>';
   }
 
-  // GPRB: the firing chance as a filled wedge, in twelfths
-  function prob(twelfths) {
+  // GPRB: the firing chance as a filled wedge, from a percentage
+  function prob(percent) {
     const c = 5.5, r = 5;
-    const a = (twelfths / 12) * Math.PI * 2;
+    const a = (percent / 100) * Math.PI * 2;
     const x = (c + r * Math.sin(a)).toFixed(2);
     const y = (c - r * Math.cos(a)).toFixed(2);
-    const large = twelfths > 6 ? 1 : 0;
+    const large = percent > 50 ? 1 : 0;
     const ring = '<circle cx="' + c + '" cy="' + c + '" r="' + r + '"';
-    const wedge = twelfths >= 12
+    const wedge = percent >= 100
       ? ring + ' fill="currentColor"/>'
       : '<path d="M' + c + ' ' + c + ' L' + c + ' ' + (c - r) +
         ' A' + r + ' ' + r + ' 0 ' + large + ' 1 ' + x + ' ' + y +
@@ -515,11 +515,12 @@
   const layer = document.createElementNS(ns, "svg");
   layer.setAttribute("class", "links");
 
-  // route each link down out of its cell, across the empty row above the
-  // target lane, then down into that lane's JDST cell
-  for (let i = 0; i < links.length; i++) {
-    const lane = lanes[links[i].lane];
-    const a = center(links[i].from[0], links[i].from[1]);
+  // route each link down out of its JUMP cell, across the empty row above
+  // the target lane, then down into that lane's JDST cell
+  for (let i = 0; i < lanes.length; i++) {
+    const lane = lanes[i];
+    if (!lane.from) continue;
+    const a = center(lane.from[0], lane.from[1]);
     const b = center(lane.x - 1, lane.y);
     const midY = center(lane.x - 1, lane.y - 1).y + linkOff;
     const path = document.createElementNS(ns, "path");
