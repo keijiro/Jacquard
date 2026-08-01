@@ -154,20 +154,20 @@
   // with a TERM cell one column past its last step
   const lanes = [
     {
-      x: 1, y: 1, head: "CH1",
+      x: 1, y: 1, head: "CHAN:1",
       steps: [
         ["C4/4", "E4", "G4"],
         [],
         ["F#4/0.5"],
         ["A4", "PABS"],
         [],
-        ["G4", "PDLT"],
+        ["G4", "PACC"],
         [],
         [],
-        ["NTRG4:3", "F4", "G#4/1.5", "C5"],
-        ["NTRG4:4", "*JUMP"],
+        ["GCYC4:3", "F4", "G#4/1.5", "C5"],
+        ["GCYC4:4", "*JUMP"],
         ["A#4"],
-        ["PROB:4", "B4", "D5"],
+        ["GPRB:4", "B4", "D5"],
         [],
         ["E5/2", "PREL"],
         [],
@@ -180,7 +180,7 @@
         ["D#5", "C5", "G#4"],
         [],
         ["A#4/0.5"],
-        ["PROB:8", "G4"],
+        ["GPRB:8", "G4"],
         ["F4"],
         []
       ]
@@ -342,7 +342,7 @@
   const icons = {
     PABS: svgIcon(fader(7.5, 6)),
     PREL: svgIcon(fader(4.5, 6) + upDown(11.5)),
-    PDLT: svgIcon(fader(4.5, 6) + delta(11.5, 4.5, 11.5, 2.8)),
+    PACC: svgIcon(fader(4.5, 6) + delta(11.5, 4.5, 11.5, 2.8)),
     TERM: svgIcon(uTurn(2.5, 10.5, 9.5)),
     JUMP: svgIcon(zigzag()),
     JDST: svgIcon(entry())
@@ -358,13 +358,19 @@
       cell.innerHTML = icons[value];
       return;
     }
-    const p = /^PROB:([\d.]+)$/.exec(value);
+    const c = /^CHAN:(\d+)$/.exec(value);
+    if (c) {
+      cell.classList.add("ctrl");
+      cell.innerHTML = '<span class="label">CH' + c[1] + '</span>';
+      return;
+    }
+    const p = /^GPRB:([\d.]+)$/.exec(value);
     if (p) {
       cell.classList.add("ctrl");
       cell.innerHTML = pie(Number(p[1]));
       return;
     }
-    const b = /^NTRG(\d+):(\d+)$/.exec(value);
+    const b = /^GCYC(\d+):(\d+)$/.exec(value);
     if (b) {
       cell.classList.add("ctrl");
       cell.innerHTML = bits(Number(b[1]), Number(b[2]));
