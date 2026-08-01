@@ -197,13 +197,14 @@
   const sharp = "\u266F";
 
 
-  function bits(count, on) {
+  // GCYC: one box per pass through the loop, the firing one filled
+  function cycle(period, nth) {
     const w = 5, h = 8, gap = 2;
-    const total = count * (w + gap) - gap + 1;
+    const total = period * (w + gap) - gap + 1;
     let rects = "";
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < period; i++) {
       const x = i * (w + gap) + 0.5;
-      const paint = i === on - 1
+      const paint = i === nth - 1
         ? 'fill="currentColor"'
         : 'fill="none" stroke="currentColor"';
       rects += '<rect x="' + x + '" y="0.5" width="' + w +
@@ -214,14 +215,15 @@
            '" shape-rendering="crispEdges" aria-hidden="true">' + rects + '</svg>';
   }
 
-  function pie(hour) {
+  // GPRB: the firing chance as a filled wedge, in twelfths
+  function prob(twelfths) {
     const c = 5.5, r = 5;
-    const a = (hour / 12) * Math.PI * 2;
+    const a = (twelfths / 12) * Math.PI * 2;
     const x = (c + r * Math.sin(a)).toFixed(2);
     const y = (c - r * Math.cos(a)).toFixed(2);
-    const large = hour > 6 ? 1 : 0;
+    const large = twelfths > 6 ? 1 : 0;
     const ring = '<circle cx="' + c + '" cy="' + c + '" r="' + r + '"';
-    const wedge = hour >= 12
+    const wedge = twelfths >= 12
       ? ring + ' fill="currentColor"/>'
       : '<path d="M' + c + ' ' + c + ' L' + c + ' ' + (c - r) +
         ' A' + r + ' ' + r + ' 0 ' + large + ' 1 ' + x + ' ' + y +
@@ -230,7 +232,7 @@
            wedge + ring + ' fill="none" stroke="currentColor"/></svg>';
   }
 
-  // 1px strokes on half-integer coordinates, matching bits() and pie()
+  // 1px strokes on half-integer coordinates, matching cycle() and prob()
   const ICON = 15;
   const ICON_TOP = 1.5, ICON_BOTTOM = 13.5;
 
@@ -367,13 +369,13 @@
     const p = /^GPRB:([\d.]+)$/.exec(value);
     if (p) {
       cell.classList.add("ctrl");
-      cell.innerHTML = pie(Number(p[1]));
+      cell.innerHTML = prob(Number(p[1]));
       return;
     }
     const b = /^GCYC(\d+):(\d+)$/.exec(value);
     if (b) {
       cell.classList.add("ctrl");
-      cell.innerHTML = bits(Number(b[1]), Number(b[2]));
+      cell.innerHTML = cycle(Number(b[1]), Number(b[2]));
       return;
     }
     const m = /^([A-G])(#?)(-?\d+)(?:\/([\d.]+))?$/.exec(value);
