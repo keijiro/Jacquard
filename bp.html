@@ -148,7 +148,6 @@
 <div id="grid"></div>
 <script>
   const cols = 18, rows = 12;
-  const stepRows = 4;
 
   // lanes share one grid plane; each starts wherever it is placed and ends
   // with a TERM cell one column past its last step. a CHAN head makes a lane
@@ -418,8 +417,11 @@
       const lane = lanes[i];
       if (y === lane.y && lane.head && x === lane.x - 1) return "*" + lane.head;
       if (y === lane.y && x === lane.x + lane.steps.length) return "*TERM";
+      // a step's stack is as deep as it needs to be; a lane occupies only
+      // the cells it fills, not a rectangle
       const sx = x - lane.x, sy = y - lane.y;
-      if (sx >= 0 && sx < lane.steps.length && sy >= 0 && sy < stepRows) {
+      if (sx >= 0 && sx < lane.steps.length && sy >= 0 &&
+          sy < lane.steps[sx].length) {
         return lane.steps[sx][sy] || null;
       }
     }
