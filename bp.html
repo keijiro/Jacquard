@@ -164,9 +164,9 @@
         ["G4", "PDLT"],
         [],
         [],
-        ["NTRG4:3", "F4", "Ab4/1.5", "C5"],
+        ["NTRG4:3", "F4", "G#4/1.5", "C5"],
         ["NTRG4:4", "*JUMP"],
-        ["Bb4"],
+        ["A#4"],
         ["PROB:4", "B4", "D5"],
         [],
         ["E5/2", "PREL"],
@@ -177,9 +177,9 @@
     {
       x: 6, y: 6, head: "JDST",
       steps: [
-        ["Eb5", "C5", "Ab4"],
+        ["D#5", "C5", "G#4"],
         [],
-        ["Bb4/0.5"],
+        ["A#4/0.5"],
         ["PROB:8", "G4"],
         ["F4"],
         []
@@ -194,7 +194,7 @@
     { from: [10, 2], lane: 1 }
   ];
 
-  const glyph = { "#": "\u266F", "b": "\u266D" };
+  const sharp = "\u266F";
 
 
   function bits(count, on) {
@@ -370,13 +370,13 @@
       cell.innerHTML = bits(Number(b[1]), Number(b[2]));
       return;
     }
-    const m = /^([A-G])([#b]?)(-?\d+)(?:\/([\d.]+))?$/.exec(value);
+    const m = /^([A-G])(#?)(-?\d+)(?:\/([\d.]+))?$/.exec(value);
     if (!m) {
       cell.classList.add("ctrl");
       cell.innerHTML = '<span class="label">' + value + '</span>';
       return;
     }
-    const acc = m[2] ? '<span>' + glyph[m[2]] + '</span>' : '';
+    const acc = m[2] ? '<span>' + sharp + '</span>' : '';
     const label = '<span class="label">' + m[1] +
       '<span class="acc">' + acc + '</span>' + m[3] + '</span>';
 
