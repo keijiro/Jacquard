@@ -147,11 +147,13 @@
 <body>
 <div id="grid"></div>
 <script>
-  const cols = 18, rows = 10;
+  const cols = 18, rows = 12;
   const stepRows = 4;
 
   // lanes share one grid plane; each starts wherever it is placed and ends
-  // with a TERM cell one column past its last step
+  // with a TERM cell one column past its last step. a CHAN head makes a lane
+  // an independent stream that runs alongside the others on that channel;
+  // a JDST head makes it a branch target, reached only through a JUMP
   const lanes = [
     {
       x: 1, y: 1, head: "CHAN:1",
@@ -175,13 +177,24 @@
       ]
     },
     {
-      x: 6, y: 6, head: "JDST",
+      x: 6, y: 8, head: "JDST",
       steps: [
         ["D#5", "C5", "G#4"],
         [],
         ["A#4/0.5"],
         ["GPRB:8", "G4"],
         ["F4"],
+        []
+      ]
+    },
+    {
+      // four steps against the main lane's sixteen: an accent every other
+      // beat, riding on whatever the other lanes sound at that moment
+      x: 1, y: 6, head: "CHAN:1",
+      steps: [
+        ["PREL"],
+        [],
+        ["PREL"],
         []
       ]
     }
