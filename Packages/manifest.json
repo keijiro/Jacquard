@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "com.unity.burst": "1.8.29",
+    "com.unity.inputsystem": "1.20.0",
+    "com.unity.pipeline": "0.4.0-exp.1",
+    "com.unity.render-pipelines.universal": "17.5.0",
+    "com.unity.modules.adaptiveperformance": "1.0.0",
+    "com.unity.modules.audio": "1.0.0",
+    "com.unity.modules.uielements": "1.0.0",
+    "com.unity.modules.vectorgraphics": "1.0.0"
+  }
+}
