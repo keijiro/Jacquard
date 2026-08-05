@@ -33,18 +33,28 @@ public sealed class Project
         var project = new Project();
         var score = project.Score;
 
-        var main = score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 16);
+        // Four steps against the main lane's sixteen, with no notes of its own: the
+        // locks reach whatever this channel sounds later in the same instant, and
+        // later means further down the plane, so this lane sits at the top.
+        var accent = score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 4);
+        Fill(accent, 0, new RelativeParamTile { Target = ParamTargets.Level, Amount = 0.2f });
+        Fill(accent, 2, new RelativeParamTile { Target = ParamTargets.Level, Amount = -0.35f });
+
+        var main = score.AddLane(1, 3, new ChannelTile { Channel = 1 }, 16);
 
         Fill(main, 0, new NoteTile { Note = N("C4"), Length = 4 },
                       new NoteTile { Note = N("E4") },
                       new NoteTile { Note = N("G4") });
         Fill(main, 2, new NoteTile { Note = N("F#4"), Length = 0.5f });
-        Fill(main, 3, new NoteTile { Note = N("A4") },
-                      new AbsoluteParamTile { Target = ParamTargets.ModIndex, Amount = 7.0f });
-        Fill(main, 5, new NoteTile { Note = N("G4") },
-                      new AccumParamTile { Target = ParamTargets.Detune, Amount = 0.5f });
+        // Above the note it colours, which is the only place it can be.
+        Fill(main, 3, new AbsoluteParamTile { Target = ParamTargets.ModIndex, Amount = 7.0f },
+                      new NoteTile { Note = N("A4") });
+        Fill(main, 5, new NoteTile { Note = N("G4") });
+        // A lock partway down a chord, so the two notes under it are brighter than
+        // the one above it: the stack is read downwards, so the split is legible.
         Fill(main, 8, new CycleGateTile { Period = 4, Index = 3 },
                       new NoteTile { Note = N("F4") },
+                      new RelativeParamTile { Target = ParamTargets.ModIndex, Amount = 3.0f },
                       new NoteTile { Note = N("G#4"), Length = 1.5f },
                       new NoteTile { Note = N("C5") });
 
@@ -55,21 +65,13 @@ public sealed class Project
         Fill(main, 11, new ProbGateTile { Percent = 35 },
                        new NoteTile { Note = N("B4") },
                        new NoteTile { Note = N("D5") });
-        Fill(main, 13, new NoteTile { Note = N("E5"), Length = 2 },
-                       new RelativeParamTile { Target = ParamTargets.ModDecay, Amount = 0.5f });
-
-        // Four steps against the main lane's sixteen, with no notes of its own:
-        // the locks sit on the rail, so they reach whatever the channel is
-        // sounding at that moment. Its CHAN is below the main one, so its runner
-        // goes second and gets to overwrite.
-        var accent = score.AddLane(1, 6, new ChannelTile { Channel = 1 }, 4);
-        Fill(accent, 0, new RelativeParamTile { Target = ParamTargets.Level, Amount = 0.2f });
-        Fill(accent, 2, new RelativeParamTile { Target = ParamTargets.Level, Amount = -0.35f });
+        Fill(main, 13, new RelativeParamTile { Target = ParamTargets.ModDecay, Amount = 0.5f },
+                       new NoteTile { Note = N("E5"), Length = 2 });
 
         // The branch lane, entered only through that one jump. Ten main steps plus
         // six here comes to sixteen either way, so a lap is the same length
         // whether it jumps or not.
-        var variation = score.AddLane(6, 8, new JumpDestTile(), 6);
+        var variation = score.AddLane(6, 9, new JumpDestTile(), 6);
         variation.JumpSource = jump;
 
         Fill(variation, 0, new NoteTile { Note = N("D#5") },

@@ -18,6 +18,7 @@ static class SelfTest
 
         RoundTrip(log);
         Playback(log);
+        Stack(log);
         Channels(log);
         Synth(log);
 
@@ -81,13 +82,74 @@ static class SelfTest
         log.Append("  runners: ").Append(sequencer.Runners.Count).Append('\n');
         log.Append(jumped ? "  laps counted\n" : "  LAPS NOT COUNTED\n");
 
-        var level = 0.0f;
-        foreach (var note in notes) level = Mathf.Max(level, note.level);
+        var plain = project.Patches[1].level;
+        var loudest = 0.0f;
+        var untouched = 0;
+
+        foreach (var note in notes)
+        {
+            loudest = Mathf.Max(loudest, note.level);
+            if (Mathf.Abs(note.level - plain) < 0.001f) untouched++;
+        }
 
         // The accent lane's relative lock is the only thing that can push a note
-        // past the patch level, so seeing it proves the slice ordering works.
-        log.Append(level > project.Patches[1].level + 0.01f
-          ? "  accent reached notes: yes\n" : "  ACCENT DID NOT REACH NOTES\n");
+        // past the patch level, and the accent lane sits above the main one, so
+        // seeing it proves the pass runs down the plane.
+        Check(log, "the accent reached the lane below it", loudest > plain + 0.01f,
+              "loudest=" + loudest + " against a patch level of " + plain);
+
+        // And the steps the accent lane does not land on have to come out at the
+        // patch level, since a lock is over when its instant is.
+        Check(log, "a lock is gone by the next step", untouched > 0,
+              untouched + " of " + notes.Count + " notes at the patch level");
+    }
+
+    // A stack is read downwards, so a gate reaches what is below it and nothing
+    // above it. This is the one case where getting the direction wrong is
+    // inaudible in the sample score but obvious in a score somebody writes: with a
+    // note on the rail, a gate under it and a note under that, the first note has
+    // to sound every lap and the second one lap in four.
+    static void Stack(System.Text.StringBuilder log)
+    {
+        const int sampleRate = 48000;
+        const int laps = 8;
+
+        var project = new Project();
+        var lane = project.Score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 4);
+
+        lane.Steps[0].Tiles.Add(new NoteTile { Note = 64 });
+        lane.Steps[0].Tiles.Add(new CycleGateTile { Period = 4, Index = 1 });
+        lane.Steps[0].Tiles.Add(new NoteTile { Note = 60 });
+
+        var sequencer = new Sequencer { Project = project };
+        var notes = new System.Collections.Generic.List<FmNoteEvent>();
+
+        sequencer.Play(0, 0);
+
+        // One extra step of margin would schedule the note that opens lap nine, so
+        // the window stops just short of the last step of the last lap.
+        var step = 60.0 / project.Tempo * 4.0 / 16.0 * sampleRate;
+        var length = (long)(step * 4 * laps - step);
+        var window = sampleRate / 20;
+
+        for (var position = 0L; position < length; position += window)
+            sequencer.Schedule(position, window, sampleRate, notes);
+
+        var above = 0;
+        var below = 0;
+
+        foreach (var note in notes)
+        {
+            // Told apart by pitch, since the gate is all that separates them.
+            if (Mathf.Abs(note.frequency - 329.628f) < 1.0f) above++;
+            if (Mathf.Abs(note.frequency - 261.626f) < 1.0f) below++;
+        }
+
+        Check(log, "a gate leaves the note above it alone", above == laps,
+              above + " of " + laps + " laps sounded the note on the rail");
+
+        Check(log, "a gate governs the note below it", below == laps / 4,
+              below + " notes under a four lap gate over " + laps + " laps");
     }
 
     // Two lanes on different channels, each with its own patch, playing the same

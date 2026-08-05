@@ -4,8 +4,12 @@ namespace Jacquard {
 //
 // A patch belongs to the channel a runner sounds on rather than to the project, so
 // a CHAN tile's number now picks the sound as well as the timing: two lanes on the
-// same channel share a timbre because they share a channel, which is the same rule
-// that already governs what a channel scoped lock reaches.
+// same channel share a timbre because they share a channel, the same unit a
+// parameter lock reaches.
+//
+// The bank is a set of starting values, not state. A lock never outlives the
+// instant it sits in, so the sequencer copies the bank into a working one at the
+// top of every instant and writes only that.
 //
 // A fixed array rather than a dictionary, for two reasons. A lock is applied
 // through ParamTargets, which works on a ref, and only an array can hand one out;

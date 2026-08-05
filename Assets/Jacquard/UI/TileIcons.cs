@@ -49,13 +49,6 @@ static class TileIcons
                 painter.Stroke();
                 break;
 
-            case AccumParamTile:
-                painter.BeginPath();
-                Fader(painter, o, 4.5f, 6.0f);
-                painter.Stroke();
-                Delta(painter, o, 11.5f, 4.5f, 11.5f, 2.8f);
-                break;
-
             case CycleGateTile cycle:
                 Cycle(painter, cycle.Period, cycle.Index);
                 break;
@@ -98,38 +91,6 @@ static class TileIcons
         Line(painter, o, cx, Top, cx, Bottom);
         Chevron(painter, o, cx, Top, Top + hh, hw);
         Chevron(painter, o, cx, Bottom, Bottom - hh, hw);
-    }
-
-    // A typographic delta: thin left and base strokes, a heavier right one. Each
-    // edge is pushed inward by its own weight and the resulting inner triangle is
-    // punched out of the outline, so the corners miter cleanly instead of growing
-    // a lump where strokes of different weights meet.
-    static void Delta(Painter2D painter, Vector2 o, float cx, float apexY,
-                      float baseY, float hw)
-    {
-        const float thin = 1.0f, thick = 1.6f;
-
-        var h = baseY - apexY;
-        var s = Mathf.Sqrt(hw * hw + h * h);
-        var lx = cx + thin * h / s;
-        var ly = apexY + thin * hw / s;
-        var rx = cx - thick * h / s;
-        var ry = apexY + thick * hw / s;
-        var by = baseY - thin;
-
-        painter.BeginPath();
-
-        painter.MoveTo(o + new Vector2(cx, apexY));
-        painter.LineTo(o + new Vector2(cx - hw, baseY));
-        painter.LineTo(o + new Vector2(cx + hw, baseY));
-        painter.ClosePath();
-
-        painter.MoveTo(o + Cross(lx, ly, -hw, h, rx, ry, -hw, -h));
-        painter.LineTo(o + new Vector2(lx - hw * (by - ly) / h, by));
-        painter.LineTo(o + new Vector2(rx + hw * (by - ry) / h, by));
-        painter.ClosePath();
-
-        painter.Fill(FillRule.OddEven);
     }
 
     // Gates
@@ -283,13 +244,6 @@ static class TileIcons
         painter.LineTo(o + new Vector2(baseX, cy + hw));
         painter.ClosePath();
         painter.Fill(FillRule.NonZero);
-    }
-
-    static Vector2 Cross(float px, float py, float dx, float dy,
-                         float qx, float qy, float ex, float ey)
-    {
-        var t = ((qx - px) * ey - (qy - py) * ex) / (dx * ey - dy * ex);
-        return new Vector2(px + dx * t, py + dy * t);
     }
 }
 

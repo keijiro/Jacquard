@@ -147,7 +147,7 @@
 <body>
 <div id="grid"></div>
 <script>
-  const cols = 18, rows = 12;
+  const cols = 18, rows = 13;
 
   // lanes share one grid plane; each starts wherever it is placed and ends
   // with a TERM cell one column past its last step. a CHAN head makes a lane
@@ -155,22 +155,35 @@
   // a JDST head makes it a branch target, reached only through a JUMP
   const lanes = [
     {
+      // four steps against the main lane's sixteen: an accent every other
+      // beat. a lock reaches whatever the channel sounds later in the same
+      // instant, and later means further down the plane, so this lane is
+      // placed above the one it colours
       x: 1, y: 1, head: "CHAN:1",
+      steps: [
+        ["PREL"],
+        [],
+        ["PREL"],
+        []
+      ]
+    },
+    {
+      x: 1, y: 3, head: "CHAN:1",
       steps: [
         ["C4/4", "E4", "G4"],
         [],
         ["F#4/0.5"],
-        ["A4", "PABS"],
+        ["PABS", "A4"],
         [],
-        ["G4", "PACC"],
+        ["G4"],
         [],
         [],
-        ["GCYC4:3", "F4", "G#4/1.5", "C5"],
+        ["GCYC4:3", "F4", "PREL", "G#4/1.5", "C5"],
         ["GCYC4:4", "*JUMP"],
         ["A#4"],
         ["GPRB:35", "B4", "D5"],
         [],
-        ["E5/2", "PREL"],
+        ["PREL", "E5/2"],
         [],
         []
       ]
@@ -179,24 +192,13 @@
       // a JDST lane records the one JUMP that reaches it, so the pairing is
       // one to one by construction: no JDST without a JUMP, and no two JUMPs
       // sharing a JDST
-      x: 6, y: 8, head: "JDST", from: [10, 2],
+      x: 6, y: 9, head: "JDST", from: [10, 4],
       steps: [
         ["D#5", "C5", "G#4"],
         [],
         ["A#4/0.5"],
         ["GPRB:70", "G4"],
         ["F4"],
-        []
-      ]
-    },
-    {
-      // four steps against the main lane's sixteen: an accent every other
-      // beat, riding on whatever the other lanes sound at that moment
-      x: 1, y: 6, head: "CHAN:1",
-      steps: [
-        ["PREL"],
-        [],
-        ["PREL"],
         []
       ]
     }
@@ -305,38 +307,6 @@
            arrowHead(13.4, 10.4, cy, 2.2);
   }
 
-  function lineCross(px, py, dx, dy, qx, qy, ex, ey) {
-    const t = ((qx - px) * ey - (qy - py) * ex) / (dx * ey - dy * ex);
-    return [px + dx * t, py + dy * t];
-  }
-
-  function poly(pts) {
-    let d = "";
-    for (let i = 0; i < pts.length; i++) {
-      d += (i ? "L" : "M") + pts[i][0].toFixed(2) + " " + pts[i][1].toFixed(2);
-    }
-    return d + "Z";
-  }
-
-  // serif-style delta: thin left and base strokes, heavier right stroke.
-  // each edge is pushed inward by its own weight and the resulting inner
-  // triangle is punched out of the outline, so the corners miter cleanly
-  function delta(cx, apexY, baseY, hw) {
-    const thin = 1, thick = 1.6;
-    const h = baseY - apexY, s = Math.hypot(hw, h);
-    const lx = cx + thin * h / s, ly = apexY + thin * hw / s;
-    const rx = cx - thick * h / s, ry = apexY + thick * hw / s;
-    const by = baseY - thin;
-    const outer = [[cx, apexY], [cx - hw, baseY], [cx + hw, baseY]];
-    const inner = [
-      lineCross(lx, ly, -hw, h, rx, ry, -hw, -h),
-      [lx - hw * (by - ly) / h, by],
-      [rx + hw * (by - ry) / h, by]
-    ];
-    return '<path d="' + poly(outer) + poly(inner) +
-           '" fill="currentColor" fill-rule="evenodd" stroke="none"/>';
-  }
-
   function fader(cx, cy) {
     const kw = 6, kh = 3;
     const top = cy - kh / 2, bottom = cy + kh / 2;
@@ -356,7 +326,6 @@
   const icons = {
     PABS: svgIcon(fader(7.5, 6)),
     PREL: svgIcon(fader(4.5, 6) + upDown(11.5)),
-    PACC: svgIcon(fader(4.5, 6) + delta(11.5, 4.5, 11.5, 2.8)),
     TERM: svgIcon(uTurn(2.5, 10.5, 9.5)),
     JUMP: svgIcon(zigzag()),
     JDST: svgIcon(entry())

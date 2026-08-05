@@ -30,8 +30,8 @@ Using it
 | Pan the plane | Two finger swipe, or command+drag |
 
 Placing a tile on a cell that already has one inserts above it rather than
-replacing it, since a stack is read from the top down and a gate usually arrives
-after the note it will govern. Typing a note over a note changes its pitch.
+replacing it, since a stack is read from the top down and a gate or a lock usually
+arrives after the note it will govern. Typing a note over a note changes its pitch.
 
 Scores are saved under `Application.persistentDataPath/Scores` as plain text,
 one line per step; pick a slot with the File arrows.
@@ -71,17 +71,21 @@ Notes on the prototype
 - **Timing** rides the audio clock. Every step is handed to the synth with the
   exact sample it starts on, so a dropped frame delays the handover and never
   the note.
-- **Runners** are one per `CHAN` lane, ordered by the vertical position of that
-  tile. Runners landing on the same instant are executed as a slice, and the
-  locks written during a slice are collected before any of its notes are
-  stamped — which is what lets the accent lane, placed below the main one,
-  overwrite what the main lane just played.
+- **One instant is one downward pass.** Runners are one per `CHAN` lane, ordered
+  by the vertical position of that tile, and the ones landing on the same instant
+  are read in that order, each from the rail row of its step down. Everything a
+  tile does reaches what is read after it and nothing before it: a gate ends the
+  descent, a lock colours the notes that follow it, a note takes the channel as it
+  stands where it sits. That one rule covers both the inside of a stack and the
+  lanes against each other, which is what lets the accent lane, placed above the
+  main one, colour it.
+- **A lock is over when its instant is.** There is no accumulating lock and no
+  standing channel state; every channel starts each instant from its patch again.
 - **Timbre belongs to the channel**, not to the project: the bank holds one patch
   per channel and a `CHAN` tile's number picks the sound as well as the stream, so
   lanes sharing a channel share a patch and a branch lane borrows the one of
   whatever jumps into it. The Sound window follows the cursor onto the channel
-  being worked on. An absolute lock moves that channel's patch as it plays; editing
-  the patch puts it back.
+  being worked on, and an edit is heard from the next instant with nothing to undo.
 - **Chain lines** are drawn only between cells of the same stack. bp.html joins
   whatever happens to sit directly above, which makes two unrelated lanes look
   connected; sequencer.md lists that as undecided, and knowing the lane settles
@@ -93,5 +97,6 @@ Notes on the prototype
   ratio: the grid is drawn in whole pixels with hairlines on half-pixel
   centres, and a fractional scale smears all of it. Two suits a retina display.
 - Editor menu items: *Jacquard > Rebuild Main Scene* regenerates the scene, and
-  *Jacquard > Run Self Test* checks the file format round trip and plays four
-  laps of the sample score without a device.
+  *Jacquard > Run Self Test* checks the file format round trip, plays four laps of
+  the sample score without a device, and reads a stack whose gate sits between two
+  notes to prove the descent only ever reaches downwards.

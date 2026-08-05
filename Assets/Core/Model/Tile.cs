@@ -42,14 +42,17 @@ public sealed class NoteTile : Tile
 // Which parameter a lock points at and how far it moves it are not shown on the
 // cell; the icon only says which kind of lock it is. Target indexes into
 // ParamTargets, whose contents belong to the synth side.
+//
+// A lock always reaches the whole channel and never outlives the instant it sits
+// in, so there is no scope to record: what it actually colours is whatever is
+// processed after it, which the position on the plane decides and the tile does
+// not need to know.
 
 public abstract class ParamTile : Tile
 {
     public int Target { get; set; } = ParamTargets.Level;
     public float Amount { get; set; }
 
-    // Where the lock reaches is decided by where it sits, not by its type, so
-    // the scope is resolved by the stack and not stored here.
     public string TargetName => ParamTargets.Name(Target);
 }
 
@@ -64,12 +67,10 @@ public sealed class RelativeParamTile : ParamTile
     public override string Token => "PREL";
 }
 
-public sealed class AccumParamTile : ParamTile
-{
-    public override string Token => "PACC";
-}
-
 // Gates
+
+// A gate ends the walk down its stack when it does not fire, so it governs
+// everything below it in the step and nothing above it.
 
 public abstract class GateTile : Tile
 {

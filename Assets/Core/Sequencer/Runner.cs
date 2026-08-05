@@ -49,17 +49,6 @@ public sealed class Runner
     public float StepSeconds(float tempo)
       => OriginLane.Channel?.StepSeconds(tempo) ?? 0.125f;
 
-    // Running total for an accumulating lock. Held per tile and per runner rather
-    // than on the tile, so the score stays free of playback state and stopping
-    // clears the ramp.
-    public float Accumulate(Tile tile, float amount)
-    {
-        _accumulators.TryGetValue(tile, out var total);
-        total += amount;
-        _accumulators[tile] = total;
-        return total;
-    }
-
     // Playhead tracking
 
     public void Record(long sample, Lane lane, int step)
@@ -90,7 +79,6 @@ public sealed class Runner
     }
 
     readonly Queue<Marker> _scheduled = new();
-    readonly Dictionary<Tile, float> _accumulators = new();
 }
 
 } // namespace Jacquard

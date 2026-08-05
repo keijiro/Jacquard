@@ -73,7 +73,6 @@ public sealed class ScoreEditor
         {
             "PABS" => NewLock(new AbsoluteParamTile()),
             "PREL" => new RelativeParamTile { Target = ParamTargets.Level, Amount = 0.2f },
-            "PACC" => new AccumParamTile { Target = ParamTargets.Detune, Amount = 0.5f },
             "GCYC" => new CycleGateTile { Period = 4, Index = 1 },
             "GPRB" => new ProbGateTile { Percent = 50 },
             "JUMP" => new JumpTile(),

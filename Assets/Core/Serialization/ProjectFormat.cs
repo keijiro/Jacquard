@@ -26,6 +26,12 @@ namespace Jacquard {
 
 public static class ProjectFormat
 {
+    // Version 4 drops PACC, since a lock now reaches no further than the step it
+    // sits in and there is nothing for one to accumulate into. An older file still
+    // reads and its PACC tiles come back as PREL, which is the nearest surviving
+    // meaning; what it cannot do is move a lock to where the new rules want it,
+    // because a lock now colours the notes below it rather than the one above.
+    //
     // Version 3 gives every channel its own timbre: the patch line takes a channel
     // number ahead of the parameters, and there is one line per channel.
     //
@@ -33,7 +39,7 @@ public static class ProjectFormat
     // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
     // reads, since a token nothing answers to is skipped, but the parameters that
     // no longer exist fall back to the default patch rather than being converted.
-    public const int Version = 3;
+    public const int Version = 4;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -94,7 +100,6 @@ public static class ProjectFormat
           : Pitch.ToName(note.Note) + "/" + F(note.Length),
         AbsoluteParamTile p => "PABS:" + WriteLock(p),
         RelativeParamTile p => "PREL:" + WriteLock(p),
-        AccumParamTile p => "PACC:" + WriteLock(p),
         CycleGateTile g => "GCYC:" + g.Period + "," + g.Index,
         ProbGateTile g => "GPRB:" + F(g.Percent),
         JumpTile => "JUMP",
@@ -232,8 +237,11 @@ public static class ProjectFormat
         switch (head)
         {
             case "PABS": return ReadLock(new AbsoluteParamTile(), args, number);
-            case "PREL": return ReadLock(new RelativeParamTile(), args, number);
-            case "PACC": return ReadLock(new AccumParamTile(), args, number);
+
+            // A version 3 PACC becomes the relative lock it was a running total
+            // of, which is as close as a file from before the change can get.
+            case "PREL":
+            case "PACC": return ReadLock(new RelativeParamTile(), args, number);
 
             case "GCYC":
             {

@@ -119,13 +119,9 @@ sealed class SoundPanel
                           value => { set(UnityEngine.Mathf.Max(value, 0.0f)); Changed(); },
                           step);
 
-    // A channel that an absolute lock had already moved away from its patch is
-    // reset, which is the only sane reading of the patch changing underneath.
-    void Changed()
-    {
-        _editor.Sequencer?.RefreshPatch(_channel);
-        Audition();
-    }
+    // Nothing to tell the sequencer: it reads the bank afresh every instant, since
+    // a lock never outlives one.
+    void Changed() => Audition();
 
     // Through the channel being edited, not the one the cursor is on: the two are
     // the same until the chooser is used.

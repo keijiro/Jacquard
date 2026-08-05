@@ -82,7 +82,6 @@ sealed class InspectorPanel
         NoteTile note => "Note " + note.Token,
         AbsoluteParamTile => "PABS  absolute lock",
         RelativeParamTile => "PREL  relative lock",
-        AccumParamTile => "PACC  accumulating lock",
         CycleGateTile => "GCYC  cycle gate",
         ProbGateTile => "GPRB  probability gate",
         ChannelTile => "CHAN  channel start",
@@ -132,33 +131,35 @@ sealed class InspectorPanel
                                    value => { param.Amount = value; Touch(); },
                                    ParamTargets.Increment(param.Target) * 5.0f));
 
-        _body.Add(Controls.Hint(ScopeHint(param)));
+        _body.Add(Controls.Hint(ReachHint(param)));
     }
 
-    // Where a lock reaches is decided by where it sits, so the panel says which of
-    // the two it turned out to be.
-    string ScopeHint(ParamTile param)
+    // A lock always takes the whole channel and never outlives its own instant, so
+    // what is left to say is how far down the reading of this instant has yet to
+    // go — which is what the position decides.
+    string ReachHint(ParamTile param)
     {
         var cell = _editor.Cell;
-        var noteAbove = false;
+        var noteBelow = false;
 
         if (cell.Kind == CellKind.Tile)
-            for (var d = 0; d < cell.Depth; d++)
-                if (cell.Lane.Steps[cell.Step].Tiles[d] is NoteTile) noteAbove = true;
-
-        var scope = noteAbove
-          ? "Under a note, so it reaches the notes of this step only."
-          : "On the rail with no note above, so it reaches the whole channel at " +
-            "this instant.";
-
-        var kind = param switch
         {
-            AbsoluteParamTile => " An absolute lock sets the value.",
-            RelativeParamTile => " A relative lock tilts this step only.",
-            _ => " An accumulating lock keeps adding up, lap after lap."
-        };
+            var tiles = cell.Lane.Steps[cell.Step].Tiles;
 
-        return scope + kind;
+            for (var d = cell.Depth + 1; d < tiles.Count; d++)
+                if (tiles[d] is NoteTile) noteBelow = true;
+        }
+
+        var reach = noteBelow
+          ? "The notes below it in this step take it, and so does any lane further " +
+            "down the plane sounding on this channel at this instant."
+          : "No note below it in this step, so it reaches only the lanes further " +
+            "down the plane sounding on this channel at this instant.";
+
+        var kind = param is AbsoluteParamTile
+          ? " An absolute lock sets the value." : " A relative lock shifts it.";
+
+        return reach + kind + " Either way it is gone by the next step.";
     }
 
     void BuildCycle(CycleGateTile cycle)

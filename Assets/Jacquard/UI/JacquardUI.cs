@@ -131,7 +131,7 @@ sealed class JacquardUI
 
         row.Add(Controls.Caption("Palette"));
 
-        foreach (var kind in new[] { "PABS", "PREL", "PACC", "GCYC", "GPRB", "JUMP" })
+        foreach (var kind in new[] { "PABS", "PREL", "GCYC", "GPRB", "JUMP" })
         {
             var name = kind;
             row.Add(Controls.Push(name, () => { _editor.Put(name); Refocus(); }, 46));

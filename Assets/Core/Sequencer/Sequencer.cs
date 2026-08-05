@@ -9,10 +9,14 @@ namespace Jacquard {
 // sample position computed by looking ahead of the current audio position, so a
 // dropped frame delays when notes are handed over but never when they sound.
 //
-// Runners that fall on the same instant are executed as one slice, lowest order
-// first. Parameter locks written during a slice are collected before any note of
-// that slice is stamped, which is what lets an accent lane placed below the main
-// lane overwrite what the main lane just played.
+// One instant of the timeline is a slice, and a slice is processed as a single
+// downward pass: the runners that land on it go in the order of their CHAN tiles,
+// topmost first, and each one reads its step from the rail row down. Everything a
+// tile does reaches what is processed after it and nothing before it, which is the
+// one rule behind gates, locks and notes alike.
+//
+// Locks last exactly as long as that pass, so every channel starts each slice from
+// its own patch again.
 
 public sealed class Sequencer
 {
@@ -45,7 +49,6 @@ public sealed class Sequencer
     {
         _playing = false;
         _runners.Clear();
-        _channels.Clear();
     }
 
     // Reconciles the runners with an edited score without interrupting the sound.
@@ -81,15 +84,6 @@ public sealed class Sequencer
         }
 
         _playing = _runners.Count > 0;
-    }
-
-    // Takes up an edited timbre, for the one channel it belongs to. Absolute locks
-    // that had already moved that channel away from its patch are forgotten, which
-    // is the only sane reading of "the patch changed under you".
-    public void RefreshPatch(int channel)
-    {
-        if (_channels.TryGetValue(channel, out var state))
-            state.Patch = Project.Patches[channel];
     }
 
     // Scheduling
@@ -133,65 +127,83 @@ public sealed class Sequencer
         foreach (var runner in _runners)
             if (runner.NextSample < time + 0.5) _slice.Add(runner);
 
+        // Upper CHAN tiles go first, which is what puts an accent lane placed above
+        // the main one in a position to colour it.
         _slice.Sort((a, b) => a.Order.CompareTo(b.Order));
 
-        foreach (var runner in _slice) ChannelOf(runner.Channel).ClearSlice();
+        // A lock reaches no further than the instant it sits in, so nothing carries
+        // over: the working bank is the patch bank again at the top of every slice.
+        for (var channel = 1; channel <= PatchBank.Channels; channel++)
+            _working[channel] = Project.Patches[channel];
 
-        _pending.Clear();
-
-        foreach (var runner in _slice) Execute(runner, startSample, sampleRate);
-
-        foreach (var step in _pending) Emit(step, output);
+        foreach (var runner in _slice)
+            Execute(runner, startSample, sampleRate, output);
     }
 
-    // Executes the step a runner is sitting on, then moves it along.
-    void Execute(Runner runner, long startSample, int sampleRate)
+    // Reads the step the runner is sitting on, then moves the runner along.
+    void Execute(Runner runner, long startSample, int sampleRate,
+                 List<FmNoteEvent> output)
     {
-        var tempo = Project.Tempo;
-        var stepSeconds = runner.StepSeconds(tempo);
+        var stepSeconds = runner.StepSeconds(Project.Tempo);
         var lane = runner.Lane;
         var step = lane.StepAt(runner.StepIndex);
 
         runner.Record(startSample, lane, runner.StepIndex);
 
-        var jumped = false;
+        var destination = step == null ? null
+          : Descend(step, runner, startSample, stepSeconds, output);
 
-        if (step != null && Passes(step, runner))
+        if (destination != null)
+            (runner.Lane, runner.StepIndex) = (destination, 0);
+        else
+            Advance(runner);
+
+        runner.NextSample += stepSeconds * sampleRate;
+    }
+
+    // Walks one stack from the rail row down, which is the whole of a step's
+    // meaning. A gate ends the walk, so what sits above one is already done and
+    // what sits below it never happens; a lock colours the notes that follow,
+    // whether further down this stack or in a lane below on the same channel; a
+    // note is stamped with the channel as it stands at that depth.
+    //
+    // Returns the lane the runner should leave for, if it met a jump.
+    Lane Descend(Step step, Runner runner, long startSample, float stepSeconds,
+                 List<FmNoteEvent> output)
+    {
+        var channel = runner.Channel;
+
+        Lane destination = null;
+
+        foreach (var tile in step.Tiles)
         {
-            // Both scopes are collected: a stack can hold a lock on the rail and
-            // another one under a note, and each reaches only what it sits with.
-            ApplyChannelLocks(step, runner);
+            if (tile is GateTile gate && !gate.Evaluate(runner.Pass, _random)) break;
 
-            var notes = CollectNotes(step);
-
-            if (notes != null)
-                _pending.Add(new PendingStep
-                  { Channel = runner.Channel,
-                    StartSample = startSample,
-                    StepSeconds = stepSeconds,
-                    Notes = notes,
-                    Locks = CollectLocks(step, runner, true) });
-
-            // A jump only counts once the gates above it have let it through,
-            // which is the whole reason a jump is worth placing.
-            var jump = step.Find<JumpTile>();
-
-            if (jump != null)
+            switch (tile)
             {
-                var destination = Project.Score.DestinationOf(jump);
+                case ParamTile param:
+                    Apply(param, channel);
+                    break;
 
-                if (destination != null && destination.Steps.Count > 0)
-                {
-                    runner.Lane = destination;
-                    runner.StepIndex = 0;
-                    jumped = true;
-                }
+                case NoteTile note:
+                    // Every note of a chord takes the channel as it stands where it
+                    // sits, so a lock between two of them separates the two.
+                    output.Add(FmNoteEvent.FromPatch(_working[channel], note.Note,
+                                                     note.Length * stepSeconds,
+                                                     startSample));
+                    break;
+
+                // Where the runner goes next, decided here but taken afterwards:
+                // the rest of the stack still belongs to this instant. A stack with
+                // two reachable jumps in it hands the runner to the lower one.
+                case JumpTile jump:
+                    var branch = Project.Score.DestinationOf(jump);
+                    if (branch != null && branch.Steps.Count > 0) destination = branch;
+                    break;
             }
         }
 
-        if (!jumped) Advance(runner);
-
-        runner.NextSample += stepSeconds * sampleRate;
+        return destination;
     }
 
     // Moves one step right, or back to the origin channel when the terminator is
@@ -208,142 +220,15 @@ public sealed class Sequencer
         runner.Pass++;
     }
 
-    // Gates sit above what they govern, and they always sit at the top of a
-    // stack, so every gate in the step has to agree before anything below fires.
-    bool Passes(Step step, Runner runner)
+    // A lock always reaches the whole channel and never more than this instant, so
+    // there is nothing to resolve about where it applies: it writes the working
+    // patch, and whoever comes later in the pass reads it.
+    void Apply(ParamTile param, int channel)
     {
-        foreach (var tile in step.Tiles)
-            if (tile is GateTile gate && !gate.Evaluate(runner.Pass, _random))
-                return false;
-
-        return true;
-    }
-
-    static List<NoteTile> CollectNotes(Step step)
-    {
-        List<NoteTile> notes = null;
-
-        foreach (var tile in step.Tiles)
-            if (tile is NoteTile note) (notes ??= new List<NoteTile>()).Add(note);
-
-        return notes;
-    }
-
-    // Where a lock reaches is decided by where it sits: with a note above it in
-    // the stack it belongs to that note, and on its own it belongs to the
-    // channel. noteScope picks which half of that split to collect.
-    List<LockOp> CollectLocks(Step step, Runner runner, bool noteScope)
-    {
-        List<LockOp> ops = null;
-        var seenNote = false;
-
-        foreach (var tile in step.Tiles)
-        {
-            if (tile is NoteTile) { seenNote = true; continue; }
-            if (tile is not ParamTile param) continue;
-            if (seenNote != noteScope) continue;
-
-            var op = param switch
-            {
-                AbsoluteParamTile => new LockOp(true, param.Target, param.Amount),
-                RelativeParamTile => new LockOp(false, param.Target, param.Amount),
-                // The running total, not the increment: it is added to the base
-                // value every lap, so the ramp keeps climbing.
-                _ => new LockOp(false, param.Target,
-                                runner.Accumulate(param, param.Amount))
-            };
-
-            (ops ??= new List<LockOp>()).Add(op);
-        }
-
-        return ops;
-    }
-
-    // Channel scope. An absolute lock changes the channel's standing value, while
-    // relative and accumulating ones only tilt this instant.
-    void ApplyChannelLocks(Step step, Runner runner)
-    {
-        var ops = CollectLocks(step, runner, false);
-        if (ops == null) return;
-
-        var channel = ChannelOf(runner.Channel);
-
-        foreach (var op in ops)
-            if (op.Absolute)
-                ParamTargets.Set(ref channel.Patch, op.Target, op.Amount);
-            else
-                channel.SliceDelta[op.Target] += op.Amount;
-    }
-
-    // Stamps the notes of one step, after every runner in the slice has had its
-    // say about the channel parameters.
-    void Emit(in PendingStep step, List<FmNoteEvent> output)
-    {
-        var channel = ChannelOf(step.Channel);
-        var patch = channel.Patch;
-
-        for (var target = 0; target < ParamTargets.Count; target++)
-        {
-            var delta = channel.SliceDelta[target];
-            if (delta != 0.0f) ParamTargets.Add(ref patch, target, delta);
-        }
-
-        if (step.Locks != null)
-            foreach (var op in step.Locks)
-                if (op.Absolute)
-                    ParamTargets.Set(ref patch, op.Target, op.Amount);
-                else
-                    ParamTargets.Add(ref patch, op.Target, op.Amount);
-
-        // Every note of a chord takes the same parameters. sequencer.md settles
-        // for this: a linear stack has no way to hang a lock off one voice of a
-        // chord without it reading as belonging to the note directly above.
-        foreach (var note in step.Notes)
-            output.Add(FmNoteEvent.FromPatch(patch, note.Note,
-                                             note.Length * step.StepSeconds,
-                                             step.StartSample));
-    }
-
-    ChannelState ChannelOf(int channel)
-    {
-        if (_channels.TryGetValue(channel, out var state)) return state;
-
-        state = new ChannelState { Patch = Project.Patches[channel] };
-        _channels.Add(channel, state);
-        return state;
-    }
-
-    // Private types
-
-    readonly struct LockOp
-    {
-        public readonly bool Absolute;
-        public readonly int Target;
-        public readonly float Amount;
-
-        public LockOp(bool absolute, int target, float amount)
-          => (Absolute, Target, Amount) = (absolute, target, amount);
-    }
-
-    struct PendingStep
-    {
-        public int Channel;
-        public long StartSample;
-        public float StepSeconds;
-        public List<NoteTile> Notes;
-        public List<LockOp> Locks;
-    }
-
-    // Per channel parameter state. Patch starts as the channel's own patch out of
-    // the bank and then carries what absolute locks have set, surviving between
-    // steps; SliceDelta is the tilt applied by the relative and accumulating locks
-    // of the current instant only.
-    sealed class ChannelState
-    {
-        public FmPatch Patch;
-        public readonly float[] SliceDelta = new float[ParamTargets.Count];
-
-        public void ClearSlice() => Array.Clear(SliceDelta, 0, SliceDelta.Length);
+        if (param is AbsoluteParamTile)
+            ParamTargets.Set(ref _working[channel], param.Target, param.Amount);
+        else
+            ParamTargets.Add(ref _working[channel], param.Target, param.Amount);
     }
 
     // Private members
@@ -351,8 +236,7 @@ public sealed class Sequencer
     readonly List<Runner> _runners = new();
     readonly List<Runner> _previous = new();
     readonly List<Runner> _slice = new();
-    readonly List<PendingStep> _pending = new();
-    readonly Dictionary<int, ChannelState> _channels = new();
+    readonly PatchBank _working = new();
     readonly Random _random = new();
 
     bool _playing;
