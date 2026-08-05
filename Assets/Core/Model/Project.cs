@@ -2,10 +2,11 @@ namespace Jacquard {
 
 // The unit of file saving, sitting above the score.
 //
-// It holds what applies to everything: tempo and meter, per sequencer.md, plus
-// the timbre — the synth has nowhere to keep a patch, so the project is where it
-// belongs. There is one score for now; nothing has yet turned up that would make
-// binding several of them worthwhile.
+// It holds what applies to everything: tempo and meter, per sequencer.md, plus the
+// patch bank — the synth has nowhere to keep a timbre, so the project is where the
+// bank belongs even though each patch in it answers to a channel rather than to
+// the project. There is one score for now; nothing has yet turned up that would
+// make binding several of them worthwhile.
 
 public sealed class Project
 {
@@ -14,7 +15,7 @@ public sealed class Project
     public int BeatUnit { get; set; } = 4;
 
     public Score Score { get; set; } = new Score();
-    public FmPatch Patch = FmPatch.Default;
+    public PatchBank Patches { get; } = new PatchBank();
 
     // An empty project still needs one lane to type into.
     public static Project CreateEmpty()

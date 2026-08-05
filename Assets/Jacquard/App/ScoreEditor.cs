@@ -45,6 +45,11 @@ public sealed class ScoreEditor
         }
     }
 
+    // The channel being worked on, which is what picks the timbre the sound panel
+    // edits and the one a preview is heard through. Away from any lane it is
+    // channel one, since something has to answer.
+    public int Channel => Score.ChannelOf(SelectedLane);
+
     // Tiles
 
     public void PutNote(int note)
@@ -148,8 +153,7 @@ public sealed class ScoreEditor
     public void NewChannelLane()
     {
         var point = Score.FindFreeRow(View.Cursor, 16);
-        var channel = SelectedLane?.Channel?.Channel ?? 1;
-        Score.AddLane(point.X, point.Y, new ChannelTile { Channel = channel }, 16);
+        Score.AddLane(point.X, point.Y, new ChannelTile { Channel = Channel }, 16);
         Commit();
     }
 
@@ -193,12 +197,16 @@ public sealed class ScoreEditor
 
     // Playback
 
-    // Sounds a note straight away, so that editing is audible.
-    public void Preview(int note)
+    // Sounds a note straight away, so that editing is audible. It goes out with the
+    // timbre of the channel the cursor is on, so what a note sounds like here is
+    // what it will sound like when the sequence reaches it.
+    public void Preview(int note) => Preview(note, Channel);
+
+    public void Preview(int note, int channel)
     {
         if (Synth == null) return;
 
-        var patch = Project.Patch;
+        var patch = Project.Patches[channel];
         var start = Synth.CurrentSample + Synth.SampleRate / 20;
         var length = 60.0f / Math.Max(Project.Tempo, 1.0f) / 4.0f;
 

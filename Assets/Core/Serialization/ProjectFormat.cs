@@ -13,10 +13,10 @@ namespace Jacquard {
 // answers to it, which is the same trick the mockup uses: there is nowhere to
 // write a second jump, so one to one holds by construction.
 //
-//   jacquard 2
+//   jacquard 3
 //   tempo 132
 //   meter 4 4
-//   patch level=0.8 index=3 ...
+//   patch 1 level=0.8 index=3 ...
 //   lane 1 1 CHAN:1 div=16
 //     step C4/4 E4 G4
 //     step
@@ -26,11 +26,14 @@ namespace Jacquard {
 
 public static class ProjectFormat
 {
-    // Version 2 is the two operator patch: the carrier ratio and the two full
+    // Version 3 gives every channel its own timbre: the patch line takes a channel
+    // number ahead of the parameters, and there is one line per channel.
+    //
+    // Version 2 was the two operator patch: the carrier ratio and the two full
     // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
     // reads, since a token nothing answers to is skipped, but the parameters that
     // no longer exist fall back to the default patch rather than being converted.
-    public const int Version = 2;
+    public const int Version = 3;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -43,7 +46,11 @@ public static class ProjectFormat
         text.Append("tempo ").Append(F(project.Tempo)).Append('\n');
         text.Append("meter ").Append(project.BeatsPerBar).Append(' ')
             .Append(project.BeatUnit).Append('\n');
-        text.Append("patch ").Append(WritePatch(project.Patch)).Append('\n');
+        // Every channel gets a line, whether anything plays on it or not: a regular
+        // file is worth more here than a short one, and a bank of eight is small.
+        for (var channel = 1; channel <= PatchBank.Channels; channel++)
+            text.Append("patch ").Append(channel).Append(' ')
+                .Append(WritePatch(project.Patches[channel])).Append('\n');
 
         foreach (var lane in project.Score.Lanes) WriteLane(text, project.Score, lane);
 
@@ -151,7 +158,7 @@ public static class ProjectFormat
                     break;
 
                 case "patch":
-                    ReadPatch(ref project.Patch, tokens);
+                    ReadPatchLine(project, tokens);
                     break;
 
                 case "lane":
@@ -269,9 +276,25 @@ public static class ProjectFormat
         return tile;
     }
 
-    static void ReadPatch(ref FmPatch patch, string[] tokens)
+    // Which channel the line is for. A version 2 file has one patch line for the
+    // whole project, so its first token is already a key=value pair; that line goes
+    // into every channel, which is exactly what it used to mean.
+    static void ReadPatchLine(Project project, string[] tokens)
     {
-        for (var i = 1; i < tokens.Length; i++)
+        if (tokens.Length > 1 && tokens[1].IndexOf('=') < 0)
+        {
+            var channel = PatchBank.Clamp(ReadInt(tokens[1]));
+            ReadPatch(ref project.Patches[channel], tokens, 2);
+            return;
+        }
+
+        for (var channel = 1; channel <= PatchBank.Channels; channel++)
+            ReadPatch(ref project.Patches[channel], tokens, 1);
+    }
+
+    static void ReadPatch(ref FmPatch patch, string[] tokens, int from)
+    {
+        for (var i = from; i < tokens.Length; i++)
         {
             var (key, text) = Split(tokens[i]);
             var value = ReadFloat(text);

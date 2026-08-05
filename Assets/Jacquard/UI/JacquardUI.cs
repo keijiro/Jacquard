@@ -44,7 +44,7 @@ sealed class JacquardUI
         _scroll.Add(_view);
 
         _view.KeyPressed += OnKey;
-        _view.CursorMoved += () => _inspector.Refresh();
+        _view.CursorMoved += OnCursorMoved;
         _view.RevealRequested += Reveal;
 
         _inspector = new InspectorPanel(_editor);
@@ -191,7 +191,17 @@ sealed class JacquardUI
     {
         _view.Rebuild();
         _inspector.Refresh();
+        // A renumbered CHAN tile changes which sound the cursor is standing over.
+        _sound.Refresh();
         _octave.text = _editor.Octave.ToString();
+    }
+
+    // Both panels show whatever the cursor is on: the inspector the tile, the sound
+    // window the timbre of the channel it belongs to.
+    void OnCursorMoved()
+    {
+        _inspector.Refresh();
+        _sound.Refresh();
     }
 
     void OnKey(KeyDownEvent evt)

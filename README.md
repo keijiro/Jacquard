@@ -25,7 +25,7 @@ Using it
 | New lane | The New lane button; delete a lane from its `CHAN` cell |
 | Branch | The `JUMP` button, which brings its `JDST` lane with it |
 | Details of a tile | The panel on the right follows the cursor |
-| Timbre | The Sound button |
+| Timbre | The Sound button, which edits the timbre of one channel |
 | Play | Space, or the Play button |
 | Pan the plane | Two finger swipe, or command+drag |
 
@@ -48,7 +48,7 @@ the compiler rather than by discipline:
 | `Model` | `Project`, `Score`, `Lane`, `Step`, the tile hierarchy, pitch names |
 | `Serialization` | The text format, written and read by hand |
 | `Sequencer` | `Runner` and the scheduler that turns tiles into note events |
-| `Synth` | The two operator FM voice, its patch, and the lock target table |
+| `Synth` | The two operator FM voice, the per channel patch bank, the lock targets |
 
 `Assets/Jacquard` is the part that cannot help but know about Unity:
 
@@ -76,6 +76,12 @@ Notes on the prototype
   locks written during a slice are collected before any of its notes are
   stamped — which is what lets the accent lane, placed below the main one,
   overwrite what the main lane just played.
+- **Timbre belongs to the channel**, not to the project: the bank holds one patch
+  per channel and a `CHAN` tile's number picks the sound as well as the stream, so
+  lanes sharing a channel share a patch and a branch lane borrows the one of
+  whatever jumps into it. The Sound window follows the cursor onto the channel
+  being worked on. An absolute lock moves that channel's patch as it plays; editing
+  the patch puts it back.
 - **Chain lines** are drawn only between cells of the same stack. bp.html joins
   whatever happens to sit directly above, which makes two unrelated lanes look
   connected; sequencer.md lists that as undecided, and knowing the lane settles

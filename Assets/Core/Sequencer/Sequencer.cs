@@ -83,12 +83,13 @@ public sealed class Sequencer
         _playing = _runners.Count > 0;
     }
 
-    // Takes up an edited timbre. Absolute locks that had already moved a channel
-    // away from the project patch are forgotten, which is the only sane reading of
-    // "the patch changed under you".
-    public void RefreshPatch()
+    // Takes up an edited timbre, for the one channel it belongs to. Absolute locks
+    // that had already moved that channel away from its patch are forgotten, which
+    // is the only sane reading of "the patch changed under you".
+    public void RefreshPatch(int channel)
     {
-        foreach (var state in _channels.Values) state.Patch = Project.Patch;
+        if (_channels.TryGetValue(channel, out var state))
+            state.Patch = Project.Patches[channel];
     }
 
     // Scheduling
@@ -307,7 +308,7 @@ public sealed class Sequencer
     {
         if (_channels.TryGetValue(channel, out var state)) return state;
 
-        state = new ChannelState { Patch = Project.Patch };
+        state = new ChannelState { Patch = Project.Patches[channel] };
         _channels.Add(channel, state);
         return state;
     }
@@ -333,9 +334,10 @@ public sealed class Sequencer
         public List<LockOp> Locks;
     }
 
-    // Per channel parameter state. Patch carries what absolute locks have set and
-    // survives between steps; SliceDelta is the tilt applied by the relative and
-    // accumulating locks of the current instant only.
+    // Per channel parameter state. Patch starts as the channel's own patch out of
+    // the bank and then carries what absolute locks have set, surviving between
+    // steps; SliceDelta is the tilt applied by the relative and accumulating locks
+    // of the current instant only.
     sealed class ChannelState
     {
         public FmPatch Patch;

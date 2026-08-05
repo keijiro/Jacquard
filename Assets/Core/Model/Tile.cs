@@ -126,10 +126,14 @@ public abstract class FlowTile : Tile {}
 
 // Start of a channel's stream. Division is the note value of one step as a
 // denominator, so 16 means a sixteenth note.
+//
+// The channel number picks the timbre as well as the stream: the patch bank holds
+// one patch per channel, which is why the number is bounded by the bank rather
+// than free to run away.
 
 public sealed class ChannelTile : FlowTile
 {
-    public int Channel { get => _channel; set => _channel = Math.Max(1, value); }
+    public int Channel { get => _channel; set => _channel = PatchBank.Clamp(value); }
     public int Division { get => _division; set => _division = Clamp(value); }
 
     public override string Token => "CHAN:" + _channel;

@@ -198,9 +198,11 @@ sealed class InspectorPanel
                                    index => { channel.Division = ChannelTile.Divisions[index];
                                               Touch(); }));
 
-        _body.Add(Controls.Hint("One step is this note value. Lanes on the same " +
-                                "channel run together; the higher CHAN goes first, " +
-                                "so a lower one can overwrite it."));
+        _body.Add(Controls.Hint("One step is this note value. The channel number also " +
+                                "picks the timbre, set in the Sound window. Lanes on " +
+                                "the same channel run together and share that sound; " +
+                                "the higher CHAN goes first, so a lower one can " +
+                                "overwrite it."));
     }
 
     void BuildJump(JumpTile jump)
@@ -221,7 +223,9 @@ sealed class InspectorPanel
 
         _body.Add(Controls.Hint(source.HasValue
           ? "Entered only from the JUMP at " + source.Value +
-            ". Its own TERM returns to the channel start, not to here."
+            ", and so sounds on channel " + _editor.Score.ChannelOf(lane) +
+            " with that channel's timbre and step length. Its own TERM returns to " +
+            "the channel start, not to here."
           : "Nothing jumps here, so this lane never sounds. That is allowed."));
     }
 

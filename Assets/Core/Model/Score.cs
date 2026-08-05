@@ -100,6 +100,25 @@ public sealed class Score
         return null;
     }
 
+    // Which channel a lane sounds on, which is what decides its timbre now that
+    // each channel has one. A branch lane has no CHAN of its own, so it takes the
+    // channel of whatever jumps into it, following the chain until a CHAN lane
+    // turns up — the same answer the runner arrives at, since a runner keeps the
+    // channel it was born with wherever a jump sends it.
+    public int ChannelOf(Lane lane)
+    {
+        // Bounded so that a file whose links have been edited into a ring cannot
+        // hang the editor.
+        for (var guard = 0; lane != null && guard < 64; guard++)
+        {
+            if (lane.Channel != null) return lane.Channel.Channel;
+            if (lane.JumpSource == null) break;
+            lane = LaneOf(lane.JumpSource);
+        }
+
+        return 1;
+    }
+
     // The branch lane a jump hands over to. One to one, so there is never more
     // than one answer.
     public Lane DestinationOf(JumpTile jump)

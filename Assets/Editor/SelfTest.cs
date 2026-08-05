@@ -18,6 +18,7 @@ static class SelfTest
 
         RoundTrip(log);
         Playback(log);
+        Channels(log);
         Synth(log);
 
         Debug.Log(log.ToString());
@@ -85,8 +86,70 @@ static class SelfTest
 
         // The accent lane's relative lock is the only thing that can push a note
         // past the patch level, so seeing it proves the slice ordering works.
-        log.Append(level > project.Patch.level + 0.01f
+        log.Append(level > project.Patches[1].level + 0.01f
           ? "  accent reached notes: yes\n" : "  ACCENT DID NOT REACH NOTES\n");
+    }
+
+    // Two lanes on different channels, each with its own patch, playing the same
+    // note: what comes out has to differ, and differ per channel rather than per
+    // lane. A patch bank is easy to wire up so that every note takes channel one's
+    // sound, and nothing else here would notice.
+    static void Channels(System.Text.StringBuilder log)
+    {
+        const int sampleRate = 48000;
+
+        var project = new Project();
+        var score = project.Score;
+
+        score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 1);
+        score.AddLane(1, 3, new ChannelTile { Channel = 2 }, 1);
+
+        foreach (var lane in score.Lanes)
+            lane.Steps[0].Tiles.Add(new NoteTile { Note = 60 });
+
+        // One value per channel, far enough apart to tell which note came from
+        // where. Level is enough: it reaches the event untouched.
+        project.Patches[1].level = 0.25f;
+        project.Patches[2].level = 0.75f;
+
+        var sequencer = new Sequencer { Project = project };
+        var notes = new System.Collections.Generic.List<FmNoteEvent>();
+
+        sequencer.Play(0, 0);
+        sequencer.Schedule(0, sampleRate / 10, sampleRate, notes);
+
+        var quiet = 0;
+        var loud = 0;
+
+        foreach (var note in notes)
+        {
+            if (Mathf.Abs(note.level - 0.25f) < 0.001f) quiet++;
+            if (Mathf.Abs(note.level - 0.75f) < 0.001f) loud++;
+        }
+
+        Check(log, "each channel plays its own patch",
+              notes.Count == 2 && quiet == 1 && loud == 1,
+              notes.Count + " notes, " + quiet + " at ch1, " + loud + " at ch2");
+
+        // And the bank has to survive the file, which is what the version 3 patch
+        // line is for.
+        var reloaded = ProjectFormat.Read(ProjectFormat.Write(project));
+
+        Check(log, "the bank round trips",
+              Mathf.Abs(reloaded.Patches[1].level - 0.25f) < 0.001f &&
+              Mathf.Abs(reloaded.Patches[2].level - 0.75f) < 0.001f,
+              "ch1=" + reloaded.Patches[1].level + " ch2=" + reloaded.Patches[2].level);
+
+        // A version 2 file had one patch for everything, and that is what its single
+        // line still means.
+        var legacy = ProjectFormat.Read("jacquard 2\ntempo 120\npatch level=0.5\n");
+
+        Check(log, "a version 2 patch line fills the bank",
+              Mathf.Abs(legacy.Patches[1].level - 0.5f) < 0.001f &&
+              Mathf.Abs(legacy.Patches[PatchBank.Channels].level - 0.5f) < 0.001f,
+              "ch1=" + legacy.Patches[1].level +
+              " ch" + PatchBank.Channels + "=" +
+              legacy.Patches[PatchBank.Channels].level);
     }
 
     // The oscillator, which neither the round trip nor the note counts say
