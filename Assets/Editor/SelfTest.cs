@@ -4,11 +4,13 @@ using UnityEngine;
 namespace Jacquard.Editor {
 
 // A few checks that are quicker to run from a menu item than to reason about: the
-// file format has to round-trip, and the runners have to produce the notes the
-// mockup score describes.
+// file format has to round-trip, the runners have to produce the notes the mockup
+// score describes, and the oscillator has to make the shapes the patch promises.
 
 static class SelfTest
 {
+    const float SampleRate = 48000.0f;
+
     [MenuItem("Jacquard/Run Self Test")]
     public static void Run()
     {
@@ -16,6 +18,7 @@ static class SelfTest
 
         RoundTrip(log);
         Playback(log);
+        Synth(log);
 
         Debug.Log(log.ToString());
     }
@@ -78,13 +81,165 @@ static class SelfTest
         log.Append(jumped ? "  laps counted\n" : "  LAPS NOT COUNTED\n");
 
         var level = 0.0f;
-        foreach (var note in notes) level = Mathf.Max(level, note.velocity);
+        foreach (var note in notes) level = Mathf.Max(level, note.level);
 
         // The accent lane's relative lock is the only thing that can push a note
         // past the patch level, so seeing it proves the slice ordering works.
         log.Append(level > project.Patch.level + 0.01f
           ? "  accent reached notes: yes\n" : "  ACCENT DID NOT REACH NOTES\n");
     }
+
+    // The oscillator, which neither the round trip nor the note counts say
+    // anything about. Ported from unity-sap-test's offline checks, and worth
+    // keeping here because Jacquard runs the same maths through FastMath's
+    // approximations rather than Unity.Mathematics.
+    static void Synth(System.Text.StringBuilder log)
+    {
+        // A note that holds a flat level, so every measurement is taken on a
+        // steady signal. Modulation is off, leaving a pure sine whose pitch the
+        // zero crossing estimate can read reliably, and the modulator's decay is
+        // far longer than any window so what depth there is stays constant.
+        var plain = new FmNoteEvent
+          { frequency = 440.0f, level = 1.0f, duration = 1.0f,
+            modulatorRatio = 2.0f, modulationIndex = 0.0f, modulatorDecay = 20.0f,
+            carrierAttack = 0.005f, carrierRelease = 0.01f };
+
+        // The carrier holds full level for the whole gate, so a long note must not
+        // sag between its attack and its release.
+        var held = Render(plain, 1.0f);
+        var early = Rms(held, Seconds(0.05f), Seconds(0.15f));
+        var late = Rms(held, Seconds(0.8f), Seconds(0.9f));
+
+        Check(log, "carrier holds level", Mathf.Abs(late / early - 1.0f) < 0.01f,
+              "late/early=" + late / early);
+
+        // The modulation decays to nothing on its own, so the tail of a long note
+        // ends up a plain sine whatever the index was. The curve is exponential and
+        // front-loaded, so the onset is read just after the attack and the tail
+        // long after the decay is over.
+        var voiced = plain;
+        voiced.frequency = 220.0f;
+        voiced.modulationIndex = 4.0f;
+        voiced.modulatorDecay = 0.3f;
+
+        var bite = Render(voiced, 1.0f);
+        var onset = Brightness(bite, Seconds(0.008f), Seconds(0.04f));
+        var tail = Brightness(bite, Seconds(0.6f), Seconds(0.9f));
+
+        Check(log, "modulation decays away", onset > tail * 2.0f,
+              "brightness " + onset + " -> " + tail);
+
+        // The pitch envelope bends the onset and then arrives exactly on the note
+        // frequency, in both directions. Measured with a sweep far slower than a
+        // kick's, because a kick's own decay is over in fewer cycles than a zero
+        // crossing estimate needs; the steepness is checked separately below.
+        var falling = plain;
+        falling.pitchSweep = 3.0f;  // Three octaves above the note at the onset
+        falling.pitchDecay = 0.4f;
+
+        var rising = falling;
+        rising.pitchSweep = -3.0f;  // And the same distance below it
+
+        var down = Render(falling, 0.5f);
+        var up = Render(rising, 0.5f);
+
+        var from = Seconds(0.005f);  // Past the attack, so there is signal to read
+        var to = Seconds(0.045f);
+
+        var high = Frequency(down, from, to);
+        var low = Frequency(up, from, to);
+        var settled = Frequency(down, Seconds(0.3f), Seconds(0.45f));
+
+        Check(log, "pitch bends the onset up", high > 900.0f, high + "Hz");
+        Check(log, "a negative sweep bends it down", low < 300.0f, low + "Hz");
+        Check(log, "pitch arrives at the note", Mathf.Abs(settled - 440.0f) < 5.0f,
+              settled + "Hz");
+
+        // Steepness, which is what separates a kick's thump from an audible sweep:
+        // with a kick's own setting the pitch has to be all but home a fifth of the
+        // way into the decay, leaving the rest of it inaudible. A gentler curve
+        // fails this by a wide margin, which is the point of measuring it: the
+        // shape is the sound here, not just the two numbers.
+        var kick = plain;
+        kick.frequency = 880.0f;    // High enough for 40ms to be many cycles
+        kick.pitchSweep = 2.0f;
+        kick.pitchDecay = 0.05f;
+
+        var rest = Frequency(Render(kick, 0.3f), Seconds(0.01f), Seconds(0.05f));
+
+        Check(log, "the sweep is home early in the decay",
+              Mathf.Abs(rest / 880.0f - 1.0f) < 0.05f,
+              "over the last four fifths=" + rest + "Hz");
+
+        // And a note ends in silence rather than being cut off, which is what the
+        // normalized fade is for.
+        var whole = Render(plain, plain.TotalDuration);
+
+        Check(log, "the release ends in silence",
+              Mathf.Abs(whole[whole.Length - 1]) < 0.001f,
+              "last sample=" + whole[whole.Length - 1]);
+    }
+
+    // Measurement helpers
+
+    static int Seconds(float time) => (int)(time * SampleRate);
+
+    static float[] Render(in FmNoteEvent note, float seconds)
+    {
+        var buffer = new float[Seconds(seconds)];
+        var voice = new FmVoiceState();
+
+        voice.Trigger(note, SampleRate);
+
+        for (var i = 0; i < buffer.Length; i++) buffer[i] = voice.Next(i / SampleRate);
+
+        return buffer;
+    }
+
+    static float Rms(float[] buffer, int from, int to)
+    {
+        var sum = 0.0;
+        for (var i = from; i < to; i++) sum += (double)buffer[i] * buffer[i];
+        return (float)System.Math.Sqrt(sum / (to - from));
+    }
+
+    // Pitch from the spacing of the upward zero crossings, which is all a sine
+    // needs and is what makes the pitch envelope measurable at all.
+    static float Frequency(float[] buffer, int from, int to)
+    {
+        int first = -1, last = -1, count = 0;
+
+        for (var i = from + 1; i < to; i++)
+        {
+            if (buffer[i - 1] > 0.0f || buffer[i] <= 0.0f) continue;
+            if (first < 0) first = i;
+            (last, count) = (i, count + 1);
+        }
+
+        return count < 2 ? 0.0f : (count - 1) * SampleRate / (last - first);
+    }
+
+    // Harmonic content, as the size of the sample to sample difference relative to
+    // the signal itself: a plain sine scores low, a modulated one high.
+    static float Brightness(float[] buffer, int from, int to)
+    {
+        var sum = 0.0;
+
+        for (var i = from + 1; i < to; i++)
+        {
+            var d = (double)buffer[i] - buffer[i - 1];
+            sum += d * d;
+        }
+
+        return (float)System.Math.Sqrt(sum / (to - from - 1)) /
+               Mathf.Max(Rms(buffer, from, to), 1e-9f);
+    }
+
+    // Upper case on failure, matching the rest of this log: a scan down the left
+    // edge is enough to see whether anything went wrong.
+    static void Check(System.Text.StringBuilder log, string name, bool ok, string detail)
+      => log.Append("  ").Append(ok ? name : name.ToUpperInvariant())
+            .Append(ok ? ": " : " FAILED: ").Append(detail).Append('\n');
 }
 
 } // namespace Jacquard.Editor

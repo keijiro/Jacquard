@@ -13,7 +13,7 @@ namespace Jacquard {
 // answers to it, which is the same trick the mockup uses: there is nowhere to
 // write a second jump, so one to one holds by construction.
 //
-//   jacquard 1
+//   jacquard 2
 //   tempo 132
 //   meter 4 4
 //   patch level=0.8 index=3 ...
@@ -26,7 +26,11 @@ namespace Jacquard {
 
 public static class ProjectFormat
 {
-    public const int Version = 1;
+    // Version 2 is the two operator patch: the carrier ratio and the two full
+    // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
+    // reads, since a token nothing answers to is skipped, but the parameters that
+    // no longer exist fall back to the default patch rather than being converted.
+    public const int Version = 2;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -97,18 +101,14 @@ public static class ProjectFormat
       => "level=" + F(patch.level) +
          " detune=" + F(patch.detune) +
          " gate=" + F(patch.gateScale) +
-         " cratio=" + F(patch.carrierRatio) +
          " mratio=" + F(patch.modulatorRatio) +
          " index=" + F(patch.modulationIndex) +
          " fb=" + F(patch.feedback) +
-         " ca=" + F(patch.carrier.attack) +
-         " cd=" + F(patch.carrier.decay) +
-         " cs=" + F(patch.carrier.sustain) +
-         " cr=" + F(patch.carrier.release) +
-         " ma=" + F(patch.modulator.attack) +
-         " md=" + F(patch.modulator.decay) +
-         " ms=" + F(patch.modulator.sustain) +
-         " mr=" + F(patch.modulator.release);
+         " md=" + F(patch.modulatorDecay) +
+         " ca=" + F(patch.carrierAttack) +
+         " cr=" + F(patch.carrierRelease) +
+         " ps=" + F(patch.pitchSweep) +
+         " pd=" + F(patch.pitchDecay);
 
     static string F(float value)
       => value.ToString("0.#####", CultureInfo.InvariantCulture);
@@ -281,18 +281,14 @@ public static class ProjectFormat
                 case "level": patch.level = value; break;
                 case "detune": patch.detune = value; break;
                 case "gate": patch.gateScale = value; break;
-                case "cratio": patch.carrierRatio = value; break;
                 case "mratio": patch.modulatorRatio = value; break;
                 case "index": patch.modulationIndex = value; break;
                 case "fb": patch.feedback = value; break;
-                case "ca": patch.carrier.attack = value; break;
-                case "cd": patch.carrier.decay = value; break;
-                case "cs": patch.carrier.sustain = value; break;
-                case "cr": patch.carrier.release = value; break;
-                case "ma": patch.modulator.attack = value; break;
-                case "md": patch.modulator.decay = value; break;
-                case "ms": patch.modulator.sustain = value; break;
-                case "mr": patch.modulator.release = value; break;
+                case "md": patch.modulatorDecay = value; break;
+                case "ca": patch.carrierAttack = value; break;
+                case "cr": patch.carrierRelease = value; break;
+                case "ps": patch.pitchSweep = value; break;
+                case "pd": patch.pitchDecay = value; break;
             }
         }
     }

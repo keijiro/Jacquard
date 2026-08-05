@@ -2,44 +2,33 @@ using System;
 
 namespace Jacquard {
 
-// ADSR envelope, ported from the unity-sap-test prototype.
+// Exponential fades from 1 to 0 over x in [0,1], ported from the unity-sap-test
+// prototype.
 //
-// The level is a pure function of elapsed note time and gate length, so a voice
-// keeps no envelope state and needs no stage bookkeeping.
+// Both are normalized so that they reach exactly 0 at x = 1, which is what lets a
+// voice end in silence instead of being cut off, and a pitch envelope land on the
+// note's own frequency instead of near it. A level is a pure function of the
+// elapsed note time and the gate length, so a voice keeps no envelope state and
+// needs no stage bookkeeping.
+//
+// Snap is the same shape with a far steeper curve: a tenth of the way in it is
+// already down to a fifth of its depth. That is too abrupt for a level, which is
+// why the amplitude envelopes do not use it, and exactly what a pitch envelope
+// needs to come out as a thump rather than as an audible sweep.
 
-public struct FmEnvelope
+static class FmCurve
 {
-    public float attack;  // Time to reach full level (seconds)
-    public float decay;   // Time to fall from full level to sustain (seconds)
-    public float sustain; // Sustain level [0,1]
-    public float release; // Time to fall from the gate-off level to silence
+    const float Curve = 5.0f;
+    const float Tail = 0.006737947f; // exp(-Curve)
 
-    // Exponential fade from 1 to 0 over x in [0,1], normalized so that it hits
-    // exactly 0 at x = 1: a voice is therefore guaranteed to end in silence
-    // rather than being cut off.
-    const float FadeCurve = 5.0f;
-    const float FadeTail = 0.006737947f; // exp(-FadeCurve)
+    const float SnapCurve = 16.0f;
+    const float SnapTail = 1.1253517e-7f; // exp(-SnapCurve)
 
-    static float Fade(float x)
-      => (FastMath.Exp(-FadeCurve * x) - FadeTail) / (1.0f - FadeTail);
+    public static float Fade(float x)
+      => (FastMath.Exp(-Curve * x) - Tail) / (1.0f - Tail);
 
-    public float LevelWhileGated(float time)
-    {
-        if (time < attack) return attack > 0.0f ? time / attack : 1.0f;
-        var t = time - attack;
-        if (t >= decay) return sustain;
-        return sustain + (1.0f - sustain) * Fade(t / decay);
-    }
-
-    // Release always starts from the level actually reached at gate-off, so a
-    // short note fades out of mid-attack without a discontinuity.
-    public float Level(float time, float gate)
-    {
-        if (time < gate) return LevelWhileGated(time);
-        var t = time - gate;
-        if (t >= release) return 0.0f;
-        return LevelWhileGated(gate) * Fade(t / release);
-    }
+    public static float Snap(float x)
+      => (FastMath.Exp(-SnapCurve * x) - SnapTail) / (1.0f - SnapTail);
 }
 
 // The timbre, held by the project.
@@ -48,6 +37,18 @@ public struct FmEnvelope
 // it is scheduled, which is also why a parameter lock can alter one note without
 // disturbing anything else. detune and gateScale are not oscillator settings but
 // live here so that all ten lock targets are plain fields of one struct.
+//
+// The two operators get deliberately different envelope shapes, matching what
+// each one actually does. The carrier gates the output, so it is an AR: rise,
+// hold for the note, fall. The modulator only colours the tone, so it is a single
+// decay from full depth, which is what gives a two operator patch its bite. The
+// carrier always runs at the note frequency; only the modulator has a ratio.
+//
+// A third envelope moves the pitch itself, which is what turns this patch into a
+// kick drum: a steep drop onto the note frequency is most of what a kick is. It
+// is kept to two numbers, how far the pitch moves and how long it takes to get
+// there, because a percussive sweep is over before any more detail than that
+// could be heard.
 
 public struct FmPatch
 {
@@ -55,49 +56,95 @@ public struct FmPatch
     public float detune;     // Pitch offset in semitones
     public float gateScale;  // Multiplies the note's gate length
 
-    public float carrierRatio;
-    public float modulatorRatio;
+    public float modulatorRatio;  // Modulator frequency as a ratio of frequency
     public float modulationIndex; // Peak modulation depth in radians
     public float feedback;        // Modulator self-feedback depth in radians
+    public float modulatorDecay;  // Time for the modulation to fall to zero
 
-    public FmEnvelope carrier;   // Shapes the output level
-    public FmEnvelope modulator; // Shapes the modulation depth, i.e. the timbre
+    public float carrierAttack;   // Time to reach full level (seconds)
+    public float carrierRelease;  // Time to fall to silence after the gate
 
+    public float pitchSweep;      // Depth of the pitch envelope in octaves,
+                                  // negative to bend up into the note instead
+    public float pitchDecay;      // Time for the pitch to arrive at frequency
+
+    // The pitch envelope starts out at no depth, so a fresh patch sounds like it
+    // did before there was one, but with a decay already set to something a kick
+    // would use: entering a depth is then enough to hear what it does.
     public static FmPatch Default => new FmPatch
       { level = 0.8f,
         detune = 0.0f,
         gateScale = 1.0f,
-        carrierRatio = 1.0f,
         modulatorRatio = 2.0f,
         modulationIndex = 3.0f,
         feedback = 0.0f,
-        carrier = new FmEnvelope
-          { attack = 0.005f, decay = 0.25f, sustain = 0.45f, release = 0.12f },
-        modulator = new FmEnvelope
-          { attack = 0.001f, decay = 0.12f, sustain = 0.2f, release = 0.05f } };
+        modulatorDecay = 0.12f,
+        carrierAttack = 0.005f,
+        carrierRelease = 0.12f,
+        pitchSweep = 0.0f,
+        pitchDecay = 0.05f };
 }
 
 // A note-on event: the complete patch alongside pitch, timing and the exact
 // sample to start on. Nothing about how it sounds is stored anywhere else.
+//
+// Note that level is an output level, not a velocity: nothing in here describes
+// how a note was played, only what comes out. A tracker's velocity column would
+// be one of the things that map onto it.
 
 public struct FmNoteEvent
 {
     public long startSample;
     public float frequency;
-    public float velocity;
+    public float level;    // Peak output level [0,1]
     public float duration; // Gate length in seconds; release follows it
     public int priority;   // Higher priority wins when voices are stolen
 
-    public float carrierRatio;
     public float modulatorRatio;
     public float modulationIndex;
     public float feedback;
+    public float modulatorDecay;
 
-    public FmEnvelope carrier;
-    public FmEnvelope modulator;
+    public float carrierAttack;
+    public float carrierRelease;
+
+    public float pitchSweep;
+    public float pitchDecay;
 
     // Total time the note occupies a voice, gate plus carrier release.
-    public float TotalDuration => duration + carrier.release;
+    public float TotalDuration => duration + carrierRelease;
+
+    // Carrier level: rise over the attack, hold for the rest of the gate, then
+    // release from whatever level was actually reached, so a note shorter than
+    // its own attack still fades out without a discontinuity.
+    public float CarrierLevel(float time)
+    {
+        if (time < duration) return AttackLevel(time);
+
+        var t = time - duration;
+        if (t >= carrierRelease) return 0.0f;
+
+        return AttackLevel(duration) * FmCurve.Fade(t / carrierRelease);
+    }
+
+    float AttackLevel(float time)
+      => time < carrierAttack ? time / carrierAttack : 1.0f;
+
+    // Modulation depth: full at the note start, decaying to nothing. It ignores
+    // the gate, so the tail of a long note settles into a plain sine, which is
+    // the classic two operator behaviour.
+    public float ModulatorLevel(float time)
+      => time >= modulatorDecay ? 0.0f : FmCurve.Fade(time / modulatorDecay);
+
+    // Pitch envelope, as a multiplier on the note frequency. Measured in octaves
+    // rather than in Hz, so one setting bends every note by the same interval:
+    // transposing a kick down does not flatten its sweep with it.
+    //
+    // Past the decay it is exactly 1, which also covers a decay of zero: the
+    // pitch envelope is then simply off.
+    public float PitchScale(float time)
+      => time >= pitchDecay ? 1.0f
+         : FastMath.Pow2(pitchSweep * FmCurve.Snap(time / pitchDecay));
 
     // Builds an event from a resolved patch. The patch has already had every
     // parameter lock applied to it by the time this is called.
@@ -106,17 +153,19 @@ public struct FmNoteEvent
       => new FmNoteEvent
         { startSample = startSample,
           frequency = Pitch.ToFrequency(note + patch.detune),
-          velocity = Math.Clamp(patch.level, 0.0f, 1.0f),
+          level = Math.Clamp(patch.level, 0.0f, 1.0f),
           duration = MathF.Max(gateSeconds * patch.gateScale, 0.005f),
           // Louder notes outrank quieter ones when the pool runs out of voices,
           // so an accent survives a dense chord.
           priority = (int)MathF.Round(Math.Clamp(patch.level, 0.0f, 1.0f) * 8.0f),
-          carrierRatio = patch.carrierRatio,
           modulatorRatio = patch.modulatorRatio,
           modulationIndex = patch.modulationIndex,
           feedback = patch.feedback,
-          carrier = patch.carrier,
-          modulator = patch.modulator };
+          modulatorDecay = patch.modulatorDecay,
+          carrierAttack = patch.carrierAttack,
+          carrierRelease = patch.carrierRelease,
+          pitchSweep = patch.pitchSweep,
+          pitchDecay = patch.pitchDecay };
 }
 
 } // namespace Jacquard

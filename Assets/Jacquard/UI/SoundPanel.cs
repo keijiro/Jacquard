@@ -35,18 +35,13 @@ sealed class SoundPanel
         }
 
         Root.Add(Controls.Divider());
-        Root.Add(Controls.Caption("Envelopes"));
+        Root.Add(Controls.Caption("Not lockable"));
 
-        Root.Add(Stepper("Car ratio", () => _editor.Project.Patch.carrierRatio,
-                         value => _editor.Project.Patch.carrierRatio = value, 0.25f));
-        Root.Add(Stepper("Car release", () => _editor.Project.Patch.carrier.release,
-                         value => _editor.Project.Patch.carrier.release = value, 0.02f));
-        Root.Add(Stepper("Mod attack", () => _editor.Project.Patch.modulator.attack,
-                         value => _editor.Project.Patch.modulator.attack = value, 0.005f));
-        Root.Add(Stepper("Mod sustain", () => _editor.Project.Patch.modulator.sustain,
-                         value => _editor.Project.Patch.modulator.sustain = value, 0.05f));
-        Root.Add(Stepper("Mod release", () => _editor.Project.Patch.modulator.release,
-                         value => _editor.Project.Patch.modulator.release = value, 0.02f));
+        // The carrier's release is all that is left over: every other field of
+        // the flattened patch is a lock target, so it is the one thing a step
+        // cannot reach and the panel is the only place to set it.
+        Root.Add(Stepper("Car release", () => _editor.Project.Patch.carrierRelease,
+                         value => _editor.Project.Patch.carrierRelease = value, 0.02f));
 
         Root.Add(Controls.Divider());
         Root.Add(Controls.Push("Audition", () => _editor.Preview(60), 70));

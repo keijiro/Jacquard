@@ -55,7 +55,7 @@ public sealed class Project
                        new NoteTile { Note = N("B4") },
                        new NoteTile { Note = N("D5") });
         Fill(main, 13, new NoteTile { Note = N("E5"), Length = 2 },
-                       new RelativeParamTile { Target = ParamTargets.CarDecay, Amount = 0.5f });
+                       new RelativeParamTile { Target = ParamTargets.ModDecay, Amount = 0.5f });
 
         // Four steps against the main lane's sixteen, with no notes of its own:
         // the locks sit on the rail, so they reach whatever the channel is
