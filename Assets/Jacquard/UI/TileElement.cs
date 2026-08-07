@@ -143,19 +143,16 @@ sealed class TileElement : VisualElement
 
     // Shared helpers
 
+    // The default theme gives a Label a top margin and vertical padding of its own.
+    // Everything here is positioned by hand, so those have to go: left on they push
+    // the text out of line with whatever it labels.
     public static Label Text(string text, float size, Color color)
     {
         var label = new Label(text);
         label.style.fontSize = size;
         label.style.color = color;
-        label.style.marginLeft = 0;
-        label.style.marginRight = 0;
-        label.style.marginTop = 0;
-        label.style.marginBottom = 0;
-        label.style.paddingLeft = 0;
-        label.style.paddingRight = 0;
-        label.style.paddingTop = 0;
-        label.style.paddingBottom = 0;
+        SetMargin(label, 0.0f);
+        SetPadding(label, 0.0f);
         label.style.unityTextAlign = TextAnchor.MiddleCenter;
         label.pickingMode = PickingMode.Ignore;
         return label;
@@ -174,6 +171,16 @@ sealed class TileElement : VisualElement
     public static void SetBorderRadius(VisualElement element, float value)
       => (element.style.borderTopLeftRadius, element.style.borderTopRightRadius,
           element.style.borderBottomLeftRadius, element.style.borderBottomRightRadius) =
+         (value, value, value, value);
+
+    public static void SetMargin(VisualElement element, float value)
+      => (element.style.marginLeft, element.style.marginRight,
+          element.style.marginTop, element.style.marginBottom) =
+         (value, value, value, value);
+
+    public static void SetPadding(VisualElement element, float value)
+      => (element.style.paddingLeft, element.style.paddingRight,
+          element.style.paddingTop, element.style.paddingBottom) =
          (value, value, value, value);
 }
 

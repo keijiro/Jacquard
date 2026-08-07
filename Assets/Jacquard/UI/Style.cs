@@ -55,7 +55,15 @@ static class Style
     public static readonly Color Marker = Hex(0x9a9a96);
     public static readonly Color Dot = Hex(0x4e4e54);
     public static readonly Color ControlBackground = Hex(0x34343c);
+    public static readonly Color ControlHover = Hex(0x44444e);
     public static readonly Color Link = Hex(0x86868c);
+
+    // A value bar's fill, and the same while it is being dragged. Grey rather than a
+    // colour of its own, since nothing else here is coloured: it has to stay light
+    // enough to be read against the box it fills and dark enough to read the value
+    // over, which is printed on top of it.
+    public static readonly Color Fill = Hex(0x6c6c76);
+    public static readonly Color FillActive = Hex(0x84848e);
 
     public static readonly Color Panel = Hex(0x1e1e24);
     public static readonly Color PanelLine = Hex(0x3a3a44);

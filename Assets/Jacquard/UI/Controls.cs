@@ -7,15 +7,23 @@ namespace Jacquard.App {
 
 // The flat monochrome widgets the panels are built from.
 //
-// Steppers and choosers rather than input fields: everything here is drawn from
-// buttons and labels this file styles itself, which keeps the chrome in the same
-// visual language as the grid instead of inheriting a theme's idea of a slider.
-// The one exception is the file name, where typing is the point.
+// Nothing here is a themed input field: everything is drawn from buttons, labels and
+// bars this file styles itself, which keeps the chrome in the same visual language as
+// the grid instead of inheriting a theme's idea of a slider.
+//
+// A number is set on a ValueBar, which reads out over a bar of its own and so shows
+// where a value sits as well as what it is. What is left to the arrows either side of
+// a figure is a choice out of a list, and the one count that cannot be scrubbed
+// because changing it adds and removes cells.
 
 static class Controls
 {
     public const float LabelWidth = 74.0f;
     public const float RowHeight = 20.0f;
+
+    // The corner a control's box is cut to, a shade tighter than a cell's so that a
+    // row of them does not read as more tiles.
+    public const float Radius = 4.0f;
 
     public static Label Text(string text, float size, Color color)
       => TileElement.Text(text, size, color);
@@ -85,7 +93,7 @@ static class Controls
         button.style.unityTextAlign = TextAnchor.MiddleCenter;
         TileElement.SetBorderWidth(button, 1.0f);
         TileElement.SetBorderColor(button, Style.PanelLine);
-        TileElement.SetBorderRadius(button, 4.0f);
+        TileElement.SetBorderRadius(button, Radius);
         if (width > 0.0f) button.style.width = width;
         return button;
     }
@@ -95,6 +103,37 @@ static class Controls
     {
         button.style.backgroundColor = active ? Style.NoteLine : Style.ControlBackground;
         button.style.color = active ? Style.Background : Style.NoteText;
+    }
+
+    // Value bars
+
+    // A labelled number, set on the bar that shows it. The bar takes whatever the
+    // caption leaves of the row: the readout is printed on it, so unlike a stepper
+    // there is nothing to put beside it.
+    //
+    // The value is passed as a getter and a setter rather than as a number, because
+    // the same parameter is also changed from the grid and by a load, and a bar that
+    // only wrote would go stale and then write its stale value back.
+    public static VisualElement Bar(string caption, in ValueBar.Range range,
+                                    Func<float> get, Action<float> set)
+    {
+        var row = Row();
+        row.Add(Caption(caption));
+
+        var bar = Bar(range, get, set);
+        bar.style.flexGrow = 1;
+        row.Add(bar);
+
+        return row;
+    }
+
+    // A bar on its own, for a row this file did not build: on the transport a caption
+    // column would only push everything beside it out of line.
+    public static ValueBar Bar(in ValueBar.Range range, Func<float> get, Action<float> set)
+    {
+        var bar = new ValueBar(range);
+        bar.Bind(get, set);
+        return bar;
     }
 
     // Steppers and choosers

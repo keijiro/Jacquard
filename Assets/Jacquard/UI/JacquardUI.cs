@@ -74,7 +74,8 @@ sealed class JacquardUI
 
         Controls.SetActive(_play, _app.Sequencer.IsPlaying);
         _play.text = _app.Sequencer.IsPlaying ? "Stop" : "Play";
-        _tempo.text = _editor.Project.Tempo.ToString("0") + " bpm";
+        // A loaded project brings a tempo of its own, which the bar has to follow.
+        _tempo.Sync();
         _octave.text = _editor.Octave.ToString();
         Controls.SetActive(_soundButton, _sound.IsOpen);
 
@@ -90,13 +91,13 @@ sealed class JacquardUI
         _play = Controls.Push("Play", _app.TogglePlay, 54);
         row.Add(_play);
 
-        row.Add(Controls.Push("-", () => Tempo(-1), 22));
-        _tempo = Controls.Value("");
-        _tempo.style.width = 54;
-        _tempo.style.flexGrow = 0;
-        _tempo.style.unityTextAlign = TextAnchor.MiddleCenter;
+        // The tempo, on a bar rather than between a pair of nudges: a project is set
+        // to a tempo once, and what is wanted then is to type the number, not to walk
+        // to it a beat at a time.
+        _tempo = Controls.Bar(TempoRange, () => _editor.Project.Tempo,
+                              value => _editor.Project.Tempo = value);
+        _tempo.style.width = 78;
         row.Add(_tempo);
-        row.Add(Controls.Push("+", () => Tempo(1), 22));
 
         row.Add(Separator());
 
@@ -224,12 +225,6 @@ sealed class JacquardUI
     // to the button, and the grid is where the keys are supposed to land.
     void Refocus() => _view.Focus();
 
-    void Tempo(int delta)
-    {
-        _editor.Project.Tempo = Mathf.Clamp(_editor.Project.Tempo + delta, 20.0f, 300.0f);
-        Refocus();
-    }
-
     // Brings the cursor into view when it walks off the edge.
     void Reveal(Rect rect)
     {
@@ -283,16 +278,22 @@ sealed class JacquardUI
 
     Button _play;
     Button _soundButton;
-    Label _tempo;
+    ValueBar _tempo;
     Label _status;
     Label _octave;
     List<string> _slots;
+
+    // A tempo below a walking pace or above a drum machine's top speed is of no
+    // interest, so the bar covers the useful span and typing covers the rest.
+    static readonly ValueBar.Range TempoRange =
+      new ValueBar.Range(20.0f, 300.0f, snap: 1.0f, digits: 0, unit: "bpm");
 
     const string HintText =
       "Click a cell to put the cursor there. A-G writes a note and steps right, " +
       "0-8 picks the octave, shift+arrows transpose, delete removes. A tile on a " +
       "lane's TERM cell adds a step. Command+drag or a two finger swipe pans the " +
-      "plane. Space plays.";
+      "plane. Space plays. Drag a value bar right or up to raise it, shift for " +
+      "fine, double click to type an exact number.";
 }
 
 } // namespace Jacquard.App

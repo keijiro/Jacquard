@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Jacquard.App {
@@ -28,15 +29,22 @@ sealed class InspectorPanel
         Refresh(true);
     }
 
-    // Rebuilt only when the cursor has moved onto something else: a stepper that
-    // edits the tile in place would otherwise pull itself out from under the click
-    // that drove it.
+    // Rebuilt only when the cursor has moved onto something else: a control that edits
+    // the tile in place would otherwise pull itself out from under the drag that drove
+    // it.
     public void Refresh(bool force = false)
     {
         var tile = _editor.Selected;
         var lane = _editor.SelectedLane;
 
-        if (!force && tile == _tile && lane == _lane) return;
+        if (!force && tile == _tile && lane == _lane)
+        {
+            // The same tile, but its values may have changed from the grid — a
+            // transpose, a note typed over another — so the bars still have to be
+            // pulled back in line with it.
+            ValueBar.SyncAll(_body);
+            return;
+        }
 
         (_tile, _lane) = (tile, lane);
 
@@ -93,25 +101,19 @@ sealed class InspectorPanel
 
     void BuildNote(NoteTile note)
     {
-        _body.Add(Controls.Stepper("Pitch", () => note.Note,
-                                   value => { note.Note = (int)value;
-                                              _editor.Preview(note.Note);
-                                              Touch(); },
-                                   1, "0"));
-
-        var name = Controls.Row();
-        name.Add(Controls.Caption("Name"));
-        var label = Controls.Value(Pitch.ToName(note.Note));
-        label.style.unityTextAlign = UnityEngine.TextAnchor.MiddleCenter;
-        name.Add(label);
-        _body.Add(name);
+        // The bar spells the pitch as well as numbering it, so there is no longer a
+        // row beside it saying what 60 means.
+        _body.Add(Controls.Bar("Pitch", PitchRange, () => note.Note,
+                               value => { note.Note = Mathf.Clamp(Mathf.RoundToInt(value),
+                                                                  Pitch.Lowest, Pitch.Highest);
+                                          _editor.Preview(note.Note);
+                                          Touch(); }));
 
         // Length is in steps, so what it means in real time depends on the
         // channel's division and the project tempo.
-        _body.Add(Controls.Stepper("Length", () => note.Length,
-                                   value => { note.Length = UnityEngine.Mathf.Clamp(value, 0.25f, 64.0f);
-                                              Touch(); },
-                                   0.25f));
+        _body.Add(Controls.Bar("Length", LengthRange, () => note.Length,
+                               value => { note.Length = Mathf.Clamp(value, 0.25f, 64.0f);
+                                          Touch(); }));
 
         _body.Add(Controls.Hint("Length counts steps. Type a letter on the grid to " +
                                 "change the pitch, shift+arrows to transpose."));
@@ -126,10 +128,15 @@ sealed class InspectorPanel
                                                   param.Amount = ParamTargets.Default(index);
                                               Refresh(true); }));
 
-        _body.Add(Controls.Stepper(param is AbsoluteParamTile ? "Value" : "Amount",
-                                   () => param.Amount,
-                                   value => { param.Amount = value; Touch(); },
-                                   ParamTargets.Increment(param.Target) * 5.0f));
+        // An absolute lock holds a value the target could hold itself, so its bar is
+        // the target's own; a relative one holds a shift, and reads from the middle.
+        var absolute = param is AbsoluteParamTile;
+
+        _body.Add(Controls.Bar(absolute ? "Value" : "Amount",
+                               absolute ? ParamRanges.Of(param.Target)
+                                        : ParamRanges.Relative(param.Target),
+                               () => param.Amount,
+                               value => { param.Amount = value; Touch(); }));
 
         _body.Add(Controls.Hint(ReachHint(param)));
     }
@@ -164,13 +171,13 @@ sealed class InspectorPanel
 
     void BuildCycle(CycleGateTile cycle)
     {
-        _body.Add(Controls.Stepper("Period", () => cycle.Period,
-                                   value => { cycle.Period = (int)value;
-                                              Touch(); }, 1, "0"));
+        _body.Add(Controls.Bar("Period", PeriodRange, () => cycle.Period,
+                               value => { cycle.Period = Mathf.RoundToInt(value);
+                                          Touch(); }));
 
-        _body.Add(Controls.Stepper("Fires on", () => cycle.Index,
-                                   value => { cycle.Index = (int)value;
-                                              Touch(); }, 1, "0"));
+        _body.Add(Controls.Bar("Fires on", FiresOnRange, () => cycle.Index,
+                               value => { cycle.Index = Mathf.RoundToInt(value);
+                                          Touch(); }));
 
         _body.Add(Controls.Hint("Fires on one lap out of the period. 2 to 8, which " +
                                 "is how many boxes fit across a cell."));
@@ -178,17 +185,17 @@ sealed class InspectorPanel
 
     void BuildProb(ProbGateTile prob)
     {
-        _body.Add(Controls.Stepper("Chance", () => prob.Percent,
-                                   value => { prob.Percent = value; Touch(); }, 5, "0.#"));
+        _body.Add(Controls.Bar("Chance", ChanceRange, () => prob.Percent,
+                               value => { prob.Percent = value; Touch(); }));
 
         _body.Add(Controls.Hint("Percent. Whatever it is, the wedge shows it."));
     }
 
     void BuildChannel(ChannelTile channel)
     {
-        _body.Add(Controls.Stepper("Channel", () => channel.Channel,
-                                   value => { channel.Channel = (int)value;
-                                              Touch(); }, 1, "0"));
+        _body.Add(Controls.Bar("Channel", ChannelRange, () => channel.Channel,
+                               value => { channel.Channel = Mathf.RoundToInt(value);
+                                          Touch(); }));
 
         var divisions = new List<string>();
         foreach (var d in ChannelTile.Divisions) divisions.Add("1/" + d);
@@ -234,6 +241,9 @@ sealed class InspectorPanel
     {
         _body.Add(Controls.Caption("Lane at " + lane.HeadPoint));
 
+        // The one number here that is still stepped rather than scrubbed: a step is a
+        // cell, growing only happens where there is free ground for one, and a refused
+        // step is something to see one at a time rather than to drag through.
         _body.Add(Controls.Stepper("Steps", () => lane.Steps.Count,
                                    value => _editor.ResizeLane(
                                      value > lane.Steps.Count ? 1 : -1), 1, "0"));
@@ -266,6 +276,43 @@ sealed class InspectorPanel
         _editor.Commit();
         Refresh();
     }
+
+    // Parameter ranges
+    //
+    // What a lock's bar covers comes from ParamRanges, since that is the synth's own
+    // idea of where a parameter is useful. These are the ranges of the sequencer's own
+    // numbers, which nothing outside this panel has to know about.
+
+    // A MIDI note number, read out as the name it spells so that a pitch is legible
+    // without counting semitones. Dragging covers the octaves music is actually
+    // written in, which is what makes a semitone a couple of pixels of travel rather
+    // than one; the rest can still be typed, as far as the plane's own ends.
+    static readonly ValueBar.Range PitchRange =
+      ValueBar.Integer(24.0f, 108.0f,
+                       value => Mathf.RoundToInt(value) + " " +
+                                Pitch.ToName(Mathf.RoundToInt(value)));
+
+    // A length in steps. Dragging lands on quarters of one, since that is where a note
+    // either fits the grid or deliberately overlaps the step after it, and it reaches
+    // eight where the tile allows sixty-four: a note that long is typed, not scrubbed.
+    static readonly ValueBar.Range LengthRange =
+      ValueBar.Amount(0.25f, 8.0f, snap: 0.25f);
+
+    // Whole percents. The wedge on the cell cannot show a tenth of one anyway, and any
+    // percentage at all is still allowed by typing it.
+    static readonly ValueBar.Range ChanceRange =
+      new ValueBar.Range(0.0f, 100.0f, snap: 1.0f, digits: 0, unit: "%");
+
+    static readonly ValueBar.Range ChannelRange = ValueBar.Integer(1.0f, PatchBank.Channels);
+
+    static readonly ValueBar.Range PeriodRange =
+      ValueBar.Integer(CycleGateTile.MinPeriod, CycleGateTile.MaxPeriod);
+
+    // The lap the gate fires on. Its top end is the longest period there can be rather
+    // than the one this tile is on, since the tile clamps an index its own period
+    // cannot reach and the bar is pulled back to whatever it took.
+    static readonly ValueBar.Range FiresOnRange =
+      ValueBar.Integer(1.0f, CycleGateTile.MaxPeriod);
 
     const string TerminatorHint =
       "Placed automatically past the last step. Reaching it returns to the CHAN " +

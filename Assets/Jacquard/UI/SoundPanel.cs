@@ -1,3 +1,4 @@
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Jacquard.App {
@@ -53,6 +54,11 @@ sealed class SoundPanel
     // exists at all — survives a click that was not aimed at a lane.
     public void Refresh()
     {
+        // The patch on screen can also have been replaced wholesale by a load, which
+        // leaves the channel it is shown for unchanged, so the bars are pulled back in
+        // line with the bank before anything else.
+        ValueBar.SyncAll(_body);
+
         if (_editor.SelectedLane == null) return;
 
         var channel = _editor.Channel;
@@ -69,8 +75,8 @@ sealed class SoundPanel
 
     int _channel;
 
-    // A stepper reads its value when it is made rather than every frame, so
-    // switching channels means building the body again instead of nudging it.
+    // A row is bound to the channel it was made for, so switching channels means
+    // building the body again rather than nudging what is on it.
     void Build()
     {
         _body.Clear();
@@ -84,10 +90,9 @@ sealed class SoundPanel
         for (var target = 0; target < ParamTargets.Count; target++)
         {
             var index = target;
-            _body.Add(Controls.Stepper(ParamTargets.Name(index),
-                                       () => ParamTargets.Get(Patch, index),
-                                       value => Set(index, value),
-                                       ParamTargets.Increment(index) * 5.0f));
+            _body.Add(Controls.Bar(ParamTargets.Name(index), ParamRanges.Of(index),
+                                   () => ParamTargets.Get(Patch, index),
+                                   value => Set(index, value)));
         }
 
         _body.Add(Controls.Divider());
@@ -96,8 +101,10 @@ sealed class SoundPanel
         // The carrier's release is all that is left over: every other field of the
         // flattened patch is a lock target, so it is the one thing a step cannot
         // reach and the panel is the only place to set it.
-        _body.Add(Stepper("Car release", () => Patch.carrierRelease,
-                          value => Patch.carrierRelease = value, 0.02f));
+        _body.Add(Controls.Bar("Car release", ParamRanges.CarrierRelease,
+                               () => Patch.carrierRelease,
+                               value => { Patch.carrierRelease = Mathf.Max(value, 0.0f);
+                                          Changed(); }));
 
         _body.Add(Controls.Divider());
         _body.Add(Controls.Push("Audition", Audition, 70));
@@ -112,12 +119,6 @@ sealed class SoundPanel
         ParamTargets.Set(ref Patch, target, value);
         Changed();
     }
-
-    VisualElement Stepper(string caption, System.Func<float> get,
-                          System.Action<float> set, float step)
-      => Controls.Stepper(caption, get,
-                          value => { set(UnityEngine.Mathf.Max(value, 0.0f)); Changed(); },
-                          step);
 
     // Nothing to tell the sequencer: it reads the bank afresh every instant, since
     // a lock never outlives one.
