@@ -18,12 +18,21 @@ namespace Jacquard.App {
 
 static class Controls
 {
+    // The caption column is as narrow as the longest parameter name will go, since a
+    // name that wraps or clips is worse than a bar that is a few pixels shorter.
     public const float LabelWidth = 74.0f;
+
     public const float RowHeight = 20.0f;
 
     // Every panel is this wide, which is also what a panel beside another one has to
     // step over to get out of its way.
-    public const float PanelWidth = 226.0f;
+    //
+    // What is left after the caption column and the padding is the bar, and a bar
+    // only has to be long enough to read a number off and to see roughly where in its
+    // range that number sits. Neither wants the width a readout of "500 ms" would
+    // have going spare, so the panel is cut back to where the widest row it carries —
+    // the lane's Move buttons — still fits.
+    public const float PanelWidth = 192.0f;
 
     // The corner a control's box is cut to, a shade tighter than a cell's so that a
     // row of them does not read as more tiles.

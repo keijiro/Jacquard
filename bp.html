@@ -13,9 +13,9 @@
     --dot: #4e4e54;
     --ctrl-bg: #34343c;
     --ctrl-bg-hover: #44444e;
-    --cell-w: 34px;
-    --cell-h: 36px;
-    --gap: 5px;
+    --cell-w: 30px;
+    --cell-h: 32px;
+    --gap: 4px;
     --note-size: 15px;
     --len-size: 9px;
     --acc-gap: 5px;
@@ -206,6 +206,12 @@
 
   const sharp = "\u266F";
 
+  // How wide a row of boxes may run, taken from the cell rather than written out
+  // again, so that changing the cell pitch cannot push the widest period past the
+  // edges.
+  const cellSpan = parseFloat(getComputedStyle(document.documentElement)
+                              .getPropertyValue("--cell-w")) - 3;
+
 
   // GCYC: one box per pass through the loop, the firing one filled.
   // the period runs to 8, so the boxes narrow as it grows to keep the row
@@ -213,7 +219,7 @@
   function cycle(period, nth) {
     const h = 8;
     const gap = period > 6 ? 1 : 2;
-    const w = Math.min(5, Math.floor((31 + gap) / period) - gap);
+    const w = Math.min(5, Math.floor((cellSpan + gap) / period) - gap);
     const total = period * (w + gap) - gap + 1;
     let rects = "";
     for (let i = 0; i < period; i++) {

@@ -4,18 +4,24 @@ namespace Jacquard.App {
 
 // Metrics and colours, taken from the bp.html mockup.
 //
-// The cell pitch is what everything else is derived from: a cell is 34x36 with a
-// 5px gutter, so a column is 39 apart and a row 41. Keeping those numbers in one
+// The cell pitch is what everything else is derived from: a cell is 30x32 with a
+// 4px gutter, so a column is 34 apart and a row 36. Keeping those numbers in one
 // place is what lets the painted layers and the tile elements agree on where a
 // cell is to the pixel.
+//
+// The pitch is set by what has to fit inside a cell rather than by taste: a note
+// name at NoteSize with its accidental gutter is a little over twenty pixels wide,
+// and stacked over a length label it is a little under thirty tall. What is left
+// over is margin, and it is kept thin, because a plane holds more of the score the
+// tighter the pitch is and the score is what this window is for.
 
 static class Style
 {
     // Metrics
 
-    public const float CellWidth = 34.0f;
-    public const float CellHeight = 36.0f;
-    public const float Gap = 5.0f;
+    public const float CellWidth = 30.0f;
+    public const float CellHeight = 32.0f;
+    public const float Gap = 4.0f;
     public const float Radius = 5.0f;
     public const float Padding = 18.0f;
 

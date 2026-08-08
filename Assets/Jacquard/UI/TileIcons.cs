@@ -103,8 +103,12 @@ static class TileIcons
     {
         const float h = 8.0f;
 
+        // The row is fitted to the cell rather than to a number of its own, so that
+        // changing the cell pitch cannot push the widest period out past the edges.
+        var span = Style.CellWidth - 3.0f;
+
         var gap = period > 6 ? 1 : 2;
-        var w = Mathf.Min(5, Mathf.FloorToInt((31.0f + gap) / period) - gap);
+        var w = Mathf.Min(5, Mathf.FloorToInt((span + gap) / period) - gap);
         var total = period * (w + gap) - gap + 1;
 
         var o = new Vector2(Mathf.Floor((Style.CellWidth - total) / 2),

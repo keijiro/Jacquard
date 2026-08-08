@@ -9,7 +9,12 @@ namespace Jacquard.App {
 // sequencer.md draws the line here: a cell carries the kind of tile and the figure
 // you need in order to read the score, and everything else — which parameter a lock
 // points at, how far it moves it, the exact percentage behind a pie chart — is set
-// in a window of its own rather than crammed into 34 pixels.
+// in a window of its own rather than crammed into thirty pixels.
+//
+// A hint here says the one thing about a tile that its controls do not, and stops.
+// The keys are on the bar along the foot of the window, what a lock holds is on the
+// panel beside this one, and a hint that repeated either would only be a paragraph
+// to skip past on the way to the numbers underneath it.
 
 sealed class InspectorPanel
 {
@@ -115,11 +120,9 @@ sealed class InspectorPanel
                                value => { note.Length = Mathf.Clamp(value, 0.25f, 64.0f);
                                           Touch(); }));
 
-        // What the bar's own unit already says is left to it, which is what makes
-        // room for the half of the multiplication that is not on this panel.
-        _body.Add(Controls.Hint("The channel's Gate ratio scales it. Type a letter " +
-                                "on the grid to change the pitch, shift+arrows to " +
-                                "transpose."));
+        // The bar's own unit says the length is counted in steps, so all the hint has
+        // left to say is the half of the multiplication that is not on this panel.
+        _body.Add(Controls.Hint("The channel's Gate ratio scales the length."));
     }
 
     // Which parameters the lock holds is the Lock panel's business, since that is a
@@ -145,16 +148,15 @@ sealed class InspectorPanel
         }
 
         var reach = noteBelow
-          ? "The notes below it in this step take it, and so does any lane further " +
-            "down the plane sounding on this channel at this instant."
-          : "No note below it in this step, so it reaches only the lanes further " +
-            "down the plane sounding on this channel at this instant.";
+          ? "Reaches the notes below it in this step, and the lanes further down on " +
+            "this channel."
+          : "No note below it, so it reaches only the lanes further down on this " +
+            "channel.";
 
         var kind = param is AbsoluteParamTile
-          ? " An absolute lock sets the values." : " A relative lock shifts them.";
+          ? " Sets the parameters it holds," : " Shifts the parameters it holds,";
 
-        return reach + kind + " Either way it is gone by the next step. Which " +
-               "parameters it takes is on the panel beside this one.";
+        return reach + kind + " and is gone by the next step.";
     }
 
     void BuildCycle(CycleGateTile cycle)
@@ -167,8 +169,7 @@ sealed class InspectorPanel
                                value => { cycle.Index = Mathf.RoundToInt(value);
                                           Touch(); }));
 
-        _body.Add(Controls.Hint("Fires on one lap out of the period. 2 to 8, which " +
-                                "is how many boxes fit across a cell."));
+        _body.Add(Controls.Hint("Fires on one lap out of the period."));
     }
 
     void BuildProb(ProbGateTile prob)
@@ -176,7 +177,7 @@ sealed class InspectorPanel
         _body.Add(Controls.Bar("Chance", ChanceRange, () => prob.Percent,
                                value => { prob.Percent = value; Touch(); }));
 
-        _body.Add(Controls.Hint("Percent. Whatever it is, the wedge shows it."));
+        _body.Add(Controls.Hint("The wedge on the cell shows it."));
     }
 
     void BuildChannel(ChannelTile channel)
@@ -194,11 +195,8 @@ sealed class InspectorPanel
                                    index => { channel.Division = ChannelTile.Divisions[index];
                                               Touch(); }));
 
-        _body.Add(Controls.Hint("One step is this note value. The channel number also " +
-                                "picks the timbre, on the panel beside this one. Lanes on " +
-                                "the same channel run together and share that sound; " +
-                                "the higher CHAN is read first, so its locks colour " +
-                                "the lower one."));
+        _body.Add(Controls.Hint("One step is this note value. Lanes sharing a channel " +
+                                "run together on its timbre, the higher CHAN first."));
     }
 
     void BuildJump(JumpTile jump)
@@ -207,9 +205,8 @@ sealed class InspectorPanel
 
         _body.Add(Controls.Hint(destination == null
           ? "No destination, which should not happen."
-          : "Hands over to the JDST lane at " +
-            destination.HeadPoint + ". Put a gate above this cell to make the " +
-            "jump conditional; without one it only lengthens the lane."));
+          : "Hands over to the JDST lane at " + destination.HeadPoint +
+            ". A gate above it makes the jump conditional."));
     }
 
     void BuildJumpDest(Lane lane)
@@ -218,11 +215,10 @@ sealed class InspectorPanel
           ? null : _editor.Score.Locate(lane.JumpSource);
 
         _body.Add(Controls.Hint(source.HasValue
-          ? "Entered only from the JUMP at " + source.Value +
-            ", and so sounds on channel " + _editor.Score.ChannelOf(lane) +
-            " with that channel's timbre and step length. Its own TERM returns to " +
-            "the channel start, not to here."
-          : "Nothing jumps here, so this lane never sounds. That is allowed."));
+          ? "Entered only from the JUMP at " + source.Value + ", so it sounds on " +
+            "channel " + _editor.Score.ChannelOf(lane) +
+            ". Its TERM returns to the channel start."
+          : "Nothing jumps here, so this lane never sounds."));
     }
 
     void BuildLane(Lane lane)
@@ -254,8 +250,8 @@ sealed class InspectorPanel
         vertical.Add(Controls.Push("down", () => Move(0, 1), 44));
         _body.Add(vertical);
 
-        _body.Add(Controls.Hint("Moving a lane down makes its runner go later, " +
-                                "which is how an accent lane gets to overwrite."));
+        _body.Add(Controls.Hint("A lane further down runs later, which is how an " +
+                                "accent lane gets to overwrite."));
     }
 
     // Redraws the score for a change made here, without rebuilding this panel.
@@ -307,12 +303,10 @@ sealed class InspectorPanel
       ValueBar.Integer(1.0f, CycleGateTile.MaxPeriod);
 
     const string TerminatorHint =
-      "Placed automatically past the last step. Reaching it returns to the CHAN " +
-      "the runner started from, even on a branch lane.";
+      "Past the last step. Reaching it returns to the CHAN the runner started from.";
 
     const string EmptyHint =
-      "Type a note letter, or use the palette, to put something here. On a lane's " +
-      "TERM cell that adds a step.";
+      "Type a note letter, or use the palette. On a TERM cell that adds a step.";
 }
 
 } // namespace Jacquard.App
