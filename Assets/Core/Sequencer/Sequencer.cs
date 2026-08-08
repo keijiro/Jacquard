@@ -223,12 +223,24 @@ public sealed class Sequencer
     // A lock always reaches the whole channel and never more than this instant, so
     // there is nothing to resolve about where it applies: it writes the working
     // patch, and whoever comes later in the pass reads it.
+    //
+    // Every parameter it has taken hold of is written, in target order; the rest of
+    // the patch is not touched, so two locks in the same stack only disagree where
+    // they engage the same parameter, and there the lower one wins by being read
+    // later.
     void Apply(ParamTile param, int channel)
     {
-        if (param is AbsoluteParamTile)
-            ParamTargets.Set(ref _working[channel], param.Target, param.Amount);
-        else
-            ParamTargets.Add(ref _working[channel], param.Target, param.Amount);
+        var absolute = param is AbsoluteParamTile;
+
+        for (var target = 0; target < ParamTargets.Count; target++)
+        {
+            if (!param.IsEngaged(target)) continue;
+
+            if (absolute)
+                ParamTargets.Set(ref _working[channel], target, param[target]);
+            else
+                ParamTargets.Add(ref _working[channel], target, param[target]);
+        }
     }
 
     // Private members

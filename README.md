@@ -27,6 +27,7 @@ Using it
 | Details of a tile | The panel on the right follows the cursor |
 | Set a number | Drag its bar right or up, shift for fine; double click to type one |
 | Timbre | Select a `CHAN` cell, which brings up the Sound panel for its channel |
+| What a lock holds | Select it, then move a bar on the Lock panel; click a name to let go |
 | Play | Space, or the Play button |
 | Tempo | The bpm bar beside Play |
 | Pan the plane | Two finger swipe, or command+drag |
@@ -89,6 +90,11 @@ Notes on the prototype
   on the note rather than being a length itself, which is why the note reads in
   steps and the channel in percent: the two are the same multiplication and only
   the unit tells them apart.
+- **One lock reaches as many of them as it likes.** A lock carries a slot per
+  target and holds whichever ones have been set, so a step that changes four
+  parameters is one tile rather than four stacked cells between the gate and the
+  note. What it does not hold it leaves entirely to the channel, which is why a
+  lock that holds nothing — a freshly placed one — is inert rather than wrong.
 - **Timbre belongs to the channel**, not to the project: the bank holds one patch
   per channel and a `CHAN` tile's number picks the sound as well as the stream, so
   lanes sharing a channel share a patch and a branch lane borrows the one of
@@ -102,10 +108,12 @@ Notes on the prototype
   it. A lane's step count is the one number still stepped, since each one is a cell
   and growing can be refused.
 - **A panel shows what the cursor is on**, and nothing is toggled. The tile panel
-  keeps the corner and follows the cursor; the Sound panel comes up beside it while
-  a `CHAN` cell is selected, since that tile is what a channel is on the plane.
-  There is no window to open, and so no state on screen that the score does not
-  decide.
+  keeps the corner and follows the cursor; beside it comes up either the Sound
+  panel, while a `CHAN` cell is selected, or the Lock panel, while a `PABS` or
+  `PREL` cell is. Those two are the same list of parameters read two ways — what a
+  channel sounds like, and what one step does to it — and they share a slot because
+  no cell is both. There is no window to open, and so no state on screen that the
+  score does not decide.
 - **Chain lines** are drawn only between cells of the same stack. bp.html joins
   whatever happens to sit directly above, which makes two unrelated lanes look
   connected; sequencer.md lists that as undecided, and knowing the lane settles

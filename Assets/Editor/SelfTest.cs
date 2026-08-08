@@ -19,6 +19,7 @@ static class SelfTest
         RoundTrip(log);
         Playback(log);
         Stack(log);
+        Locks(log);
         Channels(log);
         Synth(log);
 
@@ -150,6 +151,74 @@ static class SelfTest
 
         Check(log, "a gate governs the note below it", below == laps / 4,
               below + " notes under a four lap gate over " + laps + " laps");
+    }
+
+    // One lock holding two parameters has to move both of them and leave the rest of
+    // the patch alone, and it has to survive a file. The easy mistakes here are
+    // symmetrical: applying only the first parameter a lock names, and writing only
+    // the first one out.
+    static void Locks(System.Text.StringBuilder log)
+    {
+        const int sampleRate = 48000;
+
+        var project = new Project();
+        var lane = project.Score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 1);
+
+        var held = new AbsoluteParamTile();
+        held.Engage(ParamTargets.Level, 0.5f);
+        held.Engage(ParamTargets.ModIndex, 9.0f);
+
+        // A lock holding nothing, which is what one looks like the moment it is
+        // placed. It has to be inert rather than an error, and it has to still be
+        // there after a round trip.
+        lane.Steps[0].Tiles.Add(new RelativeParamTile());
+        lane.Steps[0].Tiles.Add(held);
+        lane.Steps[0].Tiles.Add(new NoteTile { Note = 60 });
+
+        // Moved off its default so that a lock writing every target rather than the
+        // ones it holds would show up as a zero here instead of matching by luck.
+        project.Patches[1].feedback = 4.0f;
+
+        var patch = project.Patches[1];
+        var sequencer = new Sequencer { Project = project };
+        var notes = new System.Collections.Generic.List<FmNoteEvent>();
+
+        sequencer.Play(0, 0);
+        sequencer.Schedule(0, sampleRate / 10, sampleRate, notes);
+
+        var sounded = notes.Count > 0;
+
+        Check(log, "a lock holding two parameters moved both",
+              sounded && Mathf.Abs(notes[0].level - 0.5f) < 0.001f &&
+                         Mathf.Abs(notes[0].modulationIndex - 9.0f) < 0.001f,
+              sounded ? "level=" + notes[0].level + " index=" + notes[0].modulationIndex
+                      : "nothing sounded");
+
+        // The one that proves the loop is not simply writing the whole patch.
+        Check(log, "a lock left the parameters it does not hold alone",
+              sounded && Mathf.Abs(notes[0].feedback - patch.feedback) < 0.001f,
+              sounded ? "feedback=" + notes[0].feedback + " against a patch " +
+                        patch.feedback : "nothing sounded");
+
+        var text = ProjectFormat.Write(project);
+        var reloaded = ProjectFormat.Read(text).Score.Lanes[0].Steps[0].Tiles;
+
+        var back = reloaded.Find(tile => tile is AbsoluteParamTile) as ParamTile;
+        var empty = reloaded.Find(tile => tile is RelativeParamTile) as ParamTile;
+
+        // The step line alone, since that is where a lock is written and the eight
+        // patch lines above it would bury the one thing being checked.
+        var written = text.Substring(text.LastIndexOf("  step")).TrimEnd();
+
+        Check(log, "both parameters came back from the file",
+              back != null && back.IsEngaged(ParamTargets.Level) &&
+              back.IsEngaged(ParamTargets.ModIndex) &&
+              !back.IsEngaged(ParamTargets.Feedback) &&
+              Mathf.Abs(back[ParamTargets.ModIndex] - 9.0f) < 0.001f,
+              written);
+
+        Check(log, "a lock holding nothing survived the file",
+              empty != null && empty.IsEmpty, written);
     }
 
     // Two lanes on different channels, each with its own patch, playing the same

@@ -37,8 +37,8 @@ public sealed class Project
         // locks reach whatever this channel sounds later in the same instant, and
         // later means further down the plane, so this lane sits at the top.
         var accent = score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 4);
-        Fill(accent, 0, new RelativeParamTile { Target = ParamTargets.Level, Amount = 0.2f });
-        Fill(accent, 2, new RelativeParamTile { Target = ParamTargets.Level, Amount = -0.35f });
+        Fill(accent, 0, Lock(new RelativeParamTile(), ParamTargets.Level, 0.2f));
+        Fill(accent, 2, Lock(new RelativeParamTile(), ParamTargets.Level, -0.35f));
 
         var main = score.AddLane(1, 3, new ChannelTile { Channel = 1 }, 16);
 
@@ -47,14 +47,14 @@ public sealed class Project
                       new NoteTile { Note = N("G4") });
         Fill(main, 2, new NoteTile { Note = N("F#4"), Length = 0.5f });
         // Above the note it colours, which is the only place it can be.
-        Fill(main, 3, new AbsoluteParamTile { Target = ParamTargets.ModIndex, Amount = 7.0f },
+        Fill(main, 3, Lock(new AbsoluteParamTile(), ParamTargets.ModIndex, 7.0f),
                       new NoteTile { Note = N("A4") });
         Fill(main, 5, new NoteTile { Note = N("G4") });
         // A lock partway down a chord, so the two notes under it are brighter than
         // the one above it: the stack is read downwards, so the split is legible.
         Fill(main, 8, new CycleGateTile { Period = 4, Index = 3 },
                       new NoteTile { Note = N("F4") },
-                      new RelativeParamTile { Target = ParamTargets.ModIndex, Amount = 3.0f },
+                      Lock(new RelativeParamTile(), ParamTargets.ModIndex, 3.0f),
                       new NoteTile { Note = N("G#4"), Length = 1.5f },
                       new NoteTile { Note = N("C5") });
 
@@ -65,7 +65,7 @@ public sealed class Project
         Fill(main, 11, new ProbGateTile { Percent = 35 },
                        new NoteTile { Note = N("B4") },
                        new NoteTile { Note = N("D5") });
-        Fill(main, 13, new RelativeParamTile { Target = ParamTargets.ModDecay, Amount = 0.5f },
+        Fill(main, 13, Lock(new RelativeParamTile(), ParamTargets.ModDecay, 0.5f),
                        new NoteTile { Note = N("E5"), Length = 2 });
 
         // The branch lane, entered only through that one jump. Ten main steps plus
@@ -87,6 +87,15 @@ public sealed class Project
 
     static void Fill(Lane lane, int step, params Tile[] tiles)
       => lane.Steps[step].Tiles.AddRange(tiles);
+
+    // A lock holding one parameter, which is all this score needs. Written as a
+    // helper because engaging one is a call rather than a field, and a call does
+    // not fit inside the list of tiles a step is filled with.
+    static ParamTile Lock(ParamTile tile, int target, float amount)
+    {
+        tile.Engage(target, amount);
+        return tile;
+    }
 
     static int N(string name)
     {

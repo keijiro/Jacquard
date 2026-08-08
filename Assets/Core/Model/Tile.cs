@@ -39,9 +39,19 @@ public sealed class NoteTile : Tile
 
 // Parameter locks
 
-// Which parameter a lock points at and how far it moves it are not shown on the
-// cell; the icon only says which kind of lock it is. Target indexes into
-// ParamTargets, whose contents belong to the synth side.
+// Which parameters a lock takes hold of and how far it moves them are not shown
+// on the cell; the icon only says which kind of lock it is. A lock carries a slot
+// per ParamTargets index, whose contents belong to the synth side.
+//
+// One tile reaches as many parameters as it likes. Stacking a tile per parameter
+// would work — locks chain downward — but it costs a cell each and pushes the
+// notes it colours further from the step they belong to, and there is nothing a
+// stack of them can say that one tile cannot.
+//
+// A parameter nothing has engaged is left entirely alone, which is why a lock
+// that engages nothing does nothing at all. That is allowed, the same way a lock
+// with nothing below it to colour is: it is inert rather than wrong, and it is
+// what a lock looks like the moment it is placed.
 //
 // A lock always reaches the whole channel and never outlives the instant it sits
 // in, so there is no scope to record: what it actually colours is whatever is
@@ -50,15 +60,46 @@ public sealed class NoteTile : Tile
 
 public abstract class ParamTile : Tile
 {
-    public int Target { get; set; } = ParamTargets.Level;
-    public float Amount { get; set; }
+    public bool IsEngaged(int target)
+      => InRange(target) && _engaged[target];
 
-    public string TargetName => ParamTargets.Name(Target);
+    // What the lock moves the target to, or by. Zero when it has not taken hold
+    // of that one, which is nothing to add and is never read as a value to set.
+    public float this[int target]
+      => InRange(target) && _engaged[target] ? _amounts[target] : 0.0f;
+
+    public void Engage(int target, float amount)
+    {
+        if (!InRange(target)) return;
+        (_engaged[target], _amounts[target]) = (true, amount);
+    }
+
+    // Letting go forgets the amount as well. A released slot shows what the
+    // channel does without it, so a number kept behind the panel would only be a
+    // second value with a claim on the same row.
+    public void Release(int target)
+    {
+        if (!InRange(target)) return;
+        (_engaged[target], _amounts[target]) = (false, 0.0f);
+    }
+
+    public bool IsEmpty
+    {
+        get
+        {
+            foreach (var engaged in _engaged) if (engaged) return false;
+            return true;
+        }
+    }
+
+    readonly bool[] _engaged = new bool[ParamTargets.Count];
+    readonly float[] _amounts = new float[ParamTargets.Count];
+
+    static bool InRange(int target) => target >= 0 && target < ParamTargets.Count;
 }
 
 public sealed class AbsoluteParamTile : ParamTile
 {
-    public AbsoluteParamTile() => Amount = ParamTargets.Default(Target);
     public override string Token => "PABS";
 }
 

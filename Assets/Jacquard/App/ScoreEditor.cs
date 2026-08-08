@@ -71,8 +71,12 @@ public sealed class ScoreEditor
     {
         Tile tile = kind switch
         {
-            "PABS" => NewLock(new AbsoluteParamTile()),
-            "PREL" => new RelativeParamTile { Target = ParamTargets.Level, Amount = 0.2f },
+            // Holding nothing yet. Which parameters a lock takes is the whole of
+            // what there is to say about one, so it is said on the panel rather
+            // than guessed at here: a lock that arrived already moving the level
+            // would be a choice nobody made.
+            "PABS" => new AbsoluteParamTile(),
+            "PREL" => new RelativeParamTile(),
             "GCYC" => new CycleGateTile { Period = 4, Index = 1 },
             "GPRB" => new ProbGateTile { Percent = 50 },
             "JUMP" => new JumpTile(),
@@ -88,13 +92,6 @@ public sealed class ScoreEditor
         }
 
         Commit();
-    }
-
-    static ParamTile NewLock(ParamTile tile)
-    {
-        // An absolute lock is only useful if it starts from somewhere sensible.
-        tile.Amount = ParamTargets.Default(tile.Target);
-        return tile;
     }
 
     bool Put(Tile tile)

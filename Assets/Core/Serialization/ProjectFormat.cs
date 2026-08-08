@@ -26,6 +26,11 @@ namespace Jacquard {
 
 public static class ProjectFormat
 {
+    // Version 6 lets one lock take hold of any number of parameters, so its token
+    // carries a run of key,value pairs rather than a single one. An older file needs
+    // no conversion at all: one pair is one parameter engaged, which is what a lock
+    // used to be.
+    //
     // Version 5 drops the detune target and makes the carrier release one, so every
     // field of the patch is now something a lock can reach. An older file still
     // reads: its detune= is skipped the way any key nothing answers to is, and a
@@ -45,7 +50,7 @@ public static class ProjectFormat
     // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
     // reads, since a token nothing answers to is skipped, but the parameters that
     // no longer exist fall back to the default patch rather than being converted.
-    public const int Version = 5;
+    public const int Version = 6;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -104,16 +109,30 @@ public static class ProjectFormat
         NoteTile note => note.HasDefaultLength
           ? Pitch.ToName(note.Note)
           : Pitch.ToName(note.Note) + "/" + F(note.Length),
-        AbsoluteParamTile p => "PABS:" + WriteLock(p),
-        RelativeParamTile p => "PREL:" + WriteLock(p),
+        AbsoluteParamTile p => "PABS" + WriteLock(p),
+        RelativeParamTile p => "PREL" + WriteLock(p),
         CycleGateTile g => "GCYC:" + g.Period + "," + g.Index,
         ProbGateTile g => "GPRB:" + F(g.Percent),
         JumpTile => "JUMP",
         _ => tile.Token
     };
 
+    // The parameters a lock has taken hold of, as key,value pairs. A lock holding
+    // none of them writes as the bare token: there is nothing to say about it, and
+    // a trailing colon would only look like something went missing.
     static string WriteLock(ParamTile tile)
-      => ParamTargets.Key(tile.Target) + "," + F(tile.Amount);
+    {
+        var text = new StringBuilder();
+
+        for (var target = 0; target < ParamTargets.Count; target++)
+        {
+            if (!tile.IsEngaged(target)) continue;
+            text.Append(text.Length == 0 ? ':' : ',')
+                .Append(ParamTargets.Key(target)).Append(',').Append(F(tile[target]));
+        }
+
+        return text.ToString();
+    }
 
     static string WritePatch(in FmPatch patch)
       => "level=" + F(patch.level) +
@@ -281,24 +300,39 @@ public static class ProjectFormat
             Length = slash < 0 ? 1.0f : ReadFloat(token.Substring(slash + 1)) };
     }
 
-    // Targets a file may still name that the synth no longer has. A lock on one is
-    // dropped, since there is nothing left for it to move; any other spelling is one
-    // the format never had and stays an error.
+    // Targets a file may still name that the synth no longer has. The pair naming
+    // one is skipped, since there is nothing left for it to move; any other spelling
+    // is one the format never had and stays an error.
     static readonly string[] Retired = { "detune" };
 
+    // A run of key,value pairs, or nothing at all for a lock that holds no
+    // parameter. A version 5 token has exactly one pair, which reads here as the one
+    // parameter it engaged.
     static ParamTile ReadLock(ParamTile tile, string args, int number)
     {
+        if (args.Length == 0) return tile;
+
         var parts = args.Split(',');
-        var target = ParamTargets.Parse(parts[0]);
 
-        if (target < 0)
-            return Array.IndexOf(Retired, parts[0]) >= 0 ? null
-                   : throw Fail(number, "unknown lock target " + parts[0]);
+        for (var i = 0; i < parts.Length; i += 2)
+        {
+            var target = ParamTargets.Parse(parts[i]);
 
-        tile.Target = target;
-        tile.Amount = parts.Length > 1 ? ReadFloat(parts[1]) : 0.0f;
+            if (target < 0)
+            {
+                if (Array.IndexOf(Retired, parts[i]) < 0)
+                    throw Fail(number, "unknown lock target " + parts[i]);
 
-        return tile;
+                continue;
+            }
+
+            tile.Engage(target, i + 1 < parts.Length ? ReadFloat(parts[i + 1]) : 0.0f);
+        }
+
+        // A lock that named only retired parameters has nothing left to do, so it
+        // goes rather than staying on the plane as an empty one. A lock written
+        // empty is a different thing and was returned above.
+        return tile.IsEmpty ? null : tile;
     }
 
     // Which channel the line is for. A version 2 file has one patch line for the

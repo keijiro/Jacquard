@@ -111,8 +111,6 @@ public static class ParamTargets
     public static void Add(ref FmPatch patch, int target, float delta)
       => Set(ref patch, target, Get(in patch, target) + delta);
 
-    public static float Default(int target) => Get(FmPatch.Default, target);
-
     // A sensible nudge for an inspector field, roughly a hundredth of the range.
     public static float Increment(int target)
       => (Max(target) - Min(target)) / 100.0f;

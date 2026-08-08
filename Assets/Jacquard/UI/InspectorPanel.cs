@@ -122,27 +122,11 @@ sealed class InspectorPanel
                                 "transpose."));
     }
 
+    // Which parameters the lock holds is the Lock panel's business, since that is a
+    // list of every target rather than a row or two. What is left here is where the
+    // tile sits, which is the half of a lock this panel is about.
     void BuildLock(ParamTile param)
-    {
-        _body.Add(Controls.Chooser("Target", ParamTargets.Names,
-                                   () => param.Target,
-                                   index => { param.Target = index;
-                                              if (param is AbsoluteParamTile)
-                                                  param.Amount = ParamTargets.Default(index);
-                                              Refresh(true); }));
-
-        // An absolute lock holds a value the target could hold itself, so its bar is
-        // the target's own; a relative one holds a shift, and reads from the middle.
-        var absolute = param is AbsoluteParamTile;
-
-        _body.Add(Controls.Bar(absolute ? "Value" : "Amount",
-                               absolute ? ParamRanges.Of(param.Target)
-                                        : ParamRanges.Relative(param.Target),
-                               () => param.Amount,
-                               value => { param.Amount = value; Touch(); }));
-
-        _body.Add(Controls.Hint(ReachHint(param)));
-    }
+      => _body.Add(Controls.Hint(ReachHint(param)));
 
     // A lock always takes the whole channel and never outlives its own instant, so
     // what is left to say is how far down the reading of this instant has yet to
@@ -167,9 +151,10 @@ sealed class InspectorPanel
             "down the plane sounding on this channel at this instant.";
 
         var kind = param is AbsoluteParamTile
-          ? " An absolute lock sets the value." : " A relative lock shifts it.";
+          ? " An absolute lock sets the values." : " A relative lock shifts them.";
 
-        return reach + kind + " Either way it is gone by the next step.";
+        return reach + kind + " Either way it is gone by the next step. Which " +
+               "parameters it takes is on the panel beside this one.";
     }
 
     void BuildCycle(CycleGateTile cycle)
@@ -282,8 +267,8 @@ sealed class InspectorPanel
 
     // Parameter ranges
     //
-    // What a lock's bar covers comes from ParamRanges, since that is the synth's own
-    // idea of where a parameter is useful. These are the ranges of the sequencer's own
+    // What a synth parameter's bar covers comes from ParamRanges, which the Lock and
+    // Sound panels use. These are the ranges of the sequencer's own
     // numbers, which nothing outside this panel has to know about.
 
     // A MIDI note number, read out as the name it spells so that a pitch is legible

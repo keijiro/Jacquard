@@ -50,8 +50,14 @@ sealed class JacquardUI
         _inspector = new InspectorPanel(_editor);
         body.Add(_inspector.Root);
 
+        // These two share the slot beside the inspector. Only one of them ever
+        // answers to the tile under the cursor, so neither has to know about the
+        // other.
         _sound = new SoundPanel(_editor);
         body.Add(_sound.Root);
+
+        _lock = new LockPanel(_editor);
+        body.Add(_lock.Root);
 
         _hint = Controls.Hint(HintText);
         _hint.style.position = Position.Absolute;
@@ -186,17 +192,20 @@ sealed class JacquardUI
     {
         _view.Rebuild();
         _inspector.Refresh();
-        // A renumbered CHAN tile changes which sound the cursor is standing over.
+        // A renumbered CHAN tile changes which sound the cursor is standing over,
+        // and moving a lane can change which channel a lock colours.
         _sound.Refresh();
+        _lock.Refresh();
         _octave.text = _editor.Octave.ToString();
     }
 
-    // Both panels show whatever the cursor is on: the inspector the tile, the sound
-    // window the timbre of the channel it belongs to.
+    // Every panel shows whatever the cursor is on: the inspector the tile, and beside
+    // it either the timbre of a channel or the hold a lock has on one.
     void OnCursorMoved()
     {
         _inspector.Refresh();
         _sound.Refresh();
+        _lock.Refresh();
     }
 
     void OnKey(KeyDownEvent evt)
@@ -267,6 +276,7 @@ sealed class JacquardUI
     readonly ScrollArea _scroll;
     readonly InspectorPanel _inspector;
     readonly SoundPanel _sound;
+    readonly LockPanel _lock;
     readonly Label _hint;
     readonly StringBuilder _text = new();
 
