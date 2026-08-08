@@ -25,7 +25,7 @@ public sealed class Project
         return project;
     }
 
-    // The mockup score from bp.html, which is also the demonstration case: three
+    // The mockup score from mockup.html, which is also the demonstration case: three
     // lanes, a conditional jump into a variation, and an accent lane that has no
     // notes of its own.
     public static Project CreateSample()

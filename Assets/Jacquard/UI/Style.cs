@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace Jacquard.App {
 
-// Metrics and colours, taken from the bp.html mockup.
+// Metrics and colours, taken from mockup.html.
 //
 // The cell pitch is what everything else is derived from: a cell is 30x32 with a
 // 4px gutter, so a column is 34 apart and a row 36. Keeping those numbers in one
