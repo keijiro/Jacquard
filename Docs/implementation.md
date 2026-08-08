@@ -85,6 +85,15 @@ Notes on the prototype
   channel sounds like, and what one step does to it — and they share a slot because
   no cell is both. There is no window to open, and so no state on screen that the
   score does not decide.
+- **The panel is also where a tile is put down**, since the cursor is already the
+  answer to where. A cell that will take one — a lane's empty step, the cell under
+  a stack, the `TERM` cell that grows the lane — offers the tiles instead of a
+  description of nothing, and bare ground offers a lane to put one on. So there is
+  no palette to keep in step with what the cursor can accept, no button that
+  silently does nothing where it stands, and one less row of chrome above the
+  plane. A tile therefore only ever lands on free ground: a stack is built from the
+  top down rather than by inserting above what is already there, which is the order
+  the runner reads it in anyway.
 - **The cell pitch is what the rest of the plane is derived from.** A cell is
   30x32 with a 4px gutter, set by what has to fit inside one rather than by taste:
   a note name with its accidental gutter is a little over twenty pixels wide, and

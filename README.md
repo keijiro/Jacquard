@@ -13,11 +13,12 @@ Using it
 | Action | How |
 | --- | --- |
 | Move the cursor | Click a cell, or the arrow keys |
-| Write a note | `A`–`G`, which also steps right. `0`–`8` picks the octave |
+| Write a note | Double click a free cell, or its `NOTE` button on the Tile panel |
 | Transpose | Shift+up/down for a semitone, add command for an octave |
-| Add a gate or a lock | The palette buttons, which insert at the cursor |
-| Lengthen a lane | Put a tile on its `TERM` cell, or use Steps in the panel |
-| New lane | The New lane button; delete a lane from its `CHAN` cell |
+| Add a gate or a lock | The buttons the Tile panel offers on a free cell |
+| Remove a tile | Delete on the Tile panel, or the delete key |
+| Lengthen a lane | Put a tile on its `TERM` cell, or use Steps on its `CHAN` cell |
+| New lane | Select bare ground, then New lane; delete a lane from its `CHAN` cell |
 | Branch | The `JUMP` button, which brings its `JDST` lane with it |
 | Details of a tile | The panel on the right follows the cursor |
 | Set a number | Drag its bar right or up, shift for fine; double click to type one |
@@ -27,9 +28,11 @@ Using it
 | Tempo | The bpm bar beside Play |
 | Pan the plane | Two finger swipe, or command+drag |
 
-Placing a tile on a cell that already has one inserts above it rather than
-replacing it, since a stack is read from the top down and a gate or a lock usually
-arrives after the note it will govern. Typing a note over a note changes its pitch.
+A tile goes on free ground only: a lane's empty step, the cell under a stack, or
+the `TERM` cell, which grows the lane by a step. A stack is therefore built from
+the top down, the gate first and the note it governs in the cell underneath it,
+which is the order the runner reads it in. A new note arrives at the pitch and
+length of the last note edited.
 
 Scores are saved under `Application.persistentDataPath/Scores` as plain text,
 one line per step; pick a slot with the File arrows.

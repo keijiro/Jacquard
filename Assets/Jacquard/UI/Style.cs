@@ -74,7 +74,6 @@ static class Style
     public static readonly Color Panel = Hex(0x1e1e24);
     public static readonly Color PanelLine = Hex(0x3a3a44);
     public static readonly Color Label = Hex(0x9a9a96);
-    public static readonly Color Hint = Hex(0x6c6c74);
 
     public static readonly Color Cursor = Hex(0xf2f2ee);
     public static readonly Color Playhead = Hex(0xf2f2ee);

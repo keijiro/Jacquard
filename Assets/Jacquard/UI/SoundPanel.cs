@@ -20,11 +20,6 @@ namespace Jacquard.App {
 // sound is being edited, and a chooser could only disagree with it. A channel with
 // no lane of its own therefore cannot be edited, which costs nothing — it has no way
 // of sounding either, and its patch is still saved and loaded with the rest.
-//
-// There is no explanatory hint at the foot of this panel, unlike the others: the
-// list of parameters is long enough that the panel is already close to as tall as a
-// small window can show, and what a channel's timbre is stands on the CHAN tile's
-// own hint instead.
 
 sealed class SoundPanel
 {

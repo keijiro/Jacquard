@@ -78,15 +78,6 @@ static class Controls
         return line;
     }
 
-    public static Label Hint(string text)
-    {
-        var label = Text(text, 10.0f, Style.Hint);
-        label.style.unityTextAlign = TextAnchor.UpperLeft;
-        label.style.whiteSpace = WhiteSpace.Normal;
-        label.style.marginTop = 2;
-        return label;
-    }
-
     // Buttons
 
     public static Button Push(string text, Action onClick, float width = 0.0f)

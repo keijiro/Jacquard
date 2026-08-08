@@ -167,25 +167,9 @@ public sealed class Score
         return true;
     }
 
-    // Inserts a tile at this point, pushing whatever was there and everything
-    // below it one row down. This is how a gate gets above a note that is already
-    // written: a stack is read from the top, so adding to it means making room
-    // rather than overwriting.
-    public bool Insert(GridPoint point, Tile tile)
-    {
-        var cell = At(point);
-        if (cell.Kind != CellKind.Tile) return Place(point, tile);
-
-        var step = cell.Lane.Steps[cell.Step];
-
-        // The stack grows by one, so the cell past its current end has to be free.
-        if (!IsFree(cell.Lane.CellPoint(cell.Step, step.Depth), cell.Lane)) return false;
-
-        step.Tiles.Insert(cell.Depth, tile);
-        return true;
-    }
-
-    // The lane that would take a tile at this point, if any.
+    // The lane that would take a tile at this point, if any. The editor asks this
+    // before offering a tile, so that the only cells offering one are the cells
+    // that will take it.
     public Lane PlacementLane(GridPoint point, out int step, out int depth)
     {
         (step, depth) = (0, 0);

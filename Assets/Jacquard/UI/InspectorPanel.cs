@@ -11,10 +11,11 @@ namespace Jacquard.App {
 // points at, how far it moves it, the exact percentage behind a pie chart — is set
 // in a window of its own rather than crammed into thirty pixels.
 //
-// A hint here says the one thing about a tile that its controls do not, and stops.
-// The keys are on the bar along the foot of the window, what a lock holds is on the
-// panel beside this one, and a hint that repeated either would only be a paragraph
-// to skip past on the way to the numbers underneath it.
+// It is also where a tile is put down and taken away, since the cursor is already
+// the answer to where: a cell that will take a tile offers the tiles instead of a
+// description of nothing, ground with no lane on it offers a lane, and everything
+// else offers what it is and a way to remove it. There is no palette elsewhere on
+// the screen, so a button that is not on this panel cannot apply to this cell.
 
 sealed class InspectorPanel
 {
@@ -41,17 +42,20 @@ sealed class InspectorPanel
     {
         var tile = _editor.Selected;
         var lane = _editor.SelectedLane;
+        // Two empty cells are not the same cell: one may take a tile and the other
+        // only a lane, and neither has a tile to tell them apart by.
+        var place = _editor.CanPlace;
 
-        if (!force && tile == _tile && lane == _lane)
+        if (!force && tile == _tile && lane == _lane && place == _place)
         {
-            // The same tile, but its values may have changed from the grid — a
-            // transpose, a note typed over another — so the bars still have to be
-            // pulled back in line with it.
+            // The same tile, but its values may have changed from elsewhere — a
+            // transpose from the keys, a load — so the bars still have to be pulled
+            // back in line with it.
             ValueBar.SyncAll(_body);
             return;
         }
 
-        (_tile, _lane) = (tile, lane);
+        (_tile, _lane, _place) = (tile, lane, place);
 
         _body.Clear();
         Build(tile, lane);
@@ -64,29 +68,37 @@ sealed class InspectorPanel
 
     Tile _tile;
     Lane _lane;
+    bool _place;
 
     void Build(Tile tile, Lane lane)
     {
         _body.Add(Controls.Caption(Describe(tile)));
+
+        // Free ground, whether that is a lane's own empty step or the terminator it
+        // grows from. What such a cell is for is the tile that goes on it.
+        if (_place) { Section(BuildPalette()); return; }
+
+        // Off any lane there is nothing to put a tile on, so what is on offer is
+        // somewhere to put one.
+        if (tile == null) { Section(BuildNewLane()); return; }
+
+        Section(BuildTile(tile));
+
+        // The head is the one cell that is the lane rather than something standing
+        // on it, so it is where the lane itself is worked on.
+        if (_editor.Cell.Kind == CellKind.Head && lane != null) Section(BuildLane(lane));
+
+        Section(BuildDelete());
+    }
+
+    // Adds a section under a rule of its own, unless it turned out to hold nothing:
+    // a lock keeps everything it owns on the Lock panel, and a rule with a gap under
+    // it would be a line with nothing to separate.
+    void Section(VisualElement content)
+    {
+        if (content.childCount == 0) return;
         _body.Add(Controls.Divider());
-
-        switch (tile)
-        {
-            case NoteTile note: BuildNote(note); break;
-            case ParamTile param: BuildLock(param); break;
-            case CycleGateTile cycle: BuildCycle(cycle); break;
-            case ProbGateTile prob: BuildProb(prob); break;
-            case ChannelTile channel: BuildChannel(channel); break;
-            case JumpTile jump: BuildJump(jump); break;
-            case JumpDestTile: BuildJumpDest(lane); break;
-            case TerminatorTile: _body.Add(Controls.Hint(TerminatorHint)); break;
-            default: _body.Add(Controls.Hint(EmptyHint)); break;
-        }
-
-        if (lane == null) return;
-
-        _body.Add(Controls.Divider());
-        BuildLane(lane);
+        _body.Add(content);
     }
 
     static string Describe(Tile tile) => tile switch
@@ -104,154 +116,151 @@ sealed class InspectorPanel
         _ => tile.Token
     };
 
-    void BuildNote(NoteTile note)
+    // The tiles a free cell will take, the note first because that is what most of
+    // them get. Nothing here asks where: the cell asked for the list.
+    VisualElement BuildPalette()
+    {
+        var grid = new VisualElement();
+        grid.style.flexDirection = FlexDirection.Row;
+        grid.style.flexWrap = Wrap.Wrap;
+
+        foreach (var kind in Kinds)
+        {
+            var name = kind;
+            var button = Controls.Push(name, () => Act(() => _editor.Put(name)), 52);
+            button.style.marginBottom = 3;
+            grid.Add(button);
+        }
+
+        return grid;
+    }
+
+    VisualElement BuildNewLane()
+    {
+        var row = Controls.Row();
+        row.Add(Controls.Push("New lane", () => Act(_editor.NewChannelLane), 66));
+        return row;
+    }
+
+    // The controls belonging to the tile itself. A lock has none: which parameters
+    // it holds is a list of every target rather than a row or two, so it is the Lock
+    // panel's, and a jump has nothing to set at all.
+    VisualElement BuildTile(Tile tile)
+    {
+        var body = new VisualElement();
+
+        switch (tile)
+        {
+            case NoteTile note: BuildNote(body, note); break;
+            case CycleGateTile cycle: BuildCycle(body, cycle); break;
+            case ProbGateTile prob: BuildProb(body, prob); break;
+            case ChannelTile channel: BuildChannel(body, channel); break;
+        }
+
+        return body;
+    }
+
+    VisualElement BuildDelete()
+    {
+        // Deleting a lane's head is how the whole lane goes, which the button had
+        // better say rather than leave to be found out.
+        var head = _editor.Cell.Kind == CellKind.Head;
+
+        var row = Controls.Row();
+        row.Add(Controls.Push(head ? "Delete lane" : "Delete",
+                              () => Act(_editor.Delete), head ? 74 : 54));
+        return row;
+    }
+
+    void BuildNote(VisualElement body, NoteTile note)
     {
         // The bar spells the pitch as well as numbering it, so there is no longer a
         // row beside it saying what 60 means.
-        _body.Add(Controls.Bar("Pitch", PitchRange, () => note.Note,
-                               value => { note.Note = Mathf.Clamp(Mathf.RoundToInt(value),
-                                                                  Pitch.Lowest, Pitch.Highest);
-                                          _editor.Preview(note.Note);
-                                          Touch(); }));
+        body.Add(Controls.Bar("Pitch", PitchRange, () => note.Note,
+                              value => { note.Note = Mathf.Clamp(Mathf.RoundToInt(value),
+                                                                 Pitch.Lowest, Pitch.Highest);
+                                         _editor.RememberNote(note);
+                                         _editor.Preview(note.Note);
+                                         Touch(); }));
 
         // Length is in steps, so what it means in real time depends on the
-        // channel's division and the project tempo.
-        _body.Add(Controls.Bar("Length", LengthRange, () => note.Length,
-                               value => { note.Length = Mathf.Clamp(value, 0.25f, 64.0f);
-                                          Touch(); }));
-
-        // The bar's own unit says the length is counted in steps, so all the hint has
-        // left to say is the half of the multiplication that is not on this panel.
-        _body.Add(Controls.Hint("The channel's Gate ratio scales the length."));
+        // channel's division, its gate ratio and the project tempo.
+        body.Add(Controls.Bar("Length", LengthRange, () => note.Length,
+                              value => { note.Length = Mathf.Clamp(value, 0.25f, 64.0f);
+                                         _editor.RememberNote(note);
+                                         Touch(); }));
     }
 
-    // Which parameters the lock holds is the Lock panel's business, since that is a
-    // list of every target rather than a row or two. What is left here is where the
-    // tile sits, which is the half of a lock this panel is about.
-    void BuildLock(ParamTile param)
-      => _body.Add(Controls.Hint(ReachHint(param)));
-
-    // A lock always takes the whole channel and never outlives its own instant, so
-    // what is left to say is how far down the reading of this instant has yet to
-    // go — which is what the position decides.
-    string ReachHint(ParamTile param)
+    void BuildCycle(VisualElement body, CycleGateTile cycle)
     {
-        var cell = _editor.Cell;
-        var noteBelow = false;
+        body.Add(Controls.Bar("Period", PeriodRange, () => cycle.Period,
+                              value => { cycle.Period = Mathf.RoundToInt(value);
+                                         Touch(); }));
 
-        if (cell.Kind == CellKind.Tile)
-        {
-            var tiles = cell.Lane.Steps[cell.Step].Tiles;
-
-            for (var d = cell.Depth + 1; d < tiles.Count; d++)
-                if (tiles[d] is NoteTile) noteBelow = true;
-        }
-
-        var reach = noteBelow
-          ? "Reaches the notes below it in this step, and the lanes further down on " +
-            "this channel."
-          : "No note below it, so it reaches only the lanes further down on this " +
-            "channel.";
-
-        var kind = param is AbsoluteParamTile
-          ? " Sets the parameters it holds," : " Shifts the parameters it holds,";
-
-        return reach + kind + " and is gone by the next step.";
+        body.Add(Controls.Bar("Fires on", FiresOnRange, () => cycle.Index,
+                              value => { cycle.Index = Mathf.RoundToInt(value);
+                                         Touch(); }));
     }
 
-    void BuildCycle(CycleGateTile cycle)
-    {
-        _body.Add(Controls.Bar("Period", PeriodRange, () => cycle.Period,
-                               value => { cycle.Period = Mathf.RoundToInt(value);
-                                          Touch(); }));
-
-        _body.Add(Controls.Bar("Fires on", FiresOnRange, () => cycle.Index,
-                               value => { cycle.Index = Mathf.RoundToInt(value);
-                                          Touch(); }));
-
-        _body.Add(Controls.Hint("Fires on one lap out of the period."));
-    }
-
-    void BuildProb(ProbGateTile prob)
-    {
-        _body.Add(Controls.Bar("Chance", ChanceRange, () => prob.Percent,
+    void BuildProb(VisualElement body, ProbGateTile prob)
+      => body.Add(Controls.Bar("Chance", ChanceRange, () => prob.Percent,
                                value => { prob.Percent = value; Touch(); }));
 
-        _body.Add(Controls.Hint("The wedge on the cell shows it."));
-    }
-
-    void BuildChannel(ChannelTile channel)
+    void BuildChannel(VisualElement body, ChannelTile channel)
     {
-        _body.Add(Controls.Bar("Channel", ChannelRange, () => channel.Channel,
-                               value => { channel.Channel = Mathf.RoundToInt(value);
-                                          Touch(); }));
+        body.Add(Controls.Bar("Channel", ChannelRange, () => channel.Channel,
+                              value => { channel.Channel = Mathf.RoundToInt(value);
+                                         Touch(); }));
 
         var divisions = new List<string>();
         foreach (var d in ChannelTile.Divisions) divisions.Add("1/" + d);
 
-        _body.Add(Controls.Chooser("Step", divisions,
-                                   () => System.Array.IndexOf(ChannelTile.Divisions,
-                                                              channel.Division),
-                                   index => { channel.Division = ChannelTile.Divisions[index];
-                                              Touch(); }));
-
-        _body.Add(Controls.Hint("One step is this note value. Lanes sharing a channel " +
-                                "run together on its timbre, the higher CHAN first."));
+        body.Add(Controls.Chooser("Step", divisions,
+                                  () => System.Array.IndexOf(ChannelTile.Divisions,
+                                                             channel.Division),
+                                  index => { channel.Division = ChannelTile.Divisions[index];
+                                             Touch(); }));
     }
 
-    void BuildJump(JumpTile jump)
+    VisualElement BuildLane(Lane lane)
     {
-        var destination = _editor.Score.DestinationOf(jump);
+        var body = new VisualElement();
 
-        _body.Add(Controls.Hint(destination == null
-          ? "No destination, which should not happen."
-          : "Hands over to the JDST lane at " + destination.HeadPoint +
-            ". A gate above it makes the jump conditional."));
-    }
-
-    void BuildJumpDest(Lane lane)
-    {
-        var source = lane?.JumpSource == null
-          ? null : _editor.Score.Locate(lane.JumpSource);
-
-        _body.Add(Controls.Hint(source.HasValue
-          ? "Entered only from the JUMP at " + source.Value + ", so it sounds on " +
-            "channel " + _editor.Score.ChannelOf(lane) +
-            ". Its TERM returns to the channel start."
-          : "Nothing jumps here, so this lane never sounds."));
-    }
-
-    void BuildLane(Lane lane)
-    {
-        _body.Add(Controls.Caption("Lane at " + lane.HeadPoint));
+        body.Add(Controls.Caption("Lane"));
 
         // The one number here that is still stepped rather than scrubbed: a step is a
         // cell, growing only happens where there is free ground for one, and a refused
         // step is something to see one at a time rather than to drag through.
-        _body.Add(Controls.Stepper("Steps", () => lane.Steps.Count,
-                                   value => _editor.ResizeLane(
-                                     value > lane.Steps.Count ? 1 : -1), 1, "0"));
+        body.Add(Controls.Stepper("Steps", () => lane.Steps.Count,
+                                  value => _editor.ResizeLane(
+                                    value > lane.Steps.Count ? 1 : -1), 1, "0"));
 
-        void Move(int dx, int dy)
-        {
-            _editor.MoveLane(dx, dy);
-            Refresh(true);
-        }
+        // A lane further down runs later, so moving one is also how an accent lane
+        // gets to overwrite what the lanes above it did.
+        void Move(int dx, int dy) => Act(() => { _editor.MoveLane(dx, dy);
+                                                 Refresh(true); });
 
         var move = Controls.Row();
         move.Add(Controls.Caption("Move"));
         move.Add(Controls.Push("left", () => Move(-1, 0), 40));
         move.Add(Controls.Push("right", () => Move(1, 0), 44));
-        _body.Add(move);
+        body.Add(move);
 
         var vertical = Controls.Row();
         vertical.Add(Controls.Caption(""));
         vertical.Add(Controls.Push("up", () => Move(0, -1), 40));
         vertical.Add(Controls.Push("down", () => Move(0, 1), 44));
-        _body.Add(vertical);
+        body.Add(vertical);
 
-        _body.Add(Controls.Hint("A lane further down runs later, which is how an " +
-                                "accent lane gets to overwrite."));
+        return body;
+    }
+
+    // Runs an edit and hands the keys back to the grid: a click leaves the focus on
+    // the button, and the arrows are supposed to land on the plane.
+    void Act(System.Action action)
+    {
+        action();
+        _editor.View?.Focus();
     }
 
     // Redraws the score for a change made here, without rebuilding this panel.
@@ -302,11 +311,11 @@ sealed class InspectorPanel
     static readonly ValueBar.Range FiresOnRange =
       ValueBar.Integer(1.0f, CycleGateTile.MaxPeriod);
 
-    const string TerminatorHint =
-      "Past the last step. Reaching it returns to the CHAN the runner started from.";
-
-    const string EmptyHint =
-      "Type a note letter, or use the palette. On a TERM cell that adds a step.";
+    // What can be put on a free cell, in the order the buttons read. The note leads
+    // because it is the tile a cell usually wants; the rest keep the spelling the
+    // cells themselves use, so a button and the tile it makes are the same word.
+    static readonly string[] Kinds =
+      { "NOTE", "PABS", "PREL", "GCYC", "GPRB", "JUMP" };
 }
 
 } // namespace Jacquard.App

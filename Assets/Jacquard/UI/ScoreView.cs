@@ -31,6 +31,10 @@ public sealed class ScoreView : VisualElement
     // it into view.
     public event Action<Rect> RevealRequested;
 
+    // Raised on a double click, once the cursor has been put on the cell that was
+    // hit: a second click on a cell means the tile that cell usually gets.
+    public event Action DoubleClicked;
+
     public ScoreView()
     {
         style.position = Position.Relative;
@@ -312,6 +316,7 @@ public sealed class ScoreView : VisualElement
 
         Focus();
         SetCursor(Style.CellAt(evt.localPosition));
+        if (evt.clickCount >= 2) DoubleClicked?.Invoke();
         evt.StopPropagation();
     }
 

@@ -85,11 +85,6 @@ sealed class LockPanel
 
         for (var target = 0; target < ParamTargets.Count; target++)
             _body.Add(new LockRow(this, target));
-
-        _body.Add(Controls.Divider());
-        _body.Add(Controls.Hint("Move a bar to lock that parameter, click its name " +
-                                "to let it go. A grey row is one this tile leaves " +
-                                "to the channel."));
     }
 
     int Channel => _editor.Score.ChannelOf(_editor.SelectedLane);

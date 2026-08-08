@@ -5,8 +5,13 @@ using UnityEngine.UIElements;
 
 namespace Jacquard.App {
 
-// Assembles the screen: two rows of chrome above a scrolling score plane, with the
+// Assembles the screen: one row of chrome above a scrolling score plane, with the
 // tile and sound windows floating over it.
+//
+// The row carries what belongs to the project as a whole and nothing else. Anything
+// that applies to a cell is on the panel that follows the cursor, which is where the
+// cell already is, and the plane keeps the screen that a palette and a paragraph of
+// keys used to take.
 //
 // prototype.md leaves the application level UI to be designed here, so it is kept
 // to what a prototype has to prove: that every kind of tile can be put down, tuned
@@ -24,7 +29,6 @@ sealed class JacquardUI
         root.style.backgroundColor = Style.Background;
 
         root.Add(BuildTransportRow());
-        root.Add(BuildPaletteRow());
 
         var body = new VisualElement();
         body.style.flexGrow = 1;
@@ -46,6 +50,7 @@ sealed class JacquardUI
         _view.KeyPressed += OnKey;
         _view.CursorMoved += OnCursorMoved;
         _view.RevealRequested += Reveal;
+        _view.DoubleClicked += _editor.PlaceNote;
 
         _inspector = new InspectorPanel(_editor);
         body.Add(_inspector.Root);
@@ -58,14 +63,6 @@ sealed class JacquardUI
 
         _lock = new LockPanel(_editor);
         body.Add(_lock.Root);
-
-        _hint = Controls.Hint(HintText);
-        _hint.style.position = Position.Absolute;
-        _hint.style.left = 12;
-        _hint.style.bottom = 10;
-        _hint.style.width = 420;
-        _hint.pickingMode = PickingMode.Ignore;
-        body.Add(_hint);
 
         _editor.Changed += OnChanged;
 
@@ -82,7 +79,6 @@ sealed class JacquardUI
         _play.text = _app.Sequencer.IsPlaying ? "Stop" : "Play";
         // A loaded project brings a tempo of its own, which the bar has to follow.
         _tempo.Sync();
-        _octave.text = _editor.Octave.ToString();
 
         _status.text = Status();
     }
@@ -126,40 +122,6 @@ sealed class JacquardUI
         return row;
     }
 
-    VisualElement BuildPaletteRow()
-    {
-        var row = Bar();
-
-        row.Add(Controls.Caption("Palette"));
-
-        foreach (var kind in new[] { "PABS", "PREL", "GCYC", "GPRB", "JUMP" })
-        {
-            var name = kind;
-            row.Add(Controls.Push(name, () => { _editor.Put(name); Refocus(); }, 46));
-        }
-
-        row.Add(Controls.Push("Delete", () => { _editor.Delete(); Refocus(); }, 54));
-
-        row.Add(Separator());
-
-        row.Add(Controls.Push("New lane", () => { _editor.NewChannelLane(); Refocus(); }, 66));
-
-        row.Add(Separator());
-
-        row.Add(Controls.Caption("Octave"));
-        row.Add(Controls.Push("-", () => { _editor.SetOctave(_editor.Octave - 1);
-                                           Refocus(); }, 22));
-        _octave = Controls.Value("");
-        _octave.style.width = 18;
-        _octave.style.flexGrow = 0;
-        _octave.style.unityTextAlign = TextAnchor.MiddleCenter;
-        row.Add(_octave);
-        row.Add(Controls.Push("+", () => { _editor.SetOctave(_editor.Octave + 1);
-                                           Refocus(); }, 22));
-
-        return row;
-    }
-
     static VisualElement Bar()
     {
         var row = new VisualElement();
@@ -196,7 +158,6 @@ sealed class JacquardUI
         // and moving a lane can change which channel a lock colours.
         _sound.Refresh();
         _lock.Refresh();
-        _octave.text = _editor.Octave.ToString();
     }
 
     // Every panel shows whatever the cursor is on: the inspector the tile, and beside
@@ -217,11 +178,7 @@ sealed class JacquardUI
             return;
         }
 
-        if (_editor.HandleKey(evt))
-        {
-            _octave.text = _editor.Octave.ToString();
-            evt.StopPropagation();
-        }
+        if (_editor.HandleKey(evt)) evt.StopPropagation();
     }
 
     // Keeps typing working after a button has been pressed: a click moves the focus
@@ -277,26 +234,17 @@ sealed class JacquardUI
     readonly InspectorPanel _inspector;
     readonly SoundPanel _sound;
     readonly LockPanel _lock;
-    readonly Label _hint;
     readonly StringBuilder _text = new();
 
     Button _play;
     ValueBar _tempo;
     Label _status;
-    Label _octave;
     List<string> _slots;
 
     // A tempo below a walking pace or above a drum machine's top speed is of no
     // interest, so the bar covers the useful span and typing covers the rest.
     static readonly ValueBar.Range TempoRange =
       new ValueBar.Range(20.0f, 300.0f, snap: 1.0f, digits: 0, unit: "bpm");
-
-    const string HintText =
-      "Click a cell to put the cursor there. A-G writes a note and steps right, " +
-      "0-8 picks the octave, shift+arrows transpose, delete removes. A tile on a " +
-      "lane's TERM cell adds a step. Command+drag or a two finger swipe pans the " +
-      "plane. Space plays. Drag a value bar right or up to raise it, shift for " +
-      "fine, double click to type an exact number.";
 }
 
 } // namespace Jacquard.App

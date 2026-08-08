@@ -9,10 +9,10 @@ namespace Jacquard.App {
 // The cursor is also the selection: there is no separate notion of a selected
 // tile, so what the detail panel shows is whatever the cursor is standing on.
 //
-// Placing a tile on an occupied cell inserts rather than overwrites, because a
-// stack is written from the top down and a gate usually arrives after the note it
-// is going to govern. Typing a note onto an existing note is the one case that
-// edits in place, since that plainly means "this pitch, not that one".
+// A tile goes down on free ground only, which is what the panel offers one on. A
+// stack is therefore written from the top down — the gate first, the note it
+// governs in the cell underneath it — rather than by pushing a tile in above one
+// that is already there.
 
 public sealed class ScoreEditor
 {
@@ -24,8 +24,6 @@ public sealed class ScoreEditor
     // Raised after anything that changes the score, so the view can rebuild and
     // the runners can be reconciled.
     public event Action Changed;
-
-    public int Octave { get; set; } = 4;
 
     public Score Score => Project.Score;
     public CellRef Cell => Score.At(View.Cursor);
@@ -52,19 +50,20 @@ public sealed class ScoreEditor
 
     // Tiles
 
-    public void PutNote(int note)
+    // Whether the cursor is standing on ground that will take a tile: a lane's
+    // empty step, the cell under a stack, or the terminator, which takes one by
+    // growing the lane. This is what the panel asks before offering the tiles.
+    public bool CanPlace
     {
-        if (Selected is NoteTile existing)
-            existing.Note = note;
-        else if (!Put(new NoteTile { Note = note }))
-            return;
-
-        Octave = Pitch.ToOctave(note);
-        Preview(note);
-        Commit();
+        get
+        {
+            var cell = Cell;
+            if (cell.Kind == CellKind.Tile || cell.Kind == CellKind.Head) return false;
+            return Score.PlacementLane(View.Cursor, out _, out _) != null;
+        }
     }
 
-    // Places whatever the palette hands over. A jump brings its branch lane along,
+    // Places whatever the panel hands over. A jump brings its branch lane along,
     // so that one jump to one destination holds at every moment of editing rather
     // than being checked afterwards.
     public void Put(string kind)
@@ -80,7 +79,7 @@ public sealed class ScoreEditor
             "GCYC" => new CycleGateTile { Period = 4, Index = 1 },
             "GPRB" => new ProbGateTile { Percent = 50 },
             "JUMP" => new JumpTile(),
-            _ => new NoteTile { Note = (Octave + 1) * 12 }
+            _ => new NoteTile { Note = _notePitch, Length = _noteLength }
         };
 
         if (!Put(tile)) return;
@@ -91,19 +90,16 @@ public sealed class ScoreEditor
             Score.AddBranchLane(jump, below, 4);
         }
 
+        if (tile is NoteTile note) Preview(note.Note);
+
         Commit();
     }
 
-    bool Put(Tile tile)
-    {
-        var cell = Cell;
+    // The shorthand for the Note button, since a note is what most cells get and a
+    // double click is already on the cell that would take one.
+    public void PlaceNote() => Put("NOTE");
 
-        if (cell.IsFlowCell && cell.Kind == CellKind.Head) return false;
-
-        return cell.Kind == CellKind.Tile
-          ? Score.Insert(View.Cursor, tile)
-          : Score.Place(View.Cursor, tile);
-    }
+    bool Put(Tile tile) => CanPlace && Score.Place(View.Cursor, tile);
 
     public void Delete()
     {
@@ -123,23 +119,22 @@ public sealed class ScoreEditor
 
     // Notes
 
+    // A new note arrives at the pitch and length of the last one worked on, rather
+    // than at a fixed middle C: notes come in runs that stay in a register and
+    // usually keep a length, so the note just written is the better guess at the
+    // next one. Nothing is remembered across a load, which is what the defaults are.
+    public void RememberNote(NoteTile note)
+      => (_notePitch, _noteLength) = (note.Note, note.Length);
+
+    int _notePitch = 60;
+    float _noteLength = 1.0f;
+
     public void Transpose(int semitones)
     {
         if (Selected is not NoteTile note) return;
 
         note.Note = Math.Clamp(note.Note + semitones, Pitch.Lowest, Pitch.Highest);
-        Octave = Pitch.ToOctave(note.Note);
-        Preview(note.Note);
-        Commit();
-    }
-
-    public void SetOctave(int octave)
-    {
-        Octave = Math.Clamp(octave, 0, 8);
-
-        if (Selected is not NoteTile note) return;
-
-        note.Note = (Octave + 1) * 12 + note.Note % 12;
+        RememberNote(note);
         Preview(note.Note);
         Commit();
     }
@@ -217,8 +212,9 @@ public sealed class ScoreEditor
 
     // Keyboard
 
-    // Note entry is the fast path: the letter keys write a note at the cursor and
-    // step to the right, the way a tracker behaves.
+    // What is left to the keys is moving about and the two edits worth repeating:
+    // deleting, and walking a note up or down. Putting a tile down is the panel's,
+    // so that there is one way of doing it and it is the one on screen.
     public bool HandleKey(KeyDownEvent evt)
     {
         var shift = evt.shiftKey;
@@ -250,26 +246,7 @@ public sealed class ScoreEditor
                 return true;
         }
 
-        var character = evt.character;
-
-        if (character >= 'a' && character <= 'g' || character >= 'A' && character <= 'G')
-        {
-            var name = char.ToUpperInvariant(character).ToString() + Octave;
-            if (Pitch.TryParse(name, out var pitch))
-            {
-                PutNote(pitch);
-                View.MoveCursor(1, 0);
-            }
-            return true;
-        }
-
-        if (character >= '0' && character <= '8')
-        {
-            SetOctave(character - '0');
-            return true;
-        }
-
-        switch (character)
+        switch (evt.character)
         {
             case '#': case '+': Transpose(1); return true;
             case '-': Transpose(-1); return true;
