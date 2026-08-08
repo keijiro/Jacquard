@@ -235,22 +235,10 @@ sealed class InspectorPanel
                                   value => _editor.ResizeLane(
                                     value > lane.Steps.Count ? 1 : -1), 1, "0"));
 
-        // A lane further down runs later, so moving one is also how an accent lane
-        // gets to overwrite what the lanes above it did.
-        void Move(int dx, int dy) => Act(() => { _editor.MoveLane(dx, dy);
-                                                 Refresh(true); });
-
-        var move = Controls.Row();
-        move.Add(Controls.Caption("Move"));
-        move.Add(Controls.Push("left", () => Move(-1, 0), 40));
-        move.Add(Controls.Push("right", () => Move(1, 0), 44));
-        body.Add(move);
-
-        var vertical = Controls.Row();
-        vertical.Add(Controls.Caption(""));
-        vertical.Add(Controls.Push("up", () => Move(0, -1), 40));
-        vertical.Add(Controls.Push("down", () => Move(0, 1), 44));
-        body.Add(vertical);
+        // Where the lane sits is not set here. A lane further down runs later, so
+        // moving one is also how an accent lane gets to overwrite what the lanes
+        // above it did — and that is a thing to see happen on the plane, which is
+        // what dragging the head cell does.
 
         return body;
     }

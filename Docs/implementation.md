@@ -94,6 +94,31 @@ Notes on the prototype
   plane. A tile therefore only ever lands on free ground: a stack is built from the
   top down rather than by inserting above what is already there, which is the order
   the runner reads it in anyway.
+- **A tile is moved by carrying it**, which is the one edit with no button behind
+  it: where a tile goes is a position, and a plane is already the thing that
+  answers positions. Dragging a tile within its own step reorders the stack, one
+  tile at a time; dragging it to any other step takes the run of tiles hanging
+  below it along, because what a gate or a lock governs is exactly what hangs under
+  it and a sub-stack left behind would fall under whatever the move left above it.
+  A drop lands wherever a placed tile could — a step, the cell under a stack, the
+  `TERM` cell that grows the lane — with the one difference that it may land on an
+  occupied cell and open the stack up, which is what reordering one is. Dragging a
+  `CHAN` or `JDST` cell carries the whole lane, and is what replaced the nudge
+  buttons the Tile panel used to carry: a lane further down runs later, so moving
+  one is a thing to watch happen against the lanes it will now overwrite rather
+  than to arrive at a cell at a time.
+- **Ground another lane owns refuses a lane.** Nothing in the model stops two
+  lanes overlapping, and the nudge buttons did not check, but a lane crossing the
+  plane by hand passes over everything on the way and would leave the loser's cells
+  unreachable. A drop that cannot happen has nowhere lit up for it, which says so
+  without a second colour.
+
+  What a lane *owns*, though, is still only the cells that hold something —
+  `Lane.OccupiedCells` skips an empty step — so a stack can grow across another
+  lane's bare rail row, and a lane can be carried onto one. That is not new to
+  dragging: `PlacementLane` has always allowed it, one cell at a time. Deciding
+  whether a lane reserves its whole run is a separate change, since it would move
+  where every tile is allowed to go and not just where a dragged one is.
 - **The cell pitch is what the rest of the plane is derived from.** A cell is
   30x32 with a 4px gutter, set by what has to fit inside one rather than by taste:
   a note name with its accidental gutter is a little over twenty pixels wide, and

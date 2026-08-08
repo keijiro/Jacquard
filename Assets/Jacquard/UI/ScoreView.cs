@@ -35,6 +35,11 @@ public sealed class ScoreView : VisualElement
     // hit: a second click on a cell means the tile that cell usually gets.
     public event Action DoubleClicked;
 
+    // Raised when something carried by hand is let go. The view resolves nothing
+    // itself: it says what was picked up and which cell it was dropped on.
+    public event Action<CellRef, GridPoint> TilesDropped;
+    public event Action<Lane, GridPoint> LaneDropped;
+
     public ScoreView()
     {
         style.position = Position.Relative;
@@ -47,7 +52,17 @@ public sealed class ScoreView : VisualElement
         Add(_tiles);
         _upper = AddLayer(DrawUpper);
 
+        // What is in hand rides above everything, including the cursor: it is the
+        // one thing on the plane that is not where the score says it is.
+        _ghosts = new VisualElement { pickingMode = PickingMode.Ignore };
+        _ghosts.StretchToParentSize();
+        _ghosts.style.opacity = 0.85f;
+        Add(_ghosts);
+
         RegisterCallback<PointerDownEvent>(OnPointerDown);
+        RegisterCallback<PointerMoveEvent>(OnPointerMove);
+        RegisterCallback<PointerUpEvent>(OnPointerUp);
+        RegisterCallback<PointerCaptureOutEvent>(_ => EndDrag());
         RegisterCallback<KeyDownEvent>(OnKeyDown);
     }
 
@@ -58,6 +73,10 @@ public sealed class ScoreView : VisualElement
     // nothing to gain from reconciling them one by one.
     public void Rebuild()
     {
+        // Nothing can stay in hand across an edit: what a drag is holding is a
+        // reading of the score, and this is the score having changed.
+        EndDrag();
+
         Resize();
 
         _tiles.Clear();
@@ -305,6 +324,29 @@ public sealed class ScoreView : VisualElement
                                       rect.width + 5, rect.height + 5),
                     Style.Radius + 2);
         painter.Stroke();
+
+        DrawDropCells(painter);
+    }
+
+    // The cells a drag would land on, filled faintly and outlined. There is no
+    // refused marker to go with it: a drop that cannot happen simply has nowhere
+    // lit up for it, which is the same thing said without a second colour.
+    void DrawDropCells(Painter2D painter)
+    {
+        if (_dropCells.Count == 0) return;
+
+        painter.fillColor = Style.Fade(Style.Cursor, 0.14f);
+        painter.BeginPath();
+        foreach (var point in _dropCells) RoundedRect(painter, Style.CellRect(point),
+                                                      Style.Radius);
+        painter.Fill(FillRule.NonZero);
+
+        painter.strokeColor = Style.Fade(Style.Cursor, 0.7f);
+        painter.lineWidth = 1.0f;
+        painter.BeginPath();
+        foreach (var point in _dropCells) RoundedRect(painter, Style.CellRect(point),
+                                                      Style.Radius);
+        painter.Stroke();
     }
 
     // Input
@@ -315,16 +357,181 @@ public sealed class ScoreView : VisualElement
         if (ScrollArea.IsPanModifierHeld(evt)) return;
 
         Focus();
-        SetCursor(Style.CellAt(evt.localPosition));
+
+        var point = Style.CellAt(evt.localPosition);
+        SetCursor(point);
         if (evt.clickCount >= 2) DoubleClicked?.Invoke();
         evt.StopPropagation();
+
+        // A cell that holds something can be carried: a tile on a lane to another
+        // cell, a lane's own head to take the whole lane with it. The terminator is
+        // neither, being where a lane ends rather than something standing on it.
+        var cell = Score.At(point);
+        if (cell.Kind != CellKind.Tile && cell.Kind != CellKind.Head) return;
+
+        _grabbed = cell;
+        _grabOrigin = evt.localPosition;
+        this.CapturePointer(evt.pointerId);
+    }
+
+    // A press only becomes a drag once it has travelled far enough to mean one, so
+    // that a click that wobbles by a pixel still reads as a click.
+    void OnPointerMove(PointerMoveEvent evt)
+    {
+        if (_grabbed.Kind == CellKind.Empty) return;
+
+        var delta = (Vector2)evt.localPosition - _grabOrigin;
+
+        if (!_dragging)
+        {
+            if (delta.magnitude < DragThreshold) return;
+            BeginDrag();
+        }
+
+        _ghosts.style.translate = new Translate(delta.x, delta.y);
+
+        var point = Style.CellAt(evt.localPosition);
+        if (point != _dropPoint) { _dropPoint = point; ResolveDrop(); }
+
+        evt.StopPropagation();
+    }
+
+    // The capture, not the grab, is what says this press was ours: an edit from
+    // the keys ends a drag where it stands, and the pointer still has to be let go
+    // of afterwards.
+    void OnPointerUp(PointerUpEvent evt)
+    {
+        if (!this.HasPointerCapture(evt.pointerId)) return;
+
+        var (grabbed, point, dropped) = (_grabbed, _dropPoint, _dragging);
+
+        EndDrag();
+        this.ReleasePointer(evt.pointerId);
+        evt.StopPropagation();
+
+        if (!dropped || grabbed.Kind == CellKind.Empty) return;
+
+        if (grabbed.Kind == CellKind.Head)
+            LaneDropped?.Invoke(grabbed.Lane, point);
+        else
+            TilesDropped?.Invoke(grabbed, point);
     }
 
     void OnKeyDown(KeyDownEvent evt) => KeyPressed?.Invoke(evt);
 
+    // Dragging
+
+    void BeginDrag()
+    {
+        _dragging = true;
+        _dropPoint = _grabbed.Kind == CellKind.Head ? _grabbed.Lane.HeadPoint
+                     : _grabbed.Lane.CellPoint(_grabbed.Step, _grabbed.Depth);
+        BuildGhosts(DragCount(_dropPoint));
+        ResolveDrop();
+    }
+
+    void EndDrag()
+    {
+        if (_grabbed.Kind == CellKind.Empty) return;
+
+        _grabbed = CellRef.Empty;
+        _dragging = false;
+
+        _ghosts.Clear();
+        _ghosts.style.translate = new Translate(0.0f, 0.0f);
+
+        foreach (var cell in _lifted) cell.style.opacity = 1.0f;
+        _lifted.Clear();
+
+        _dropCells.Clear();
+        _upper.MarkDirtyRepaint();
+    }
+
+    // How many tiles a drop here would carry. Read from the target rather than
+    // from what was grabbed, so that what is in hand visibly gathers its sub-stack
+    // the moment the drag leaves the step it came from.
+    int DragCount(GridPoint target)
+    {
+        if (_grabbed.Kind == CellKind.Head) return 0;
+
+        var lane = Score.DropLane(target, out var step, out _);
+        if (lane == _grabbed.Lane && step == _grabbed.Step) return 1;
+
+        return _grabbed.Lane.Steps[_grabbed.Step].Tiles.Count - _grabbed.Depth;
+    }
+
+    void ResolveDrop()
+    {
+        _dropCells.Clear();
+
+        if (_grabbed.Kind == CellKind.Head)
+        {
+            var lane = _grabbed.Lane;
+            if (Score.CanMoveLane(lane, _dropPoint))
+            {
+                var dx = _dropPoint.X - lane.HeadX;
+                var dy = _dropPoint.Y - lane.Y;
+                foreach (var cell in lane.OccupiedCells())
+                    _dropCells.Add(cell.Offset(dx, dy));
+            }
+        }
+        else
+        {
+            var count = DragCount(_dropPoint);
+            if (count != _ghosts.childCount) BuildGhosts(count);
+
+            var move = Score.PlanMove(_grabbed, _dropPoint);
+            for (var i = 0; i < move.Count; i++)
+                _dropCells.Add(move.Lane.CellPoint(move.Step, move.Depth + i));
+        }
+
+        _upper.MarkDirtyRepaint();
+    }
+
+    // Copies of what is being carried, which travel with the pointer while the
+    // cells they came from stay faintly in place.
+    void BuildGhosts(int count)
+    {
+        _ghosts.Clear();
+        foreach (var cell in _lifted) cell.style.opacity = 1.0f;
+        _lifted.Clear();
+
+        if (_grabbed.Kind == CellKind.Head)
+        {
+            var lane = _grabbed.Lane;
+            AddGhost(lane.Head, lane.HeadPoint);
+            AddGhost(Score.Terminator, lane.TermPoint);
+
+            for (var i = 0; i < lane.Steps.Count; i++)
+                for (var d = 0; d < lane.Steps[i].Depth; d++)
+                    AddGhost(lane.Steps[i].Tiles[d], lane.CellPoint(i, d));
+        }
+        else
+        {
+            var tiles = _grabbed.Lane.Steps[_grabbed.Step].Tiles;
+            for (var i = 0; i < count; i++)
+                AddGhost(tiles[_grabbed.Depth + i],
+                         _grabbed.Lane.CellPoint(_grabbed.Step, _grabbed.Depth + i));
+        }
+    }
+
+    void AddGhost(Tile tile, GridPoint point)
+    {
+        _ghosts.Add(new TileElement(tile, point));
+
+        foreach (var child in _tiles.Children())
+            if (child is TileElement cell && cell.Point == point)
+            {
+                cell.style.opacity = LiftedOpacity;
+                _lifted.Add(cell);
+                return;
+            }
+    }
+
     // Private members
 
     readonly VisualElement _tiles;
+    readonly VisualElement _ghosts;
     readonly PaintLayer _lower;
     readonly PaintLayer _upper;
 
@@ -334,6 +541,20 @@ public sealed class ScoreView : VisualElement
 
     int _columns = 48;
     int _rows = 28;
+
+    // What is in hand. An empty cell means nothing is: the kind of the grabbed
+    // cell is also what kind of drag it is, a tile being carried to another cell
+    // and a head carrying its lane.
+    CellRef _grabbed = CellRef.Empty;
+    Vector2 _grabOrigin;
+    bool _dragging;
+
+    GridPoint _dropPoint;
+    readonly List<GridPoint> _dropCells = new();
+    readonly List<TileElement> _lifted = new();
+
+    const float DragThreshold = 4.0f;
+    const float LiftedOpacity = 0.2f;
 
     PaintLayer AddLayer(Action<MeshGenerationContext> draw)
     {

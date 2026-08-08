@@ -24,6 +24,26 @@ public readonly struct CellRef
     public bool IsFlowCell => Kind == CellKind.Head || Kind == CellKind.Term;
 }
 
+// A tile drag resolved against the score: the stack it would land in, where in
+// that stack, and how many tiles travel with it. It is worked out apart from the
+// move itself so that the answer shown while a drag is in the air and the answer
+// the drop acts on are the same one.
+
+public readonly struct TileMove
+{
+    public readonly Lane Lane;
+    public readonly int Step;
+    public readonly int Depth;
+    public readonly int Count;
+
+    public TileMove(Lane lane, int step, int depth, int count)
+      => (Lane, Step, Depth, Count) = (lane, step, depth, count);
+
+    public bool IsValid => Lane != null;
+
+    public static readonly TileMove None = default;
+}
+
 // One grid plane holding every lane.
 //
 // Channels are not split across planes: several CHAN lanes on the same channel
@@ -215,6 +235,142 @@ public sealed class Score
         }
 
         cell.Lane.Steps[cell.Step].Tiles.RemoveAt(cell.Depth);
+        return true;
+    }
+
+    // Dragging
+
+    // The step a dragged tile actually came off, or nothing if it is no longer
+    // there. A cell reference is a reading of the score at some earlier moment,
+    // and this one has been carried about by a hand since then.
+    Step SourceStep(CellRef source)
+    {
+        var step = source.Lane?.StepAt(source.Step);
+        return step != null && step.At(source.Depth) == source.Tile ? step : null;
+    }
+
+    // Where a run of dragged tiles would land. This is not PlacementLane: a drop
+    // is allowed onto a cell that already holds something, because opening a stack
+    // up to take a tile is exactly what reordering one is.
+    public Lane DropLane(GridPoint point, out int step, out int depth)
+    {
+        (step, depth) = (0, 0);
+
+        foreach (var lane in Lanes)
+        {
+            var sx = point.X - lane.X;
+            var sy = point.Y - lane.Y;
+
+            if (sx < 0 || sx > lane.Steps.Count || sy < 0) continue;
+
+            // The terminator column only takes a drop on the rail row, where it
+            // becomes a new step, the same way a placed tile grows the lane.
+            if (sx == lane.Steps.Count)
+            {
+                if (sy != 0) continue;
+                if (!IsFree(point, lane)) continue;
+                (step, depth) = (sx, 0);
+                return lane;
+            }
+
+            if (sy > lane.Steps[sx].Depth) continue;
+
+            (step, depth) = (sx, sy);
+            return lane;
+        }
+
+        return null;
+    }
+
+    // What dropping the tile at a cell would do, or nothing if that cell will not
+    // have it.
+    //
+    // Inside the step it came from, the one tile moves and the stack closes up
+    // behind it: that is what changing the order within a stack is. Anywhere else
+    // the tiles hanging below travel with it, since what a gate or a lock governs
+    // is precisely what hangs under it, and a sub-stack that stayed behind would
+    // be governed by whatever the move left above it.
+    public TileMove PlanMove(CellRef source, GridPoint target)
+    {
+        if (source.Kind != CellKind.Tile) return TileMove.None;
+
+        var from = SourceStep(source);
+        if (from == null) return TileMove.None;
+
+        var lane = DropLane(target, out var step, out var depth);
+        if (lane == null) return TileMove.None;
+
+        var tiles = from.Tiles;
+        var same = lane == source.Lane && step == source.Step;
+
+        if (same && depth == source.Depth) return TileMove.None;
+
+        var count = same ? 1 : tiles.Count - source.Depth;
+
+        if (same)
+        {
+            // One tile leaves before it comes back, so the stack it lands in is a
+            // cell shorter than the one it was picked up from.
+            depth = System.Math.Min(depth, tiles.Count - 1);
+        }
+        else
+        {
+            // Room for what the target stack grows by, on ground no other lane
+            // owns. The lane itself is excused: the cells it is about to vacate
+            // are its own.
+            var grown = lane.StepAt(step)?.Depth ?? 0;
+            for (var i = 0; i < count; i++)
+                if (!IsFree(lane.CellPoint(step, grown + i), lane)) return TileMove.None;
+        }
+
+        return new TileMove(lane, step, depth, count);
+    }
+
+    public bool ApplyMove(CellRef source, TileMove move)
+    {
+        if (!move.IsValid) return false;
+
+        var from = SourceStep(source);
+        if (from == null || source.Depth + move.Count > from.Tiles.Count) return false;
+
+        var tiles = from.Tiles;
+        var moved = tiles.GetRange(source.Depth, move.Count);
+        tiles.RemoveRange(source.Depth, move.Count);
+
+        if (move.Step == move.Lane.Steps.Count) move.Lane.AddStep();
+
+        var into = move.Lane.Steps[move.Step].Tiles;
+        into.InsertRange(System.Math.Min(move.Depth, into.Count), moved);
+        return true;
+    }
+
+    // Moving a lane bodily is also how the execution order is changed: the runner
+    // of a lane sitting lower down runs later and can overwrite what the ones above
+    // it did. The position is given as the head cell, since that is the cell a lane
+    // is dragged by.
+    //
+    // Ground another lane owns refuses the move. Nothing stops two lanes from
+    // overlapping in the model, but the cells of the loser would be unreachable,
+    // and a lane carried across the plane by hand can land anywhere.
+    public bool CanMoveLane(Lane lane, GridPoint head)
+    {
+        if (lane == null || !Lanes.Contains(lane)) return false;
+        if (head.X < 0 || head.Y < 0) return false;
+
+        var dx = head.X - lane.HeadX;
+        var dy = head.Y - lane.Y;
+        if (dx == 0 && dy == 0) return false;
+
+        foreach (var cell in lane.OccupiedCells())
+            if (!IsFree(cell.Offset(dx, dy), lane)) return false;
+
+        return true;
+    }
+
+    public bool MoveLane(Lane lane, GridPoint head)
+    {
+        if (!CanMoveLane(lane, head)) return false;
+        (lane.X, lane.Y) = (head.X + 1, head.Y);
         return true;
     }
 

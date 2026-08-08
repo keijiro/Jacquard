@@ -51,6 +51,8 @@ sealed class JacquardUI
         _view.CursorMoved += OnCursorMoved;
         _view.RevealRequested += Reveal;
         _view.DoubleClicked += _editor.PlaceNote;
+        _view.TilesDropped += _editor.DropTiles;
+        _view.LaneDropped += _editor.DropLane;
 
         _inspector = new InspectorPanel(_editor);
         body.Add(_inspector.Root);

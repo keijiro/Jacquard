@@ -18,9 +18,14 @@ sealed class TileElement : VisualElement
 {
     public Tile Tile { get; }
 
+    // The cell it was built for. A drag needs to find the elements standing on a
+    // run of cells, and the position is the only thing that tells two of them
+    // apart: the terminator tile is one shared instance across every lane.
+    public GridPoint Point { get; }
+
     public TileElement(Tile tile, GridPoint point)
     {
-        Tile = tile;
+        (Tile, Point) = (tile, point);
 
         var origin = Style.CellOrigin(point);
 

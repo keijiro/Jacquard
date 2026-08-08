@@ -17,6 +17,9 @@ Using it
 | Transpose | Shift+up/down for a semitone, add command for an octave |
 | Add a gate or a lock | The buttons the Tile panel offers on a free cell |
 | Remove a tile | Delete on the Tile panel, or the delete key |
+| Move a tile | Drag it; within its own step that reorders the stack |
+| Move a sub-stack | Drag a tile to another step, and what hangs below it comes too |
+| Move a lane | Drag its `CHAN` or `JDST` cell |
 | Lengthen a lane | Put a tile on its `TERM` cell, or use Steps on its `CHAN` cell |
 | New lane | Select bare ground, then New lane; delete a lane from its `CHAN` cell |
 | Branch | The `JUMP` button, which brings its `JDST` lane with it |
@@ -33,6 +36,11 @@ the `TERM` cell, which grows the lane by a step. A stack is therefore built from
 the top down, the gate first and the note it governs in the cell underneath it,
 which is the order the runner reads it in. A new note arrives at the pitch and
 length of the last note edited.
+
+Dragging is the exception: a tile dropped on an occupied cell opens the stack up
+and takes its place, which is how one is reordered. A drop with nowhere to go —
+off any lane, or with no room under the stack it would join — leaves nothing lit
+up on the plane and does not happen.
 
 Scores are saved under `Application.persistentDataPath/Scores` as plain text,
 one line per step; pick a slot with the File arrows.

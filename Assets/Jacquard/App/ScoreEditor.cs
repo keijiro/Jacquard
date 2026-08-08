@@ -167,23 +167,29 @@ public sealed class ScoreEditor
         Commit();
     }
 
-    // Moves a lane bodily, which is also how the execution order is changed: the
-    // runner of a lane sitting lower down runs later and can overwrite what the
-    // ones above it did.
-    public void MoveLane(int dx, int dy)
+    // Dragging
+    //
+    // Where a tile goes is a question the plane can answer directly, so it is
+    // asked there: a tile is picked up off its cell and put down on another, and a
+    // lane is carried by the head cell that names it. That leaves nothing here to
+    // do but apply what the drop resolved to and follow it with the cursor, so
+    // that the panel goes on showing what was just moved.
+
+    public void DropTiles(CellRef source, GridPoint target)
     {
-        var lane = SelectedLane;
-        if (lane == null) return;
+        var move = Score.PlanMove(source, target);
+        if (!Score.ApplyMove(source, move)) return;
 
-        var (x, y) = (lane.X + dx, lane.Y + dy);
-        if (x < 1 || y < 0) return;
-
-        lane.X = x;
-        lane.Y = y;
-
-        // The cursor travels with the lane, so repeated nudges stay on target.
-        View.SetCursor(View.Cursor.Offset(dx, dy));
         Commit();
+        View.SetCursor(move.Lane.CellPoint(move.Step, move.Depth));
+    }
+
+    public void DropLane(Lane lane, GridPoint head)
+    {
+        if (!Score.MoveLane(lane, head)) return;
+
+        Commit();
+        View.SetCursor(head);
     }
 
     // Playback
