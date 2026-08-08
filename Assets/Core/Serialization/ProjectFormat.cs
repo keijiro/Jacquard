@@ -26,6 +26,12 @@ namespace Jacquard {
 
 public static class ProjectFormat
 {
+    // Version 5 drops the detune target and makes the carrier release one, so every
+    // field of the patch is now something a lock can reach. An older file still
+    // reads: its detune= is skipped the way any key nothing answers to is, and a
+    // lock on detune is dropped rather than refused, since there is no longer a
+    // parameter for it to move.
+    //
     // Version 4 drops PACC, since a lock now reaches no further than the step it
     // sits in and there is nothing for one to accumulate into. An older file still
     // reads and its PACC tiles come back as PREL, which is the nearest surviving
@@ -39,7 +45,7 @@ public static class ProjectFormat
     // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
     // reads, since a token nothing answers to is skipped, but the parameters that
     // no longer exist fall back to the default patch rather than being converted.
-    public const int Version = 4;
+    public const int Version = 5;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -111,7 +117,6 @@ public static class ProjectFormat
 
     static string WritePatch(in FmPatch patch)
       => "level=" + F(patch.level) +
-         " detune=" + F(patch.detune) +
          " gate=" + F(patch.gateScale) +
          " mratio=" + F(patch.modulatorRatio) +
          " index=" + F(patch.modulationIndex) +
@@ -225,7 +230,12 @@ public static class ProjectFormat
     static void ReadStep(Step step, string[] tokens, int number)
     {
         for (var i = 1; i < tokens.Length; i++)
-            step.Tiles.Add(ReadTile(tokens[i], number));
+        {
+            // A tile the synth has no answer for any more comes back as nothing, and
+            // the step is simply one tile shorter than it was written with.
+            var tile = ReadTile(tokens[i], number);
+            if (tile != null) step.Tiles.Add(tile);
+        }
     }
 
     static Tile ReadTile(string token, int number)
@@ -271,12 +281,19 @@ public static class ProjectFormat
             Length = slash < 0 ? 1.0f : ReadFloat(token.Substring(slash + 1)) };
     }
 
+    // Targets a file may still name that the synth no longer has. A lock on one is
+    // dropped, since there is nothing left for it to move; any other spelling is one
+    // the format never had and stays an error.
+    static readonly string[] Retired = { "detune" };
+
     static ParamTile ReadLock(ParamTile tile, string args, int number)
     {
         var parts = args.Split(',');
         var target = ParamTargets.Parse(parts[0]);
 
-        if (target < 0) throw Fail(number, "unknown lock target " + parts[0]);
+        if (target < 0)
+            return Array.IndexOf(Retired, parts[0]) >= 0 ? null
+                   : throw Fail(number, "unknown lock target " + parts[0]);
 
         tile.Target = target;
         tile.Amount = parts.Length > 1 ? ReadFloat(parts[1]) : 0.0f;
@@ -310,7 +327,6 @@ public static class ProjectFormat
             switch (key)
             {
                 case "level": patch.level = value; break;
-                case "detune": patch.detune = value; break;
                 case "gate": patch.gateScale = value; break;
                 case "mratio": patch.modulatorRatio = value; break;
                 case "index": patch.modulationIndex = value; break;

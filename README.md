@@ -26,7 +26,7 @@ Using it
 | Branch | The `JUMP` button, which brings its `JDST` lane with it |
 | Details of a tile | The panel on the right follows the cursor |
 | Set a number | Drag its bar right or up, shift for fine; double click to type one |
-| Timbre | The Sound button, which edits the timbre of one channel |
+| Timbre | Select a `CHAN` cell, which brings up the Sound panel for its channel |
 | Play | Space, or the Play button |
 | Tempo | The bpm bar beside Play |
 | Pan the plane | Two finger swipe, or command+drag |
@@ -83,11 +83,17 @@ Notes on the prototype
   main one, colour it.
 - **A lock is over when its instant is.** There is no accumulating lock and no
   standing channel state; every channel starts each instant from its patch again.
+- **Every field of the patch is a lock target.** `FmPatch` and `ParamTargets` name
+  the same ten parameters, so there is nothing a channel holds that a step cannot
+  reach for one instant. One of them, the gate ratio, multiplies the length written
+  on the note rather than being a length itself, which is why the note reads in
+  steps and the channel in percent: the two are the same multiplication and only
+  the unit tells them apart.
 - **Timbre belongs to the channel**, not to the project: the bank holds one patch
   per channel and a `CHAN` tile's number picks the sound as well as the stream, so
   lanes sharing a channel share a patch and a branch lane borrows the one of
-  whatever jumps into it. The Sound window follows the cursor onto the channel
-  being worked on, and an edit is heard from the next instant with nothing to undo.
+  whatever jumps into it. The Sound panel is where that patch is edited, and an
+  edit is heard from the next instant with nothing to undo.
 - **A number is a bar, not a field.** The readout sits on a bar that fills as the
   value rises, dragging scrubs it and a double click types an exact one, so a
   parameter shows where it sits inside its useful range as well as what it is. What
@@ -95,6 +101,11 @@ Notes on the prototype
   lock's amount be read against what it moves; typing is deliberately not held to
   it. A lane's step count is the one number still stepped, since each one is a cell
   and growing can be refused.
+- **A panel shows what the cursor is on**, and nothing is toggled. The tile panel
+  keeps the corner and follows the cursor; the Sound panel comes up beside it while
+  a `CHAN` cell is selected, since that tile is what a channel is on the plane.
+  There is no window to open, and so no state on screen that the score does not
+  decide.
 - **Chain lines** are drawn only between cells of the same stack. bp.html joins
   whatever happens to sit directly above, which makes two unrelated lanes look
   connected; sequencer.md lists that as undecided, and knowing the lane settles

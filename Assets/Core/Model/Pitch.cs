@@ -27,8 +27,8 @@ public static class Pitch
 
     public static bool IsSharp(int note) => Names[Mod(note, 12)].Length > 1;
 
-    // Equal temperament, A4 = 440Hz. Fractional notes are allowed so that a
-    // detune parameter can slide between semitones.
+    // Equal temperament, A4 = 440Hz. The note is a float rather than an int so that
+    // anything bending a pitch can ask for a frequency between two semitones.
     public static float ToFrequency(float note)
       => 440.0f * MathF.Pow(2.0f, (note - 69.0f) / 12.0f);
 

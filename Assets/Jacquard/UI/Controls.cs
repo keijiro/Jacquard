@@ -21,6 +21,10 @@ static class Controls
     public const float LabelWidth = 74.0f;
     public const float RowHeight = 20.0f;
 
+    // Every panel is this wide, which is also what a panel beside another one has to
+    // step over to get out of its way.
+    public const float PanelWidth = 226.0f;
+
     // The corner a control's box is cut to, a shade tighter than a cell's so that a
     // row of them does not read as more tiles.
     public const float Radius = 4.0f;
@@ -200,7 +204,7 @@ static class Controls
     {
         var panel = new VisualElement();
         panel.style.position = Position.Absolute;
-        panel.style.width = 226;
+        panel.style.width = PanelWidth;
         panel.style.backgroundColor = Style.Panel;
         panel.style.paddingLeft = 10;
         panel.style.paddingRight = 10;

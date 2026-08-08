@@ -1,4 +1,3 @@
-using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Jacquard.App {
@@ -6,13 +5,21 @@ namespace Jacquard.App {
 // One channel's timbre.
 //
 // The synth keeps no patch of its own, so this edits the value that every note
-// event of that channel is stamped from. The ten parameter lock targets are listed
-// first, in their own order, because those are the ones a lock can reach — seeing
-// them here is what makes a lock's amount mean something.
+// event of that channel is stamped from. What it lists is the parameter lock targets
+// in their own order, and that is the whole patch: seeing what a lock can reach, and
+// where the channel currently sits inside each range, is what makes a lock's amount
+// mean something.
 //
-// Which channel is shown follows the cursor onto a lane, so a tweak lands on the
-// sound of the lane being worked on rather than on whichever channel happened to be
-// open. The chooser is still there, for a channel that has no lane yet.
+// It stands up while the cursor is on a CHAN tile and nowhere else, which is the
+// same rule the Tile panel follows: a panel shows what the cursor is on. A timbre
+// belongs to a channel and a CHAN tile is what a channel is on the plane, so the
+// tile that names the sound is also the one that opens it. A JDST head shows nothing
+// here, since a branch lane borrows its channel rather than owning one.
+//
+// This is why there is no channel chooser: the tile under the cursor decides which
+// sound is being edited, and a chooser could only disagree with it. A channel with
+// no lane of its own therefore cannot be edited, which costs nothing — it has no way
+// of sounding either, and its patch is still saved and loaded with the rest.
 //
 // There is no explanatory hint at the foot of this panel, unlike the others: the
 // list of parameters is long enough that the panel is already close to as tall as a
@@ -27,45 +34,44 @@ sealed class SoundPanel
     {
         _editor = editor;
 
-        Root = Controls.Panel("Sound", () => Root.style.display = DisplayStyle.None);
-        Root.style.right = 12;
-        Root.style.bottom = 12;
-        Root.style.display = DisplayStyle.None;
+        // No close button: the cursor decides whether this is up, so a button that
+        // put it away would be undone by the next keypress.
+        Root = Controls.Panel("Sound", null);
+
+        // One panel to the left of the Tile panel, and level with it. The Tile panel
+        // is always up, so it keeps the corner; this one comes and goes and takes the
+        // slot that moves.
+        Root.style.right = 12 + Controls.PanelWidth + 12;
+        Root.style.top = 12;
 
         _body = new VisualElement();
         Root.Add(_body);
 
-        _channel = _editor.Channel;
-        Build();
+        Refresh();
     }
-
-    public void Toggle()
-      => Root.style.display = Root.style.display == DisplayStyle.None
-         ? DisplayStyle.Flex : DisplayStyle.None;
-
-    public bool IsOpen => Root.style.display != DisplayStyle.None;
 
     // Called when the cursor moves and when the score changes: a CHAN tile can be
     // renumbered under the panel, which switches the sound being edited just as
-    // moving onto another lane does.
-    //
-    // Empty ground away from every lane leaves the panel alone rather than sending
-    // it back to channel one, so a channel picked by hand — the reason the chooser
-    // exists at all — survives a click that was not aimed at a lane.
+    // moving onto another one does.
     public void Refresh()
     {
-        // The patch on screen can also have been replaced wholesale by a load, which
-        // leaves the channel it is shown for unchanged, so the bars are pulled back in
-        // line with the bank before anything else.
+        var channel = _editor.Selected is ChannelTile tile ? tile.Channel : 0;
+
+        Root.style.display = channel > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+
+        if (channel == 0) return;
+
+        if (channel != _channel)
+        {
+            _channel = channel;
+            Build();
+            return;
+        }
+
+        // The patch can also have been replaced wholesale by a load, which leaves the
+        // channel it is shown for unchanged, so the bars are pulled back in line with
+        // the bank.
         ValueBar.SyncAll(_body);
-
-        if (_editor.SelectedLane == null) return;
-
-        var channel = _editor.Channel;
-        if (channel == _channel) return;
-
-        _channel = channel;
-        Build();
     }
 
     // Private members
@@ -81,10 +87,10 @@ sealed class SoundPanel
     {
         _body.Clear();
 
-        _body.Add(Controls.Chooser("Channel", ChannelNames, () => _channel - 1,
-                                   index => { _channel = index + 1; Build(); }));
-
-        _body.Add(Controls.Caption("Lock targets"));
+        // The subject of the panel, named the way every other panel names its own:
+        // the Tile panel says which tile it is showing, and this says which channel.
+        // It is also the only place the number appears now that there is no chooser.
+        _body.Add(Controls.Caption("Channel " + _channel));
         _body.Add(Controls.Divider());
 
         for (var target = 0; target < ParamTargets.Count; target++)
@@ -94,17 +100,6 @@ sealed class SoundPanel
                                    () => ParamTargets.Get(Patch, index),
                                    value => Set(index, value)));
         }
-
-        _body.Add(Controls.Divider());
-        _body.Add(Controls.Caption("Not lockable"));
-
-        // The carrier's release is all that is left over: every other field of the
-        // flattened patch is a lock target, so it is the one thing a step cannot
-        // reach and the panel is the only place to set it.
-        _body.Add(Controls.Bar("Car release", ParamRanges.CarrierRelease,
-                               () => Patch.carrierRelease,
-                               value => { Patch.carrierRelease = Mathf.Max(value, 0.0f);
-                                          Changed(); }));
 
         _body.Add(Controls.Divider());
         _body.Add(Controls.Push("Audition", Audition, 70));
@@ -124,18 +119,8 @@ sealed class SoundPanel
     // a lock never outlives one.
     void Changed() => Audition();
 
-    // Through the channel being edited, not the one the cursor is on: the two are
-    // the same until the chooser is used.
+    // Sounded on the channel being edited, which is the one under the cursor.
     void Audition() => _editor.Preview(60, _channel);
-
-    static readonly string[] ChannelNames = NewChannelNames();
-
-    static string[] NewChannelNames()
-    {
-        var names = new string[PatchBank.Channels];
-        for (var i = 0; i < names.Length; i++) names[i] = "Ch " + (i + 1);
-        return names;
-    }
 }
 
 } // namespace Jacquard.App

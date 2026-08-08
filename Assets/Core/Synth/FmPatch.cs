@@ -35,8 +35,10 @@ static class FmCurve
 //
 // The synth stores no patch of its own: this is stamped into every note event as
 // it is scheduled, which is also why a parameter lock can alter one note without
-// disturbing anything else. detune and gateScale are not oscillator settings but
-// live here so that all ten lock targets are plain fields of one struct.
+// disturbing anything else. gateScale is not an oscillator setting but lives here
+// so that every lock target is a plain field of one struct — and every field is a
+// lock target, which is what makes ParamTargets a list of these ten and nothing
+// else.
 //
 // The two operators get deliberately different envelope shapes, matching what
 // each one actually does. The carrier gates the output, so it is an AR: rise,
@@ -53,7 +55,6 @@ static class FmCurve
 public struct FmPatch
 {
     public float level;      // Output level [0,1]
-    public float detune;     // Pitch offset in semitones
     public float gateScale;  // Multiplies the note's gate length
 
     public float modulatorRatio;  // Modulator frequency as a ratio of frequency
@@ -73,7 +74,6 @@ public struct FmPatch
     // would use: entering a depth is then enough to hear what it does.
     public static FmPatch Default => new FmPatch
       { level = 0.8f,
-        detune = 0.0f,
         gateScale = 1.0f,
         modulatorRatio = 2.0f,
         modulationIndex = 3.0f,
@@ -152,7 +152,7 @@ public struct FmNoteEvent
                                         float gateSeconds, long startSample)
       => new FmNoteEvent
         { startSample = startSample,
-          frequency = Pitch.ToFrequency(note + patch.detune),
+          frequency = Pitch.ToFrequency(note),
           level = Math.Clamp(patch.level, 0.0f, 1.0f),
           duration = MathF.Max(gateSeconds * patch.gateScale, 0.005f),
           // Louder notes outrank quieter ones when the pool runs out of voices,

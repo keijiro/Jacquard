@@ -77,7 +77,6 @@ sealed class JacquardUI
         // A loaded project brings a tempo of its own, which the bar has to follow.
         _tempo.Sync();
         _octave.text = _editor.Octave.ToString();
-        Controls.SetActive(_soundButton, _sound.IsOpen);
 
         _status.text = Status();
     }
@@ -98,11 +97,6 @@ sealed class JacquardUI
                               value => _editor.Project.Tempo = value);
         _tempo.style.width = 78;
         row.Add(_tempo);
-
-        row.Add(Separator());
-
-        _soundButton = Controls.Push("Sound", () => { _sound.Toggle(); Refocus(); }, 54);
-        row.Add(_soundButton);
 
         row.Add(Separator());
 
@@ -277,7 +271,6 @@ sealed class JacquardUI
     readonly StringBuilder _text = new();
 
     Button _play;
-    Button _soundButton;
     ValueBar _tempo;
     Label _status;
     Label _octave;

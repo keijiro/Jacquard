@@ -115,8 +115,11 @@ sealed class InspectorPanel
                                value => { note.Length = Mathf.Clamp(value, 0.25f, 64.0f);
                                           Touch(); }));
 
-        _body.Add(Controls.Hint("Length counts steps. Type a letter on the grid to " +
-                                "change the pitch, shift+arrows to transpose."));
+        // What the bar's own unit already says is left to it, which is what makes
+        // room for the half of the multiplication that is not on this panel.
+        _body.Add(Controls.Hint("The channel's Gate ratio scales it. Type a letter " +
+                                "on the grid to change the pitch, shift+arrows to " +
+                                "transpose."));
     }
 
     void BuildLock(ParamTile param)
@@ -207,10 +210,10 @@ sealed class InspectorPanel
                                               Touch(); }));
 
         _body.Add(Controls.Hint("One step is this note value. The channel number also " +
-                                "picks the timbre, set in the Sound window. Lanes on " +
+                                "picks the timbre, on the panel beside this one. Lanes on " +
                                 "the same channel run together and share that sound; " +
-                                "the higher CHAN goes first, so a lower one can " +
-                                "overwrite it."));
+                                "the higher CHAN is read first, so its locks colour " +
+                                "the lower one."));
     }
 
     void BuildJump(JumpTile jump)
@@ -295,8 +298,12 @@ sealed class InspectorPanel
     // A length in steps. Dragging lands on quarters of one, since that is where a note
     // either fits the grid or deliberately overlaps the step after it, and it reaches
     // eight where the tile allows sixty-four: a note that long is typed, not scrubbed.
+    //
+    // The unit is printed because this and the channel's gate ratio are the same
+    // multiplication on the step, and the step is what tells them apart: this one
+    // counts them, that one takes a percentage of what this one counted.
     static readonly ValueBar.Range LengthRange =
-      ValueBar.Amount(0.25f, 8.0f, snap: 0.25f);
+      new ValueBar.Range(0.25f, 8.0f, snap: 0.25f, unit: "steps");
 
     // Whole percents. The wedge on the cell cannot show a tenth of one anyway, and any
     // percentage at all is still allowed by typing it.
