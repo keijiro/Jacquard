@@ -107,6 +107,17 @@ Notes on the prototype
   buttons the Tile panel used to carry: a lane further down runs later, so moving
   one is a thing to watch happen against the lanes it will now overwrite rather
   than to arrive at a cell at a time.
+- **A drag means whatever the cell under it holds.** A tile or a lane head has
+  something to carry, so a drag there carries it; free ground has nothing to carry,
+  so a drag there moves the plane instead. Panning used to ask for a wheel event or
+  a drag with command held, and a touch screen offers neither, which left the plane
+  fixed on the iPad — most of what a score plane is for. The modifier was never the
+  point, only a way of telling a press that means *move this* from one that means
+  *edit this*, and the cell answers that by itself. So `ScoreView` stops only the
+  presses it takes and `ScrollArea` pans whatever reaches it, which is to say
+  whatever nobody claimed; neither has to know what the other is for. Four pixels of
+  travel separate a pan from a tap, since a fingertip does not hold still, and a
+  click on bare ground still moves the cursor as it always did.
 - **A lane owns its whole row, written on or not.** What a lane occupies is the run
   it plays through — the rail from the head to the terminator, and whatever hangs
   under it — rather than the tiles that happen to be written on it so far. An empty
@@ -142,7 +153,11 @@ Notes on the prototype
   the audio thread, so `FastMath` spells out the sine and the exponential.
 - **Pixel scale** is a whole number on the `JacquardApp` component, not a DPI
   ratio: the grid is drawn in whole pixels with hairlines on half-pixel
-  centres, and a fractional scale smears all of it. Two suits a retina display.
+  centres, and a fractional scale smears all of it. Two suits a retina display,
+  and an iPad. `JacquardApp` writes it onto the `PanelSettings` asset at startup,
+  so the scale stored in that asset is never what runs — the panel is left on a
+  constant pixel size for the same reason, since scaling it with the screen would
+  multiply with this and land on a fraction.
 - Editor menu items: *Jacquard > Rebuild Main Scene* regenerates the scene, and
   *Jacquard > Run Self Test* checks the file format round trip, plays four laps of
   the sample score without a device, and reads a stack whose gate sits between two

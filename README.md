@@ -29,7 +29,7 @@ Using it
 | What a lock holds | Select it, then move a bar on the Lock panel; click a name to let go |
 | Play | Space, or the Play button |
 | Tempo | The bpm bar beside Play |
-| Pan the plane | Two finger swipe, or command+drag |
+| Pan the plane | Drag from an empty cell, two finger swipe, or command+drag |
 
 A tile goes on free ground only: a lane's empty step, the cell under a stack, or
 the `TERM` cell, which grows the lane by a step. A stack is therefore built from
