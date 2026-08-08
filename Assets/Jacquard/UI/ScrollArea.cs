@@ -4,10 +4,14 @@ using UnityEngine.UIElements;
 
 namespace Jacquard.App {
 
-// A pannable viewport that scrolls its content with trackpad gestures and
-// command-key drags, after the uitk-scrollarea experiment. The content is moved
-// with a transform rather than by layout, so panning stays cheap however large the
-// plane grows — and a score plane is meant to grow.
+// A pannable viewport that scrolls its content with trackpad gestures and with
+// drags, after the uitk-scrollarea experiment. The content is moved with a
+// transform rather than by layout, so panning stays cheap however large the plane
+// grows — and a score plane is meant to grow.
+//
+// Which drags reach here is not this element's business: it pans whatever press
+// its content let through. The score view stops the ones that mean an edit, so a
+// press on free ground arrives and a press on a tile does not.
 
 [UxmlElement]
 public sealed partial class ScrollArea : VisualElement
@@ -40,7 +44,7 @@ public sealed partial class ScrollArea : VisualElement
         RegisterCallback<PointerDownEvent>(OnPointerDown);
         RegisterCallback<PointerMoveEvent>(OnPointerMove);
         RegisterCallback<PointerUpEvent>(OnPointerUp);
-        RegisterCallback<PointerCaptureOutEvent>(_ => _dragging = false);
+        RegisterCallback<PointerCaptureOutEvent>(_ => (_pressed, _dragging) = (false, false));
         RegisterCallback<GeometryChangedEvent>(_ => SetOffset(_offset));
         _content.RegisterCallback<GeometryChangedEvent>(_ => SetOffset(_offset));
     }
@@ -65,7 +69,13 @@ public sealed partial class ScrollArea : VisualElement
 
     Vector2 _offset;
     Vector2 _dragPoint;
+    bool _pressed;
     bool _dragging;
+
+    // A press only becomes a pan once it has travelled far enough to mean one, so
+    // that a tap that wobbles under a fingertip still reads as a tap and leaves the
+    // plane where it stood.
+    const float DragThreshold = 4.0f;
 
     void SetOffset(Vector2 offset)
     {
@@ -84,16 +94,26 @@ public sealed partial class ScrollArea : VisualElement
 
     void OnPointerDown(PointerDownEvent evt)
     {
-        if (!IsPanModifierHeld(evt)) return;
-        (_dragging, _dragPoint) = (true, evt.position);
+        (_pressed, _dragging, _dragPoint) = (true, false, evt.position);
         this.CapturePointer(evt.pointerId);
         evt.StopPropagation();
     }
 
     void OnPointerMove(PointerMoveEvent evt)
     {
-        if (!_dragging) return;
+        if (!_pressed) return;
+
         var point = (Vector2)evt.position;
+
+        // The travel spent reaching the threshold is spent, not banked: taking it
+        // as offset too would jerk the plane by four pixels the moment it moves.
+        if (!_dragging)
+        {
+            if ((point - _dragPoint).magnitude < DragThreshold) return;
+            (_dragging, _dragPoint) = (true, point);
+            return;
+        }
+
         SetOffset(_offset - (point - _dragPoint));
         _dragPoint = point;
         evt.StopPropagation();
@@ -101,8 +121,8 @@ public sealed partial class ScrollArea : VisualElement
 
     void OnPointerUp(PointerUpEvent evt)
     {
-        if (!_dragging) return;
-        _dragging = false;
+        if (!_pressed) return;
+        (_pressed, _dragging) = (false, false);
         this.ReleasePointer(evt.pointerId);
         evt.StopPropagation();
     }

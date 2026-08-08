@@ -361,13 +361,18 @@ public sealed class ScoreView : VisualElement
         var point = Style.CellAt(evt.localPosition);
         SetCursor(point);
         if (evt.clickCount >= 2) DoubleClicked?.Invoke();
-        evt.StopPropagation();
 
         // A cell that holds something can be carried: a tile on a lane to another
         // cell, a lane's own head to take the whole lane with it. The terminator is
         // neither, being where a lane ends rather than something standing on it.
+        //
+        // Free ground has nothing to carry, so the press is left to travel on to the
+        // scroll area and pan the plane instead. The cursor has already moved, which
+        // is what the press means if it turns out to be a click and not a drag.
         var cell = Score.At(point);
         if (cell.Kind != CellKind.Tile && cell.Kind != CellKind.Head) return;
+
+        evt.StopPropagation();
 
         _grabbed = cell;
         _grabOrigin = evt.localPosition;
