@@ -156,7 +156,7 @@ public sealed class ScoreEditor
         if (delta > 0)
         {
             // Only grow into free ground, so that lanes cannot be made to overlap.
-            if (!Score.IsFree(lane.TermPoint.Offset(1, 0), lane)) return;
+            if (!Score.HasRoomToGrow(lane)) return;
             lane.AddStep();
         }
         else if (lane.Steps.Count > 1)

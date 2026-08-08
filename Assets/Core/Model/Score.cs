@@ -83,15 +83,21 @@ public sealed class Score
         return CellRef.Empty;
     }
 
+    // Ground no lane has a claim on. One lane can be excused, which is what lets a
+    // lane be asked about ground it is standing on itself.
     public bool IsFree(GridPoint point, Lane except = null)
     {
         foreach (var lane in Lanes)
-        {
-            if (lane == except) continue;
-            foreach (var cell in lane.OccupiedCells()) if (cell == point) return false;
-        }
+            if (lane != except && lane.Owns(point)) return false;
+
         return true;
     }
+
+    // Whether a lane can take one more step. Growing moves the terminator a column
+    // to the right, so what has to be free is the cell it moves into; the cell it
+    // vacates is the lane's own rail either way.
+    public bool HasRoomToGrow(Lane lane)
+      => IsFree(lane.TermPoint.Offset(1, 0), lane);
 
     // Where a tile currently sits, which is what the jump links need in order to
     // be drawn. Cheap enough to search for: a score holds tens of lanes.
@@ -202,11 +208,13 @@ public sealed class Score
             if (sx < 0 || sx > lane.Steps.Count || sy < 0) continue;
 
             // The terminator column only takes a tile on the rail row, where it
-            // becomes a new step.
+            // becomes a new step. The terminator itself has to have somewhere to
+            // go as well, which is the same room the Steps control asks for: a
+            // lane grows the same amount whichever of the two grew it.
             if (sx == lane.Steps.Count)
             {
                 if (sy != 0) continue;
-                if (!IsFree(point, lane)) continue;
+                if (!HasRoomToGrow(lane)) continue;
                 (step, depth) = (sx, 0);
                 return lane;
             }
@@ -268,7 +276,7 @@ public sealed class Score
             if (sx == lane.Steps.Count)
             {
                 if (sy != 0) continue;
-                if (!IsFree(point, lane)) continue;
+                if (!HasRoomToGrow(lane)) continue;
                 (step, depth) = (sx, 0);
                 return lane;
             }

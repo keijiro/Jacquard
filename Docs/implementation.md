@@ -107,18 +107,26 @@ Notes on the prototype
   buttons the Tile panel used to carry: a lane further down runs later, so moving
   one is a thing to watch happen against the lanes it will now overwrite rather
   than to arrive at a cell at a time.
-- **Ground another lane owns refuses a lane.** Nothing in the model stops two
-  lanes overlapping, and the nudge buttons did not check, but a lane crossing the
-  plane by hand passes over everything on the way and would leave the loser's cells
-  unreachable. A drop that cannot happen has nowhere lit up for it, which says so
-  without a second colour.
+- **A lane owns its whole row, written on or not.** What a lane occupies is the run
+  it plays through — the rail from the head to the terminator, and whatever hangs
+  under it — rather than the tiles that happen to be written on it so far. An empty
+  step is where a lane is *going*, not ground going spare, so `Lane.Owns` answers
+  for the rail whether a tile sits on it or not, and `Score.IsFree` is one call to
+  that per lane rather than a walk over every cell.
 
-  What a lane *owns*, though, is still only the cells that hold something —
-  `Lane.OccupiedCells` skips an empty step — so a stack can grow across another
-  lane's bare rail row, and a lane can be carried onto one. That is not new to
-  dragging: `PlacementLane` has always allowed it, one cell at a time. Deciding
-  whether a lane reserves its whole run is a separate change, since it would move
-  where every tile is allowed to go and not just where a dragged one is.
+  Occupancy used to be read off the tiles, which let a stack grow down across a
+  rail that is plainly drawn on the screen, and let a lane be carried onto one.
+  Whichever lane came second in the list then lost those cells entirely, since
+  `Score.At` hands a contested cell to the first lane that claims it. Nothing about
+  that was specific to dragging — placing a tile had always allowed it, one cell at
+  a time — so the fix is in what a lane *is* and every caller simply gets the
+  stricter answer it already wanted.
+- **Ground another lane owns refuses a lane**, and a lane with nowhere for its
+  terminator to move into cannot grow. The nudge buttons never checked the first,
+  and the `TERM` cell never checked the second, so a lane could be grown onto its
+  neighbour by putting a tile down while the Steps control beside it refused the
+  same growth. Both now ask `Score.HasRoomToGrow`. A drop that cannot happen has
+  nowhere lit up for it, which says so without a second colour.
 - **The cell pitch is what the rest of the plane is derived from.** A cell is
   30x32 with a 4px gutter, set by what has to fit inside one rather than by taste:
   a note name with its accidental gutter is a little over twenty pixels wide, and

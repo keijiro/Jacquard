@@ -87,16 +87,35 @@ public sealed class Lane
         return step;
     }
 
-    // Every cell this lane actually owns, head and terminator included. Used for
-    // overlap checks and for hit testing.
+    // Every cell this lane owns: the whole rail row, and whatever hangs under it.
+    //
+    // A step it owns even while empty. What a lane occupies is the run it plays
+    // through rather than the tiles that happen to be written on it, so a step
+    // nothing has been written on yet is still this lane's to write on — an empty
+    // cell is where a lane is going, not ground going spare. Anything else would
+    // let a stack from the lane above grow across a rail that is plainly drawn,
+    // and leave whichever lane came second in the list unreachable there.
     public IEnumerable<GridPoint> OccupiedCells()
     {
-        yield return HeadPoint;
-        yield return TermPoint;
+        for (var x = HeadX; x <= TermX; x++) yield return new GridPoint(x, Y);
 
         for (var i = 0; i < Steps.Count; i++)
-            for (var d = 0; d < Steps[i].Depth; d++)
+            for (var d = 1; d < Steps[i].Depth; d++)
                 yield return CellPoint(i, d);
+    }
+
+    // The same question asked of one cell. Overlap checks run this per lane rather
+    // than walking the cells, which is what keeps a scan for free ground cheap
+    // however long the lanes are.
+    public bool Owns(GridPoint point)
+    {
+        if (IsOnRail(point)) return true;
+
+        var step = point.X - X;
+        var depth = point.Y - Y;
+
+        return step >= 0 && step < Steps.Count &&
+               depth >= 1 && depth < Steps[step].Depth;
     }
 
     // The row the rail runs along, from the head to the terminator inclusive.
