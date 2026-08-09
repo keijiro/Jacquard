@@ -207,13 +207,63 @@ Notes on the prototype
 - **`MathF` is not used in the DSP.** Burst cannot resolve the externs behind
   it, and a job that calls `MathF.Sin` silently drops to managed execution on
   the audio thread, so `FastMath` spells out the sine and the exponential.
-- **Pixel scale** is a whole number on the `JacquardApp` component, not a DPI
-  ratio: the grid is drawn in whole pixels with hairlines on half-pixel
-  centres, and a fractional scale smears all of it. Two suits a retina display,
-  and an iPad. `JacquardApp` writes it onto the `PanelSettings` asset at startup,
-  so the scale stored in that asset is never what runs — the panel is left on a
-  constant pixel size for the same reason, since scaling it with the screen would
-  multiply with this and land on a fraction.
+- **The chrome has two metric profiles rather than a UI scale**, and what separates
+  them is not the screen but the pointer: a mouse lands on whatever it is over, and a
+  fingertip covers about nine millimetres of glass whatever is under it. `Controls`
+  holds a `Touch` flag settled once by `LayOutFor` before the first element is built —
+  every metric is read at construction — and `JacquardApp.Pointer` is `Auto`, which
+  asks `UnityEngine.Device.Application` so a simulated device is believed, with
+  `Mouse` and `Touch` overrides because the layout cannot be judged on the Mac it is
+  written on without forcing it. Row height goes 20 to 30, type 11 to 13, the caption
+  column 74 to 88 and a panel 192 to 248; `Controls.Width` stretches any other width
+  by the type ratio with a floor of the row height, so **no call site ever passes a
+  profile-aware number**.
+
+  Two things deliberately do not move. `Style`'s cell pitch is untouched, because the
+  score already read right on the iPad and only the chrome did not. And paddings,
+  margins and dividers stay at their mouse values: the growth is spent on the targets
+  and not on the air between them, which a twelve row Sound panel cannot afford.
+
+  A scale on the panels was the alternative and it is ruled out by what is coming.
+  Pinch zoom will put a continuous fractional scale on the plane's content, which
+  makes the score's on-screen size something the hand holding it decides — so the
+  chrome has to stay the one place where **layout values are the real sizes and no
+  transform is applied**, or 1px borders and corner radii sit permanently off the
+  pixel grid beside a plane that is legitimately smeared only while it is pinched.
+- **The interface is sized by the inch, and the asset is the only thing that says
+  so.** `Assets/UI/DefaultSettings.asset` is a constant *physical* size at a
+  reference DPI of 132, a fallback of 264 and a scale of one; there is no pixel
+  scale in code and nothing writes to the asset at startup. A unit is therefore a
+  hundred-and-thirty-secondth of an inch, which on any @2x iPad — every model but
+  the mini is 264 ppi — resolves to exactly two pixels. That is the arithmetic the
+  touch metrics rest on: **one UI pixel is one iOS point there**, so a 30pt control
+  row can be read against Apple's 44pt guideline rather than guessed at.
+
+  It replaced a whole number on `JacquardApp`, and the reasoning behind that number
+  is still true: the grid is drawn in whole pixels with hairlines on half-pixel
+  centres, and a fractional scale smears all of it. What it had nothing to say about
+  was a screen it had not met, and a touch target is a measurement of a fingertip,
+  which does not shrink on a denser display. So the smearing is now accepted where
+  it happens. The known weak spot is the other end: a 96 dpi non-retina screen
+  resolves to 0.727 and is illegible, and there is nothing here that guards against
+  it.
+
+  The two platforms could not agree on a physical size. A unit was 0.168mm on a Mac
+  reading 303 dpi against 0.192mm on a 264 ppi iPad, 14.8% apart, so any single
+  reference DPI had to move one of them: 132 keeps the iPad exact and grows the Mac.
+  Worth not re-deriving. And `Screen.dpi` on macOS is a property of the display
+  *mode* rather than of the panel, so picking More Space used to shrink the interface
+  and now does not — that is the mode doing what it says.
+
+  **The editor does not preview any of this by itself**, which is what
+  `JacquardApp.StandInForTheDevice` is for: UUM-136603 has the panel resolve its
+  density against whichever monitor the view is on rather than against the simulated
+  device, so an editor-only copy of the settings is switched to a constant pixel size
+  and given `Screen.dpi / referenceDpi` worked out from the DPI the Device Simulator
+  does shim. The bug report records it as not reproducible under a constant pixel
+  size, so that is stepping off the broken path rather than correcting a value it
+  produced — which is why it needs no timer, unlike the workaround that stays in
+  physical size and folds a ratio into the scale.
 - Editor menu items: *Jacquard > Rebuild Main Scene* regenerates the scene, and
   *Jacquard > Run Self Test* checks the file format round trip, plays four laps of
   the sample score without a device, reads a stack whose gate sits between two
