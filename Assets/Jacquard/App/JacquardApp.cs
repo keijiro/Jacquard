@@ -4,6 +4,11 @@ using UnityEngine.UIElements;
 
 using CoreProject = Jacquard.Project;
 
+// The Screen the Device Simulator stands in for, which is the one that knows the
+// density of the device being previewed. The same class as UnityEngine.Screen
+// everywhere else.
+using DeviceScreen = UnityEngine.Device.Screen;
+
 namespace Jacquard.App {
 
 // Ties the score, the runners, the synth and the UI together.
@@ -28,12 +33,20 @@ public sealed class JacquardApp : MonoBehaviour
     [field:SerializeField]
     public bool LoadSampleScore { get; set; } = true;
 
-    // The grid is drawn in whole pixels — 34x36 cells, 1px chains, half-pixel
-    // aligned icons — so the panel is left at constant pixel size and scaled by a
-    // whole number instead of by DPI. Two is right for a retina display, one for
-    // everything else; a fractional scale would smear every hairline.
-    [field:SerializeField, Range(1, 3)]
-    public int PixelScale { get; set; } = 2;
+    // How big a unit of this interface comes out is not settled here any more. It
+    // belongs to the panel settings asset, which holds a constant physical size
+    // against a reference of 132 dots to the inch — so a unit is a hundred and
+    // thirty-second of an inch on whatever the app is running on, and a control sized
+    // for a fingertip stays that size.
+    //
+    // It used to be a whole number written over that asset from here. The reasoning
+    // was that the grid is drawn in whole pixels — 34x36 cells, 1px chains, half-pixel
+    // aligned icons — and a fractional scale smears every hairline; two was right for
+    // the retina screens this had met, and there was nothing in it to say what was
+    // right for one it had not. A density answers that without being told. What the
+    // whole number bought was crispness, and what it cost was being wrong the first
+    // time the assumption under it did not hold, which for a touch target is the more
+    // expensive of the two.
 
     // What the display is asked for. Sixty is what a hand dragging the plane needs
     // and what every screen this runs on can hold; a tablet that offers more can be
@@ -125,7 +138,10 @@ public sealed class JacquardApp : MonoBehaviour
         // document root instead would put the chrome below that element rather than
         // inside it, and the two would then divide the screen between them.
         var ui = GetComponent<UIDocument>();
-        if (ui.panelSettings != null) ui.panelSettings.scale = PixelScale;
+
+#if UNITY_EDITOR
+        StandInForTheDevice(ui);
+#endif
 
         var document = ui.rootVisualElement;
         _ui = new JacquardUI(document.Q("root") ?? document, this);
@@ -144,11 +160,79 @@ public sealed class JacquardApp : MonoBehaviour
         _ui.Update();
     }
 
-    void OnDestroy() => Synth?.Dispose();
+    void OnDestroy()
+    {
+        Synth?.Dispose();
+#if UNITY_EDITOR
+        if (_panelCopy != null) Destroy(_panelCopy);
+#endif
+    }
+
+#if UNITY_EDITOR
+
+    // Editor preview
+
+    // Makes the editor resolve the scale the device would, which it does not do by
+    // itself.
+    //
+    // This is UUM-136603, a regression in 6.3 that is fixed in 6000.6.0a5 and closed
+    // as won't-fix on the 6.3, 6.4 and 6.5 streams — this project is on 6000.5.6f1, so
+    // it is on the wrong side of that. The simulator shims Screen properly: with an
+    // iPhone 13 Pro Max selected Screen.dpi reads 458, the safe area is the phone's
+    // and the target is 2778x1284. What does not arrive is the panel's own density.
+    // Read off PanelSettings by reflection with that phone on screen, the figure it
+    // was resolving against was 303 — the DPI of the Mac's display, which the panel
+    // takes from whichever monitor the view is on and which has nothing to do with the
+    // device being previewed. A physical size held against the wrong screen: the
+    // preview came out at 1210x559 units where the phone gives 802, every control two
+    // thirds of the size it will really be.
+    //
+    // What is done about it is to stop asking the panel to resolve a density at all
+    // here. The same sum is done with the DPI the simulator does shim, and handed over
+    // as a constant pixel size, which is the one mode that takes the number instead of
+    // looking one up. That is also why this is a fix and not a patch: the bug report
+    // records it as not reproducible under constant pixel size, so converting is
+    // stepping off the broken path rather than correcting a value it produced. The
+    // workaround that stays in physical size and folds a ratio into the scale has to
+    // be re-applied on a timer, because what it is correcting flips on its own.
+    //
+    // Outside the simulator Screen.dpi is the display's own, so a plain Game View
+    // resolves exactly what it resolved before.
+    //
+    // On a copy of the settings, not the asset. A PanelSettings written to in play
+    // mode is an asset written to on disk, and an asset carrying a value the app puts
+    // there is how its scale came to disagree with the one actually in force, twice
+    // over. The asset stays the only thing a player reads, and says what it means.
+    //
+    // Read once, so changing the simulated device means entering play mode again. The
+    // control metrics are settled at build time too, so there was never going to be a
+    // way to swap devices without it.
+    //
+    // All of this can go when the editor this is built with has the fix.
+    void StandInForTheDevice(UIDocument ui)
+    {
+        var settings = ui.panelSettings;
+        if (settings == null ||
+            settings.scaleMode != PanelScaleMode.ConstantPhysicalSize) return;
+
+        var dpi = DeviceScreen.dpi > 0.0f ? DeviceScreen.dpi : settings.fallbackDpi;
+
+        _panelCopy = Instantiate(settings);
+        _panelCopy.scaleMode = PanelScaleMode.ConstantPixelSize;
+        _panelCopy.scale = dpi / settings.referenceDpi;
+        ui.panelSettings = _panelCopy;
+    }
+
+#endif
 
     // Private members
 
     JacquardUI _ui;
+
+#if UNITY_EDITOR
+    PanelSettings _panelCopy;
+#endif
+
     readonly List<FmNoteEvent> _pending = new();
 
     long LookaheadSamples => (long)(Lookahead * Synth.SampleRate);

@@ -3,6 +3,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 
+// The one the Device Simulator stands in for. Identical to UnityEngine.Application
+// everywhere else, so this is not an editor-only spelling.
+using DeviceApplication = UnityEngine.Device.Application;
+
 namespace Jacquard.App {
 
 // The flat monochrome widgets the panels are built from.
@@ -48,10 +52,25 @@ static class Controls
 
     // Read as elements are built, and nothing goes back to correct one afterwards, so
     // this has to be called before the first control is made.
+    //
+    // Auto asks UnityEngine.Device rather than UnityEngine. The Device Simulator's
+    // simulated Application, Screen and SystemInfo live in a namespace of their own,
+    // and the plain ones are never simulated: asked the wrong one, a simulated iPhone
+    // answers with the Mac the editor is running on, and laid the chrome out at a 32
+    // pixel transport row and 192 pixel panels — the mouse set, on a phone. Outside
+    // the editor the two are the same class, so a player pays nothing for the spelling.
+    //
+    // Which means Auto follows a simulated device and nothing else. It deliberately
+    // does not read the build target: an editor building for iOS but showing a plain
+    // Game View is not showing a phone, and dressing it in the touch metrics would
+    // only produce a third thing that is neither — the tablet's controls at the Mac's
+    // scale, the wrong size for both. Previewing touch is what the simulator is for
+    // now that it resolves the right scale, and Touch above is what forces it without
+    // one.
     public static void LayOutFor(PointerKind kind)
       => Touch = kind switch { PointerKind.Mouse => false,
                                PointerKind.Touch => true,
-                               _ => Application.isMobilePlatform };
+                               _ => DeviceApplication.isMobilePlatform };
 
     // A control's box, which is also the height of the row it sits on.
     public static float RowHeight => Touch ? 30.0f : 20.0f;
