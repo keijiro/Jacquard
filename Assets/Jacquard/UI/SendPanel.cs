@@ -5,6 +5,12 @@ namespace Jacquard.App {
 
 // The two send effects.
 //
+// Titled "Send FX" rather than "Send", and the button that raises it says the same.
+// A send is what a channel does — the amounts are on the Sound panel and named after
+// the effect each one feeds — so a panel called Send would be named after the sending
+// and hold none of it. What is here is the receiving end: the two effects those
+// amounts arrive at.
+//
 // The one panel here whose contents the cursor has nothing to do with. Everything
 // else on screen answers to a cell — the Tile panel to the tile under the cursor, the
 // Sound panel to the channel a CHAN tile names, the Lock panel to what a lock holds —
@@ -35,7 +41,7 @@ sealed class SendPanel
     {
         _editor = editor;
 
-        Root = Controls.Panel("Send", onClose);
+        Root = Controls.Panel("Send FX", onClose);
 
         _body = new VisualElement();
         Root.Add(_body);

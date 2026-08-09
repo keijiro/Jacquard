@@ -197,13 +197,17 @@ static class Controls
     // The value is passed as a getter and a setter rather than as a number, because
     // the same parameter is also changed from the grid and by a load, and a bar that
     // only wrote would go stale and then write its stale value back.
+    //
+    // settled is the optional second half of that: the same value once it has stopped
+    // moving, for the row that has to sound a note about it. See ValueBar.Bind.
     public static VisualElement Bar(string caption, in ValueBar.Range range,
-                                    Func<float> get, Action<float> set)
+                                    Func<float> get, Action<float> set,
+                                    Action settled = null)
     {
         var row = Row();
         row.Add(Caption(caption));
 
-        var bar = Bar(range, get, set);
+        var bar = Bar(range, get, set, settled);
         bar.style.flexGrow = 1;
         row.Add(bar);
 
@@ -212,10 +216,11 @@ static class Controls
 
     // A bar on its own, for a row this file did not build: on the transport a caption
     // column would only push everything beside it out of line.
-    public static ValueBar Bar(in ValueBar.Range range, Func<float> get, Action<float> set)
+    public static ValueBar Bar(in ValueBar.Range range, Func<float> get,
+                               Action<float> set, Action settled = null)
     {
         var bar = new ValueBar(range);
-        bar.Bind(get, set);
+        bar.Bind(get, set, settled);
         return bar;
     }
 

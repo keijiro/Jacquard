@@ -68,13 +68,16 @@ public struct SendFxRuntime
 // It owns no timbre state. Notes arrive through the pipe carrying their own patch
 // and an absolute sample position, and are rendered at exactly that position.
 //
-// The mix is a dry bus and two send buses. A voice goes into the dry one at full
-// strength and into each of the others at whatever its note asked for, so the two
-// effects hear a sum of exactly the notes that were sent to them and nothing else.
-// The wet path is stereo where the dry one is not: a reverb with no width and a
-// delay that cannot cross sides would be most of the two effects thrown away, while
-// the notes themselves have nowhere for a position to come from — a score has no
-// pan, and inventing one for it is a different decision than this.
+// The mix is a dry bus and two send buses. A voice goes into the dry one at the pair
+// of gains its pan asks for and into each of the others at whatever its note asked
+// for, so the two effects hear a sum of exactly the notes that were sent to them and
+// nothing else.
+//
+// Every path here is stereo, and each becomes so for its own reason. The wet one,
+// because a reverb with no width and a delay that cannot cross sides would be most of
+// the two effects thrown away — the image is the effect. The dry one, because the pan
+// in the patch is a position per note, which is a finer thing than either bus can say
+// and the one place a chord can be spread out at all.
 
 [BurstCompile(CompileSynchronously = true)]
 struct FmSynthRealtime : RootOutputInstance.IRealtime
@@ -83,7 +86,8 @@ struct FmSynthRealtime : RootOutputInstance.IRealtime
     internal ReverbBus reverb;
     internal DelayBus delay;
 
-    internal NativeArray<float> dry;      // Every voice at full strength
+    internal NativeArray<float> dryL;     // Every voice, placed by its own pan
+    internal NativeArray<float> dryR;
     internal NativeArray<float> reverbIn; // What the notes sent to the reverb
     internal NativeArray<float> delayIn;  // What they sent to the delay
     internal NativeArray<float> outL;     // Wet, then the finished mix
@@ -104,7 +108,8 @@ struct FmSynthRealtime : RootOutputInstance.IRealtime
         public ReverbBus reverb;
         public DelayBus delay;
 
-        public NativeArray<float> dry;
+        public NativeArray<float> dryL;
+        public NativeArray<float> dryR;
         public NativeArray<float> reverbIn;
         public NativeArray<float> delayIn;
         public NativeArray<float> outL;
@@ -120,14 +125,16 @@ struct FmSynthRealtime : RootOutputInstance.IRealtime
         {
             for (var frame = 0; frame < frameCount; frame++)
             {
-                dry[frame] = 0.0f;
+                dryL[frame] = 0.0f;
+                dryR[frame] = 0.0f;
                 reverbIn[frame] = 0.0f;
                 delayIn[frame] = 0.0f;
                 outL[frame] = 0.0f;
                 outR[frame] = 0.0f;
             }
 
-            pool.Render(dry, reverbIn, delayIn, frameCount, bufferStart, sampleRate);
+            pool.Render(dryL, dryR, reverbIn, delayIn, frameCount, bufferStart,
+                        sampleRate);
 
             // In parallel rather than in series. Feeding the delay's repeats into the
             // reverb is a good sound and would be one line, but it is also a decision
@@ -143,9 +150,8 @@ struct FmSynthRealtime : RootOutputInstance.IRealtime
             // joins here, which is also where the two sides stop being wet only.
             for (var frame = 0; frame < frameCount; frame++)
             {
-                var centre = dry[frame];
-                outL[frame] = SoftClip((centre + outL[frame]) * masterGain);
-                outR[frame] = SoftClip((centre + outR[frame]) * masterGain);
+                outL[frame] = SoftClip((dryL[frame] + outL[frame]) * masterGain);
+                outR[frame] = SoftClip((dryR[frame] + outR[frame]) * masterGain);
             }
         }
 
@@ -205,7 +211,8 @@ struct FmSynthRealtime : RootOutputInstance.IRealtime
           { pool = pool,
             reverb = reverb,
             delay = delay,
-            dry = dry,
+            dryL = dryL,
+            dryR = dryR,
             reverbIn = reverbIn,
             delayIn = delayIn,
             outL = outL,

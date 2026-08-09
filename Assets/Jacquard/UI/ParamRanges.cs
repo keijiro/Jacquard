@@ -1,3 +1,5 @@
+using UnityEngine;
+
 namespace Jacquard.App {
 
 // What a synth parameter's bar looks like.
@@ -11,7 +13,7 @@ namespace Jacquard.App {
 //
 // The pitch sweep needs no case of its own: its range straddles zero, so the bar
 // draws itself from where zero sits and shows the direction of the offset along with
-// its size.
+// its size. Pan is drawn the same way and only reads out differently.
 
 static class ParamRanges
 {
@@ -38,13 +40,32 @@ static class ParamRanges
               new ValueBar.Range(low, high, curve: 2.0f, scale: 100.0f,
                                  unit: "%", digits: 0),
 
+            // A side and a distance, which is how a position is read: "L 50" says both
+            // and "-0.50" says neither, and the centre is a place with a name rather
+            // than a number that happens to be zero. The bar itself already grows out
+            // of that centre towards the side being named, since the range straddles
+            // it. Typing goes through the number, so the readout counts in the same
+            // hundredths the field would take.
+            ParamTargets.Pan =>
+              new ValueBar.Range(low, high, scale: 100.0f, digits: 0, display: Side),
+
             _ => ValueBar.Amount(low, high)
         };
+    }
+
+    static string Side(float value)
+    {
+        var amount = Mathf.RoundToInt(Mathf.Clamp(value, -1.0f, 1.0f) * 100.0f);
+        return amount == 0 ? "C" : (amount < 0 ? "L " : "R ") + Mathf.Abs(amount);
     }
 
     // What a relative lock shifts that value by: the same reading over a bar that
     // reaches as far in either direction as the parameter itself does, and which
     // therefore grows out of the middle.
+    //
+    // The one thing deliberately dropped is a display of its own, which pan is the
+    // only parameter to have. A shift is a distance and has no side to be on, so it
+    // reads as the plain number the scale already puts it in.
     public static ValueBar.Range Relative(int target)
     {
         var range = Of(target);

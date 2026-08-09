@@ -37,15 +37,21 @@ static class FmCurve
 // it is scheduled, which is also why a parameter lock can alter one note without
 // disturbing anything else. gateScale is not an oscillator setting but lives here
 // so that every lock target is a plain field of one struct — and every field is a
-// lock target, which is what makes ParamTargets a list of these twelve and nothing
-// else.
+// lock target, which is what makes ParamTargets a list of these thirteen and
+// nothing else.
 //
-// The last two are neither, in the sense that they describe nothing about the
-// oscillator: they are how much of the note goes to each of the two send effects,
-// whose own settings belong to the project rather than to a timbre (SendFx). They
-// are in the patch because a send is worth locking — a reverb on one note of a
-// chord is exactly the accent a lock exists for — and because a send decided at
-// note-on is a send that never has to be smoothed.
+// Three of them are not oscillator settings at all, in the sense that they describe
+// nothing about how the tone is made: where the note sits across the stereo image,
+// and how much of it goes to each of the two send effects, whose own settings belong
+// to the project rather than to a timbre (SendFx). They are in the patch because
+// each is worth locking — a reverb on one note of a chord, or that note thrown to
+// one side, is exactly the accent a lock exists for — and because a position and a
+// send decided at note-on are a position and a send that never have to be smoothed.
+//
+// Pan moves the dry signal only. What the note sends to the reverb and the delay
+// goes in unpanned, since each of those makes a stereo image of its own out of a
+// mono feed, and a tail that argued with the note's own position would be two
+// answers to one question.
 //
 // The two operators get deliberately different envelope shapes, matching what
 // each one actually does. The carrier gates the output, so it is an AR: rise,
@@ -62,6 +68,7 @@ static class FmCurve
 public struct FmPatch
 {
     public float level;      // Output level [0,1]
+    public float pan;        // Across the image, -1 hard left to +1 hard right
     public float gateScale;  // Multiplies the note's gate length
 
     public float modulatorRatio;  // Modulator frequency as a ratio of frequency
@@ -82,10 +89,12 @@ public struct FmPatch
     // The pitch envelope starts out at no depth, so a fresh patch sounds like it
     // did before there was one, but with a decay already set to something a kick
     // would use: entering a depth is then enough to hear what it does. The sends
-    // start silent for the same reason: a project that never opens the Send panel
-    // sounds exactly as it did before there was one.
+    // start silent for the same reason: a project that never opens the Send FX panel
+    // sounds exactly as it did before there was one. Pan starts centred, which the
+    // gains below are normalized to render exactly as an unpanned note used to.
     public static FmPatch Default => new FmPatch
       { level = 0.8f,
+        pan = 0.0f,
         gateScale = 1.0f,
         modulatorRatio = 2.0f,
         modulationIndex = 3.0f,
@@ -111,6 +120,7 @@ public struct FmNoteEvent
     public long startSample;
     public float frequency;
     public float level;    // Peak output level [0,1]
+    public float pan;      // Across the image, -1 hard left to +1 hard right
     public float duration; // Gate length in seconds; release follows it
     public int priority;   // Higher priority wins when voices are stolen
 
@@ -132,6 +142,29 @@ public struct FmNoteEvent
 
     // Total time the note occupies a voice, gate plus carrier release.
     public float TotalDuration => duration + carrierRelease;
+
+    // The two gains the dry signal is rendered at. Equal power: the pair is a point
+    // on a circle rather than on a line, so a note keeps its weight as it crosses
+    // instead of sagging in the middle the way a pair of straight fades does.
+    //
+    // The circle is scaled so that the centre is unity rather than the ends, which
+    // makes a patch that never touches pan render exactly as it did before there was
+    // one — the same thing the silent sends were worth. What it costs is 3dB of
+    // headroom at the extremes, where a note is on one side only; the soft clip at
+    // the end of the mix is already what a dense chord relies on.
+    public void PanGains(out float left, out float right)
+    {
+        var position = pan < -1.0f ? -1.0f : pan > 1.0f ? 1.0f : pan;
+
+        // A quarter turn of travel: hard left at zero and hard right at a right
+        // angle, with the centre halfway between at 45 degrees.
+        var angle = (position + 1.0f) * (FastMath.HalfPi * 0.5f);
+
+        left = FastMath.Cos(angle) * Root2;
+        right = FastMath.Sin(angle) * Root2;
+    }
+
+    const float Root2 = 1.41421356f;
 
     // Carrier level: rise over the attack, hold for the rest of the gate, then
     // release from whatever level was actually reached, so a note shorter than
@@ -173,6 +206,7 @@ public struct FmNoteEvent
         { startSample = startSample,
           frequency = Pitch.ToFrequency(note),
           level = Math.Clamp(patch.level, 0.0f, 1.0f),
+          pan = Math.Clamp(patch.pan, -1.0f, 1.0f),
           duration = MathF.Max(gateSeconds * patch.gateScale, 0.005f),
           // Louder notes outrank quieter ones when the pool runs out of voices,
           // so an accent survives a dense chord.

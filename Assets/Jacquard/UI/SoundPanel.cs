@@ -87,7 +87,8 @@ sealed class SoundPanel
             var index = target;
             _body.Add(Controls.Bar(ParamTargets.Name(index), ParamRanges.Of(index),
                                    () => ParamTargets.Get(Patch, index),
-                                   value => Set(index, value)));
+                                   value => Set(index, value),
+                                   Audition));
         }
 
         _body.Add(Controls.Divider());
@@ -98,17 +99,16 @@ sealed class SoundPanel
     // place and a lock target be pointed at.
     ref FmPatch Patch => ref _editor.Project.Patches[_channel];
 
-    void Set(int target, float value)
-    {
-        ParamTargets.Set(ref Patch, target, value);
-        Changed();
-    }
-
-    // Nothing to tell the sequencer: it reads the bank afresh every instant, since
-    // a lock never outlives one.
-    void Changed() => Audition();
+    // Nothing to tell the sequencer either way: it reads the bank afresh every
+    // instant, since a lock never outlives one.
+    void Set(int target, float value) => ParamTargets.Set(ref Patch, target, value);
 
     // Sounded on the channel being edited, which is the one under the cursor.
+    //
+    // Every bar asks for this once its value has settled rather than at every value
+    // it passes through, which is what makes a drag down a bar one note instead of a
+    // burst of them. The button is the same note asked for on demand, for a parameter
+    // that has been left where it was.
     void Audition() => _editor.Preview(60, _channel);
 }
 

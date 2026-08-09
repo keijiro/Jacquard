@@ -56,7 +56,7 @@ Notes on the prototype
 - **A lock is over when its instant is.** There is no accumulating lock and no
   standing channel state; every channel starts each instant from its patch again.
 - **Every field of the patch is a lock target.** `FmPatch` and `ParamTargets` name
-  the same twelve parameters, so there is nothing a channel holds that a step cannot
+  the same thirteen parameters, so there is nothing a channel holds that a step cannot
   reach for one instant. One of them, the gate ratio, multiplies the length written
   on the note rather than being a length itself, which is why the note reads in
   steps and the channel in percent: the two are the same multiplication and only
@@ -82,13 +82,30 @@ Notes on the prototype
   It also means **no send ever has to be smoothed.** The send gains are read off the
   note event, so a voice holds them for its whole life and what moves when the Sound
   panel moves is the next note. `FmVoicePool.Render` therefore renders a voice once
-  and splits the sample three ways rather than mixing anything afterwards.
-- **The wet path is stereo and the dry one is not.** A reverb with no width and a
-  delay that cannot cross sides would be most of both effects thrown away, so
-  `ReverbBus` and `DelayBus` each keep two lines and `EndProcessing` writes L and R
-  where it used to copy one buffer everywhere. The notes stay centred, because a score
-  has nothing in it that says where a note is: inventing a pan for a `CHAN` lane is a
-  decision about the sequencer rather than about the effects.
+  and splits the sample four ways — the two sides of the dry bus and the two send
+  buses — rather than mixing anything afterwards.
+- **Every path is stereo, and each became so for its own reason.** The wet one first:
+  a reverb with no width and a delay that cannot cross sides would be most of both
+  effects thrown away, so `ReverbBus` and `DelayBus` each keep two lines and
+  `EndProcessing` writes L and R where it used to copy one buffer everywhere. The dry
+  one followed, because **pan is a field of the patch** rather than a property of a
+  lane: it is a position per note, which is finer than either bus could say, and it is
+  the only thing here that can spread a chord out at all. `FmVoicePool` therefore
+  renders into `dryL` and `dryR` at a pair of gains read off the note, the same
+  arrangement the sends have and for the same reason — a position fixed at note-on
+  never has to be smoothed.
+
+  **The law is equal power, normalized to unity at the centre and not at the ends.**
+  A pair of straight fades sags 3dB as it crosses; a circle does not. Putting the
+  unity point in the centre is what makes a patch that never touches pan render
+  exactly as it did before there was one — the same thing the silent sends bought —
+  and it is paid for at the extremes, where a note is 3dB up on the one side it is
+  still on. The soft clip at the end of the mix is what a dense chord already relies
+  on.
+
+  **The sends take the voice unpanned.** Each is a mono feed into an effect that
+  builds an image of its own, so a tail that also leaned towards the side its note
+  came from would be two answers to one question.
 - **The delay time is the one number in the project that is smoothed**, and the reason
   is what kind of quantity it is. The reverb's size and damping are coefficients, so
   moving one changes how what is already in the lines decays and there is no seam. A
@@ -113,6 +130,15 @@ Notes on the prototype
   lock's amount be read against what it moves; typing is deliberately not held to
   it. A lane's step count is the one number still stepped, since each one is a cell
   and growing can be refused.
+
+  **A bar reports twice, and the second report is what sounds a note.** The setter
+  runs at every value a scrub passes through, because the model has to be current —
+  the sequencer may well be playing through the edit. `ValueBar.Bind`'s optional
+  `settled` runs once the number has stopped moving instead: at the end of a drag, or
+  immediately for anything that was never a drag, since a typed value arrives already
+  decided. The Sound panel's audition hangs off it, and so does the note the Tile
+  panel's pitch bar plays. Sounding a note per event turned a drag down a bar into a
+  burst of a hundred, none of which was the value being chosen.
 - **A panel shows what the cursor is on**, and nothing is toggled. The tile panel
   keeps the corner and follows the cursor; beside it comes up either the Sound
   panel, while a `CHAN` cell is selected, or the Lock panel, while a `PABS` or
@@ -121,7 +147,7 @@ Notes on the prototype
   no cell is both. There is no window to open, and so no state on screen that the
   score does not decide.
 
-  **The Send panel is the one exception, and it is the exception because it has to
+  **The Send FX panel is the one exception, and it is the exception because it has to
   be.** One reverb and one delay for the whole project answer to no cell, so there is
   no cursor position that could bring them up; putting a tile on the plane for the sake
   of the rule would be inventing score to hold a setting. It pays for the state it adds
@@ -130,6 +156,11 @@ Notes on the prototype
   `Controls.Panel` has always offered and nothing had used. It hangs from the top left,
   the opposite corner from the cursor's column, so that reaching for an effect never
   covers what the cursor is saying about the note the effect is for.
+
+  It is called **Send FX** and not Send, on the panel and on the button both. A send
+  is what a *channel* does, and the amounts are on the Sound panel named after the
+  effect each one feeds; a panel called Send would be named after the sending and hold
+  none of it. What is here is the receiving end.
 - **The panel is also where a tile is put down**, since the cursor is already the
   answer to where. A cell that will take one — a lane's empty step, the cell under
   a stack, the `TERM` cell that grows the lane — offers the tiles instead of a
@@ -222,7 +253,13 @@ Notes on the prototype
   Two things deliberately do not move. `Style`'s cell pitch is untouched, because the
   score already read right on the iPad and only the chrome did not. And paddings,
   margins and dividers stay at their mouse values: the growth is spent on the targets
-  and not on the air between them, which a twelve row Sound panel cannot afford.
+  and not on the air between them, which a thirteen row Sound panel cannot afford.
+
+  That row count is the number to watch. In the touch profile a row costs 33pt, and
+  the column — transport, Tile panel over a `CHAN` head, Sound panel — now stands at
+  roughly 853pt against 834 on an iPad Pro 11", 820 on an Air and 744 on a mini. The
+  column does not scroll, so the shortest screens genuinely lose their bottom rows,
+  and **every further lock target costs another 33pt off the same budget.**
 
   A scale on the panels was the alternative and it is ruled out by what is coming.
   Pinch zoom will put a continuous fractional scale on the plane's content, which

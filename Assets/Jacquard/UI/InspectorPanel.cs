@@ -174,12 +174,17 @@ sealed class InspectorPanel
     {
         // The bar spells the pitch as well as numbering it, so there is no longer a
         // row beside it saying what 60 means.
+        //
+        // The note is heard where the drag ends rather than at every semitone it
+        // crosses: a scrub over an octave is twelve notes on top of each other and
+        // none of them the one being chosen. A typed pitch sounds straight away, since
+        // it never passed through the eleven others.
         body.Add(Controls.Bar("Pitch", PitchRange, () => note.Note,
                               value => { note.Note = Mathf.Clamp(Mathf.RoundToInt(value),
                                                                  Pitch.Lowest, Pitch.Highest);
                                          _editor.RememberNote(note);
-                                         _editor.Preview(note.Note);
-                                         Touch(); }));
+                                         Touch(); },
+                              () => _editor.Preview(note.Note)));
 
         // Length is in steps, so what it means in real time depends on the
         // channel's division, its gate ratio and the project tempo.

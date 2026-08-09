@@ -1,6 +1,6 @@
 namespace Jacquard {
 
-// The three functions the oscillator needs, written out longhand.
+// The handful of functions the synth needs, written out longhand.
 //
 // This exists for a specific reason: Burst cannot resolve the extern methods
 // behind System.MathF, so a render job that calls MathF.Sin quietly falls back to
@@ -44,6 +44,11 @@ public static class FastMath
                     s * (-0.000198412698f +
                     s * 2.75573192e-6f))));
     }
+
+    // The other half of the pan law's circle, which is a quarter turn ahead of the
+    // sine and nothing else: nothing here needs a cosine accurate anywhere the sine
+    // above is not.
+    public static float Cos(float x) => Sin(x + HalfPi);
 
     // Split into a power of two and a fraction. The envelopes only ever ask for a
     // decay, so the exponent stays small and the loop is a few multiplies.

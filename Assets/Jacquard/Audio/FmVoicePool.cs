@@ -44,17 +44,21 @@ struct FmVoicePool
     }
 
     // Starts every queued note that falls inside this buffer, then renders all
-    // active voices into the dry buffer and, in the proportion each note asks for,
-    // into the two send buses.
+    // active voices into the two sides of the dry bus, at the pair of gains their pan
+    // asks for, and — in the proportion each note asks for — into the two send buses.
     //
-    // A voice is rendered once and split three ways rather than being rendered again
-    // per destination, and its two send gains are read off the note, which means they
-    // are fixed for the life of the voice. That is the whole reason a send needs no
-    // smoothing: what moves when the Sound panel moves is the next note, never this
-    // one.
-    public void Render(NativeArray<float> dry, NativeArray<float> reverbIn,
-                       NativeArray<float> delayIn, int frameCount, long bufferStart,
-                       float sampleRate)
+    // A voice is rendered once and split four ways rather than being rendered again
+    // per destination, and every gain it is split at is read off the note, which means
+    // all of them are fixed for the life of the voice. That is the whole reason
+    // neither a pan nor a send needs smoothing: what moves when the Sound panel moves
+    // is the next note, never this one.
+    //
+    // The sends take the voice unpanned. Each of those buses is a mono feed into an
+    // effect that builds a stereo image of its own, so a tail that also leaned to the
+    // side its note came from would be two answers to one question.
+    public void Render(NativeArray<float> dryL, NativeArray<float> dryR,
+                       NativeArray<float> reverbIn, NativeArray<float> delayIn,
+                       int frameCount, long bufferStart, float sampleRate)
     {
         var bufferEnd = bufferStart + frameCount;
 
@@ -90,6 +94,10 @@ struct FmVoicePool
             var note = voice.Note;
             var total = note.TotalDuration;
 
+            // Once per voice per buffer, not per sample: the note holds still, so
+            // the pair of gains it renders at does too.
+            note.PanGains(out var left, out var right);
+
             for (var frame = 0; frame < frameCount; frame++)
             {
                 // Elapsed note time. The subtraction stays small even for a long
@@ -101,7 +109,8 @@ struct FmVoicePool
 
                 var sample = voice.Next(time);
 
-                dry[frame] += sample;
+                dryL[frame] += sample * left;
+                dryR[frame] += sample * right;
                 reverbIn[frame] += sample * note.reverbSend;
                 delayIn[frame] += sample * note.delaySend;
             }

@@ -25,6 +25,7 @@ static class SelfTest
         Locks(log);
         Channels(log);
         Sends(log);
+        Pan(log);
         Synth(log);
         Delay(log);
         Reverb(log);
@@ -388,6 +389,69 @@ static class SelfTest
               "beats=" + legacy.Fx.delayBeats +
               " rsend=" + legacy.Patches[1].reverbSend +
               " level=" + legacy.Patches[1].level);
+    }
+
+    // The pan law, which is two claims and both of them are audible if they are wrong.
+    // A centred note has to come out exactly as it did before there was a pan at all,
+    // or every project written until now quietly changes level; and the pair of gains
+    // has to hold its power as it crosses, or a note thrown to the side sags in the
+    // middle of the journey. Neither shows up anywhere else — the voice pool applies
+    // these gains inside a Burst job, where nothing can be measured.
+    static void Pan(System.Text.StringBuilder log)
+    {
+        var note = new FmNoteEvent();
+
+        note.pan = 0.0f;
+        note.PanGains(out var centreL, out var centreR);
+
+        Check(log, "a centred note renders as it did unpanned",
+              Mathf.Abs(centreL - 1.0f) < 0.001f && Mathf.Abs(centreR - 1.0f) < 0.001f,
+              "L=" + centreL + " R=" + centreR);
+
+        note.pan = -1.0f;
+        note.PanGains(out var leftL, out var leftR);
+
+        note.pan = 1.0f;
+        note.PanGains(out var rightL, out var rightR);
+
+        Check(log, "hard over is on one side only",
+              leftR < 0.001f && rightL < 0.001f &&
+              Mathf.Abs(leftL - rightR) < 0.001f,
+              "hard left=" + leftL + "/" + leftR +
+              " hard right=" + rightL + "/" + rightR);
+
+        // Equal power: the two gains are a point on a circle, so the sum of their
+        // squares is the same wherever the note sits. A pair of straight fades passes
+        // the two checks above and fails this one by 3dB in the middle, which is the
+        // dip the law exists to avoid.
+        var flattest = 0.0f;
+
+        for (var i = 0; i <= 20; i++)
+        {
+            note.pan = i / 10.0f - 1.0f;
+            note.PanGains(out var l, out var r);
+            flattest = Mathf.Max(flattest, Mathf.Abs(l * l + r * r - 2.0f));
+        }
+
+        Check(log, "the power holds all the way across", flattest < 0.01f,
+              "largest departure " + flattest + " from a constant 2");
+
+        // And it has to travel with the patch, since it is a field of one like any
+        // other. A lock on it is what the shared ParamTargets machinery covers.
+        var project = new Project();
+        project.Patches[1].pan = -0.75f;
+
+        var reloaded = ProjectFormat.Read(ProjectFormat.Write(project));
+
+        // A version 7 file has no pan at all and has to come back centred, which is
+        // where every note in one already was.
+        var legacy = ProjectFormat.Read("jacquard 7\ntempo 120\npatch 1 level=0.5\n");
+
+        Check(log, "a pan round trips and an older file comes back centred",
+              Mathf.Abs(reloaded.Patches[1].pan + 0.75f) < 0.001f &&
+              legacy.Patches[1].pan == 0.0f,
+              "pan=" + reloaded.Patches[1].pan +
+              " version 7 pan=" + legacy.Patches[1].pan);
     }
 
     // The oscillator, which neither the round trip nor the note counts say

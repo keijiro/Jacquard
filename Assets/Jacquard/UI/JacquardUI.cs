@@ -114,7 +114,12 @@ sealed class JacquardUI
         // for. It sits with the tempo rather than with the file controls: the delay is
         // locked to the tempo, so the two things that decide how the sequence moves in
         // time are next to each other.
-        _sendButton = Controls.Push("Send", () => { ShowSend(!_sendShown); Refocus(); }, 54);
+        //
+        // "Send FX" and not "Send", which would name the half of the arrangement that
+        // is not here: what a channel sends is set on the Sound panel, and this is
+        // what it is sent to.
+        _sendButton = Controls.Push("Send FX",
+                                    () => { ShowSend(!_sendShown); Refocus(); }, 62);
         row.Add(_sendButton);
 
         row.Add(Separator());
@@ -152,11 +157,11 @@ sealed class JacquardUI
     // using.
     //
     // The left edge is a second column all the same, and this is what it is for: the
-    // Send panel is nothing to do with the cursor, so standing it under the Tile panel
-    // would put a project setting in the queue behind whatever cell is selected, and
-    // it would move down the screen every time the Tile panel grew a line. Opposite
-    // corners also mean that reaching for an effect never covers what the cursor is
-    // saying about the note the effect is for.
+    // Send FX panel is nothing to do with the cursor, so standing it under the Tile
+    // panel would put a project setting in the queue behind whatever cell is selected,
+    // and it would move down the screen every time the Tile panel grew a line.
+    // Opposite corners also mean that reaching for an effect never covers what the
+    // cursor is saying about the note the effect is for.
     //
     // A column is transparent to the pointer and only as tall as what is on it, so the
     // plane stays reachable everywhere a panel is not actually drawn.
@@ -215,7 +220,7 @@ sealed class JacquardUI
         // and moving a lane can change which channel a lock colours.
         _sound.Refresh();
         _lock.Refresh();
-        // Not in OnCursorMoved, since nothing on the Send panel answers to a cell.
+        // Not in OnCursorMoved, since nothing on the Send FX panel answers to a cell.
         // This is for the one change that does reach it: a load, which arrives with
         // effect settings of its own.
         _send.Refresh();

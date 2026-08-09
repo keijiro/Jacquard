@@ -224,11 +224,26 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
     // Points the bar at a value in the model. A getter as well as a setter, because
     // the model is also changed from the grid and by a load: a bar that only wrote
     // would go stale and then put its stale value back on the next drag.
-    public void Bind(Func<float> get, Action<float> set)
+    //
+    // settled is for whatever has to happen once the number has stopped moving rather
+    // than at every number on the way there — sounding a note is the case it exists
+    // for. A scrub reports it when the hand comes off, and reports it once: a drag
+    // down a bar crosses a hundred values, and a note per value is a machine gun
+    // rather than an audition. Anything that is not a drag settles the instant it
+    // changes, since a typed number arrives already decided.
+    public void Bind(Func<float> get, Action<float> set, Action settled = null)
     {
         _get = get;
+        _settled = settled;
+
         SetValueWithoutNotify(get());
-        this.RegisterValueChangedCallback(e => set(e.newValue));
+
+        this.RegisterValueChangedCallback(e =>
+        {
+            set(e.newValue);
+
+            if (_dragging) _scrubbed = true; else _settled?.Invoke();
+        });
     }
 
     // Pulls the bar back in line with the model.
@@ -359,6 +374,15 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
 
         _dragging = false;
         _fill.style.backgroundColor = Style.Fill;
+
+        // The one report a scrub makes, now that the value it has arrived at is the
+        // value it meant. A drag that never moved the number has nothing to report,
+        // which is also what keeps a plain click on a bar silent.
+        if (_scrubbed)
+        {
+            _scrubbed = false;
+            _settled?.Invoke();
+        }
 
         ReturnKeyboard();
     }
@@ -516,13 +540,15 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
     readonly TextField _input;
 
     Func<float> _get;
+    Action _settled;
 
     float _value;
 
     bool _hover;
 
     bool _dragging;
-    bool _dragged; // Whether this drag has moved far enough to count as one
+    bool _dragged;  // Whether this drag has moved far enough to count as one
+    bool _scrubbed; // Whether it has moved the value, which is what is reported
     bool _dragFine;
     Vector2 _dragOrigin; // Pointer position the drag is measured from
     float _dragPosition; // Bar position it counts from

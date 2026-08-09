@@ -27,6 +27,13 @@ namespace Jacquard {
 
 public static class ProjectFormat
 {
+    // Version 8 adds a pan to every patch: a pan= on the patch line, and a thirteenth
+    // target a lock can name. An older file has neither and reads as a project whose
+    // notes all sit in the centre, which is exactly where they were. The bump is for
+    // the other direction, as it was last time: an older build would skip the key on a
+    // patch line without a word but refuse a lock naming pan, and this is what turns
+    // that into the message about a file from a newer version.
+    //
     // Version 7 adds the two send effects: an fx line for what the reverb and the
     // delay are set to, and rsend= / dsend= on every patch for how much of a channel
     // reaches each. An older file needs no conversion — it has neither, so the sends
@@ -59,7 +66,7 @@ public static class ProjectFormat
     // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
     // reads, since a token nothing answers to is skipped, but the parameters that
     // no longer exist fall back to the default patch rather than being converted.
-    public const int Version = 7;
+    public const int Version = 8;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -146,6 +153,7 @@ public static class ProjectFormat
 
     static string WritePatch(in FmPatch patch)
       => "level=" + F(patch.level) +
+         " pan=" + F(patch.pan) +
          " gate=" + F(patch.gateScale) +
          " mratio=" + F(patch.modulatorRatio) +
          " index=" + F(patch.modulationIndex) +
@@ -394,6 +402,7 @@ public static class ProjectFormat
             switch (key)
             {
                 case "level": patch.level = value; break;
+                case "pan": patch.pan = value; break;
                 case "gate": patch.gateScale = value; break;
                 case "mratio": patch.modulatorRatio = value; break;
                 case "index": patch.modulationIndex = value; break;

@@ -36,9 +36,11 @@ struct FmSynthControl : RootOutputInstance.IControl<FmSynthRealtime>
             queue = new NativeArray<FmNoteEvent>(queueCapacity, Allocator.Persistent),
             counters = new NativeArray<int>(FmVoicePool.CounterCount, Allocator.Persistent) };
 
-        // The dry bus, the two send buses and the two sides of the finished mix.
+        // The two sides of the dry bus, the two send buses and the two sides of the
+        // finished mix.
         var frames = format.bufferFrameCount;
-        realtime.dry = new NativeArray<float>(frames, Allocator.Persistent);
+        realtime.dryL = new NativeArray<float>(frames, Allocator.Persistent);
+        realtime.dryR = new NativeArray<float>(frames, Allocator.Persistent);
         realtime.reverbIn = new NativeArray<float>(frames, Allocator.Persistent);
         realtime.delayIn = new NativeArray<float>(frames, Allocator.Persistent);
         realtime.outL = new NativeArray<float>(frames, Allocator.Persistent);
@@ -99,7 +101,8 @@ struct FmSynthControl : RootOutputInstance.IControl<FmSynthRealtime>
         if (realtime.pool.queue.IsCreated) realtime.pool.queue.Dispose();
         if (realtime.pool.counters.IsCreated) realtime.pool.counters.Dispose();
 
-        if (realtime.dry.IsCreated) realtime.dry.Dispose();
+        if (realtime.dryL.IsCreated) realtime.dryL.Dispose();
+        if (realtime.dryR.IsCreated) realtime.dryR.Dispose();
         if (realtime.reverbIn.IsCreated) realtime.reverbIn.Dispose();
         if (realtime.delayIn.IsCreated) realtime.delayIn.Dispose();
         if (realtime.outL.IsCreated) realtime.outL.Dispose();
