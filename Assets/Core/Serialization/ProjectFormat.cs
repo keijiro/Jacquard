@@ -16,6 +16,7 @@ namespace Jacquard {
 //   jacquard 3
 //   tempo 132
 //   meter 4 4
+//   fx rsize=0.5 rdamp=0.5 ...
 //   patch 1 level=0.8 index=3 ...
 //   lane 1 1 CHAN:1 div=16
 //     step C4/4 E4 G4
@@ -26,6 +27,14 @@ namespace Jacquard {
 
 public static class ProjectFormat
 {
+    // Version 7 adds the two send effects: an fx line for what the reverb and the
+    // delay are set to, and rsend= / dsend= on every patch for how much of a channel
+    // reaches each. An older file needs no conversion — it has neither, so the sends
+    // come back silent and the effects at their defaults, which is a file that sounds
+    // exactly as it did. The bump is for the other direction: an older build would
+    // refuse the fx line as an unknown keyword, and this is what turns that into the
+    // message about a file from a newer version.
+    //
     // Version 6 lets one lock take hold of any number of parameters, so its token
     // carries a run of key,value pairs rather than a single one. An older file needs
     // no conversion at all: one pair is one parameter engaged, which is what a lock
@@ -50,7 +59,7 @@ public static class ProjectFormat
     // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
     // reads, since a token nothing answers to is skipped, but the parameters that
     // no longer exist fall back to the default patch rather than being converted.
-    public const int Version = 6;
+    public const int Version = 7;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -63,6 +72,7 @@ public static class ProjectFormat
         text.Append("tempo ").Append(F(project.Tempo)).Append('\n');
         text.Append("meter ").Append(project.BeatsPerBar).Append(' ')
             .Append(project.BeatUnit).Append('\n');
+        text.Append("fx ").Append(WriteFx(project.Fx)).Append('\n');
         // Every channel gets a line, whether anything plays on it or not: a regular
         // file is worth more here than a short one, and a bank of eight is small.
         for (var channel = 1; channel <= PatchBank.Channels; channel++)
@@ -144,7 +154,18 @@ public static class ProjectFormat
          " ca=" + F(patch.carrierAttack) +
          " cr=" + F(patch.carrierRelease) +
          " ps=" + F(patch.pitchSweep) +
-         " pd=" + F(patch.pitchDecay);
+         " pd=" + F(patch.pitchDecay) +
+         " rsend=" + F(patch.reverbSend) +
+         " dsend=" + F(patch.delaySend);
+
+    static string WriteFx(in SendFx fx)
+      => "rsize=" + F(fx.reverbSize) +
+         " rdamp=" + F(fx.reverbDamp) +
+         " rwidth=" + F(fx.reverbWidth) +
+         " dbeats=" + F(fx.delayBeats) +
+         " dfb=" + F(fx.delayFeedback) +
+         " dtone=" + F(fx.delayTone) +
+         " dspread=" + F(fx.delaySpread);
 
     static string F(float value)
       => value.ToString("0.#####", CultureInfo.InvariantCulture);
@@ -184,6 +205,10 @@ public static class ProjectFormat
                 case "meter":
                     project.BeatsPerBar = ReadInt(Arg(tokens, 1, number));
                     project.BeatUnit = ReadInt(Arg(tokens, 2, number));
+                    break;
+
+                case "fx":
+                    ReadFx(ref project.Fx, tokens);
                     break;
 
                 case "patch":
@@ -303,7 +328,15 @@ public static class ProjectFormat
     // Targets a file may still name that the synth no longer has. The pair naming
     // one is skipped, since there is nothing left for it to move; any other spelling
     // is one the format never had and stays an error.
-    static readonly string[] Retired = { "detune" };
+    //
+    // This is every key ParamTargets has ever dropped, which is what it has to be:
+    // version 2 took the carrier's decay and sustain out and nothing was written here,
+    // so a version 1 file with a lock on either was refused outright for four versions
+    // instead of losing the lock. Only detune, dropped by version 5, was recorded at
+    // the time. So a target leaving ParamTargets belongs in this list in the same
+    // change — a file that cannot be opened at all is a worse answer than one that
+    // opens with a lock nobody can move any more.
+    static readonly string[] Retired = { "detune", "cardecay", "carsustain" };
 
     // A run of key,value pairs, or nothing at all for a lock that holds no
     // parameter. A version 5 token has exactly one pair, which reads here as the one
@@ -370,6 +403,32 @@ public static class ProjectFormat
                 case "cr": patch.carrierRelease = value; break;
                 case "ps": patch.pitchSweep = value; break;
                 case "pd": patch.pitchDecay = value; break;
+                case "rsend": patch.reverbSend = value; break;
+                case "dsend": patch.delaySend = value; break;
+            }
+        }
+    }
+
+    // The one fx line. Unknown keys are skipped and missing ones keep the default
+    // the project was created with, which is the same tolerance a patch line gets:
+    // a version 6 file has no line here at all and reads as a project whose effects
+    // have never been touched.
+    static void ReadFx(ref SendFx fx, string[] tokens)
+    {
+        for (var i = 1; i < tokens.Length; i++)
+        {
+            var (key, text) = Split(tokens[i]);
+            var value = ReadFloat(text);
+
+            switch (key)
+            {
+                case "rsize": fx.reverbSize = value; break;
+                case "rdamp": fx.reverbDamp = value; break;
+                case "rwidth": fx.reverbWidth = value; break;
+                case "dbeats": fx.delayBeats = value; break;
+                case "dfb": fx.delayFeedback = value; break;
+                case "dtone": fx.delayTone = value; break;
+                case "dspread": fx.delaySpread = value; break;
             }
         }
     }

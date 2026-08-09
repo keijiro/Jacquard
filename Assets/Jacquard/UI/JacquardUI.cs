@@ -5,13 +5,15 @@ using UnityEngine.UIElements;
 
 namespace Jacquard.App {
 
-// Assembles the screen: one row of chrome above a scrolling score plane, with the
-// tile and sound windows floating over it.
+// Assembles the screen: one row of chrome above a scrolling score plane, with a
+// column of panels floating over each of its top corners.
 //
 // The row carries what belongs to the project as a whole and nothing else. Anything
 // that applies to a cell is on the panel that follows the cursor, which is where the
 // cell already is, and the plane keeps the screen that a palette and a paragraph of
-// keys used to take.
+// keys used to take. The one switch on the row is the one panel a cell cannot ask
+// for, since the send effects belong to the project rather than to anything written
+// on the plane.
 //
 // prototype.md leaves the application level UI to be designed here, so it is kept
 // to what a prototype has to prove: that every kind of tile can be put down, tuned
@@ -62,7 +64,13 @@ sealed class JacquardUI
         _sound = new SoundPanel(_editor);
         _lock = new LockPanel(_editor);
 
-        body.Add(PanelColumn(_inspector.Root, _sound.Root, _lock.Root));
+        body.Add(PanelColumn(false, _inspector.Root, _sound.Root, _lock.Root));
+
+        // The effects are the project's, not a cell's, so they get a column of their
+        // own on the other edge rather than a slot in the cursor's.
+        _send = new SendPanel(_editor, () => ShowSend(false));
+        body.Add(PanelColumn(true, _send.Root));
+        ShowSend(false);
 
         _editor.Changed += OnChanged;
 
@@ -102,6 +110,15 @@ sealed class JacquardUI
 
         row.Add(Separator());
 
+        // The one panel with a switch, because it is the one panel no cell can ask
+        // for. It sits with the tempo rather than with the file controls: the delay is
+        // locked to the tempo, so the two things that decide how the sequence moves in
+        // time are next to each other.
+        _sendButton = Controls.Push("Send", () => { ShowSend(!_sendShown); Refocus(); }, 54);
+        row.Add(_sendButton);
+
+        row.Add(Separator());
+
         _slots = _app.Store.Slots();
 
         var chooser = Controls.Chooser("File", _slots,
@@ -122,26 +139,38 @@ sealed class JacquardUI
         return row;
     }
 
-    // The panels, in one column down the right hand edge. They stack in the order
-    // they are given rather than each holding a corner of its own: the Tile panel is
-    // always up, so it keeps the top, and whichever of Sound and Lock the cursor calls
-    // for falls in under it. A panel that is down is display: none, which takes it out
-    // of the column rather than leaving its gap behind.
+    // A column of panels down one edge. They stack in the order they are given rather
+    // than each holding a corner of its own: on the right, the Tile panel is always up
+    // so it keeps the top, and whichever of Sound and Lock the cursor calls for falls
+    // in under it. A panel that is down is display: none, which takes it out of the
+    // column rather than leaving its gap behind.
     //
-    // Under the panels, not beside them, because what is beside them is the score. A
-    // second column costs a panel's width of plane down the whole height of the screen
-    // for the sake of a panel that is up only some of the time and is never as tall as
-    // the screen; a column that grows downwards costs only what it is using.
+    // Under each other, not beside, because what is beside them is the score. A second
+    // column of the cursor's panels would cost a panel's width of plane down the whole
+    // height of the screen for the sake of one that is up only some of the time and is
+    // never as tall as the screen; a column that grows downwards costs only what it is
+    // using.
     //
-    // The column itself is transparent to the pointer and only as tall as what is on
-    // it, so the plane stays reachable everywhere a panel is not actually drawn.
-    static VisualElement PanelColumn(params VisualElement[] panels)
+    // The left edge is a second column all the same, and this is what it is for: the
+    // Send panel is nothing to do with the cursor, so standing it under the Tile panel
+    // would put a project setting in the queue behind whatever cell is selected, and
+    // it would move down the screen every time the Tile panel grew a line. Opposite
+    // corners also mean that reaching for an effect never covers what the cursor is
+    // saying about the note the effect is for.
+    //
+    // A column is transparent to the pointer and only as tall as what is on it, so the
+    // plane stays reachable everywhere a panel is not actually drawn.
+    static VisualElement PanelColumn(bool onLeft, params VisualElement[] panels)
     {
         var column = new VisualElement();
         column.style.position = Position.Absolute;
-        column.style.right = Controls.PanelGap;
         column.style.top = Controls.PanelGap;
         column.pickingMode = PickingMode.Ignore;
+
+        if (onLeft)
+            column.style.left = Controls.PanelGap;
+        else
+            column.style.right = Controls.PanelGap;
 
         foreach (var panel in panels) column.Add(panel);
 
@@ -186,15 +215,28 @@ sealed class JacquardUI
         // and moving a lane can change which channel a lock colours.
         _sound.Refresh();
         _lock.Refresh();
+        // Not in OnCursorMoved, since nothing on the Send panel answers to a cell.
+        // This is for the one change that does reach it: a load, which arrives with
+        // effect settings of its own.
+        _send.Refresh();
     }
 
-    // Every panel shows whatever the cursor is on: the inspector the tile, and beside
-    // it either the timbre of a channel or the hold a lock has on one.
+    // Every panel on the right shows whatever the cursor is on: the inspector the
+    // tile, and beside it either the timbre of a channel or the hold a lock has on one.
     void OnCursorMoved()
     {
         _inspector.Refresh();
         _sound.Refresh();
         _lock.Refresh();
+    }
+
+    // The button and the panel's own close are the two halves of one switch, so both
+    // come through here rather than each setting what it can reach.
+    void ShowSend(bool shown)
+    {
+        _sendShown = shown;
+        _send.Root.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+        Controls.SetActive(_sendButton, shown);
     }
 
     void OnKey(KeyDownEvent evt)
@@ -262,9 +304,12 @@ sealed class JacquardUI
     readonly InspectorPanel _inspector;
     readonly SoundPanel _sound;
     readonly LockPanel _lock;
+    readonly SendPanel _send;
     readonly StringBuilder _text = new();
 
     Button _play;
+    Button _sendButton;
+    bool _sendShown;
     ValueBar _tempo;
     Label _status;
     List<string> _slots;

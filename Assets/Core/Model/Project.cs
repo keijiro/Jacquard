@@ -7,12 +7,21 @@ namespace Jacquard {
 // bank belongs even though each patch in it answers to a channel rather than to
 // the project. There is one score for now; nothing has yet turned up that would
 // make binding several of them worthwhile.
+//
+// The send effects are here on the plainest reading of the same rule: there is one
+// reverb and one delay for the whole thing, so what they are set to applies to
+// everything. How much of a note reaches them does not, and lives in the patch.
 
 public sealed class Project
 {
     public float Tempo { get; set; } = 132.0f;
     public int BeatsPerBar { get; set; } = 4;
     public int BeatUnit { get; set; } = 4;
+
+    // By reference, for the same reason PatchBank hands out one: the panel sets a
+    // single field of a mutable struct, and a property would only ever hand it a
+    // copy to write into.
+    public ref SendFx Fx => ref _fx;
 
     public Score Score { get; set; } = new Score();
     public PatchBank Patches { get; } = new PatchBank();
@@ -96,6 +105,8 @@ public sealed class Project
         tile.Engage(target, amount);
         return tile;
     }
+
+    SendFx _fx = SendFx.Default;
 
     static int N(string name)
     {

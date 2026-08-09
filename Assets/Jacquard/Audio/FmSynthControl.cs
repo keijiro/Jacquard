@@ -36,7 +36,19 @@ struct FmSynthControl : RootOutputInstance.IControl<FmSynthRealtime>
             queue = new NativeArray<FmNoteEvent>(queueCapacity, Allocator.Persistent),
             counters = new NativeArray<int>(FmVoicePool.CounterCount, Allocator.Persistent) };
 
-        realtime.mono = new NativeArray<float>(format.bufferFrameCount, Allocator.Persistent);
+        // The dry bus, the two send buses and the two sides of the finished mix.
+        var frames = format.bufferFrameCount;
+        realtime.dry = new NativeArray<float>(frames, Allocator.Persistent);
+        realtime.reverbIn = new NativeArray<float>(frames, Allocator.Persistent);
+        realtime.delayIn = new NativeArray<float>(frames, Allocator.Persistent);
+        realtime.outL = new NativeArray<float>(frames, Allocator.Persistent);
+        realtime.outR = new NativeArray<float>(frames, Allocator.Persistent);
+
+        // Both buses size their lines from the sample rate, so a device change
+        // rebuilds them rather than resampling what is in them. Whatever tail was
+        // sounding is lost with the notes that fed it.
+        realtime.reverb = ReverbBus.Create(format.sampleRate);
+        realtime.delay = DelayBus.Create(format.sampleRate);
 
         return default;
     }
@@ -55,6 +67,16 @@ struct FmSynthControl : RootOutputInstance.IControl<FmSynthRealtime>
         {
             ref var note = ref message.Get<FmNoteEvent>();
             return pipe.SendData(context, in note) ? Response.Handled : Response.Unhandled;
+        }
+
+        // The effect settings, which take the same route for want of a note to ride
+        // on. Unlike a note there is no queue behind this: the audio thread keeps the
+        // latest one it was given and nothing is lost by a message that never lands,
+        // since the next change sends the whole struct again.
+        if (message.Is<SendFxRuntime>())
+        {
+            ref var fx = ref message.Get<SendFxRuntime>();
+            return pipe.SendData(context, in fx) ? Response.Handled : Response.Unhandled;
         }
 
         // A status query. Message.Get returns a reference into the sender's own
@@ -76,7 +98,15 @@ struct FmSynthControl : RootOutputInstance.IControl<FmSynthRealtime>
         if (realtime.pool.voices.IsCreated) realtime.pool.voices.Dispose();
         if (realtime.pool.queue.IsCreated) realtime.pool.queue.Dispose();
         if (realtime.pool.counters.IsCreated) realtime.pool.counters.Dispose();
-        if (realtime.mono.IsCreated) realtime.mono.Dispose();
+
+        if (realtime.dry.IsCreated) realtime.dry.Dispose();
+        if (realtime.reverbIn.IsCreated) realtime.reverbIn.Dispose();
+        if (realtime.delayIn.IsCreated) realtime.delayIn.Dispose();
+        if (realtime.outL.IsCreated) realtime.outL.Dispose();
+        if (realtime.outR.IsCreated) realtime.outR.Dispose();
+
+        realtime.reverb.Dispose();
+        realtime.delay.Dispose();
     }
 }
 

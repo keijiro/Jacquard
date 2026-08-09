@@ -26,9 +26,10 @@ Using it
 | Details of a tile | The panel on the right follows the cursor |
 | Set a number | Drag its bar right or up, shift for fine; double click to type one |
 | Timbre | Select a `CHAN` cell, which brings up the Sound panel for its channel |
+| Reverb and delay | The Send button opens the panel they are set on; how much of a channel reaches each is the last two rows of its Sound panel |
 | What a lock holds | Select it, then move a bar on the Lock panel; click a name to let go |
 | Play | Space, or the Play button |
-| Tempo | The bpm bar beside Play |
+| Tempo | The bpm bar beside Play, which the delay is in time with |
 | Pan the plane | Drag from an empty cell, two finger swipe, or command+drag |
 
 A tile goes on free ground only: a lane's empty step, the cell under a stack, or

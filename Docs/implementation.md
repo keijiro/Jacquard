@@ -22,13 +22,13 @@ the compiler rather than by discipline:
 | `Model` | `Project`, `Score`, `Lane`, `Step`, the tile hierarchy, pitch names |
 | `Serialization` | The text format, written and read by hand |
 | `Sequencer` | `Runner` and the scheduler that turns tiles into note events |
-| `Synth` | The two operator FM voice, the per channel patch bank, the lock targets |
+| `Synth` | The two operator FM voice, the per channel patch bank, the lock targets, the send effect settings |
 
 `Assets/Jacquard` is the part that cannot help but know about Unity:
 
 | | |
 | --- | --- |
-| `Audio` | Voice pool, Burst render job and the Scriptable Audio Pipeline output |
+| `Audio` | Voice pool, the two effect buses, Burst render job and the Scriptable Audio Pipeline output |
 | `App` | The MonoBehaviour, the editing operations, file access |
 | `UI` | The score plane, cell icons drawn with Painter2D, the panels |
 
@@ -56,7 +56,7 @@ Notes on the prototype
 - **A lock is over when its instant is.** There is no accumulating lock and no
   standing channel state; every channel starts each instant from its patch again.
 - **Every field of the patch is a lock target.** `FmPatch` and `ParamTargets` name
-  the same ten parameters, so there is nothing a channel holds that a step cannot
+  the same twelve parameters, so there is nothing a channel holds that a step cannot
   reach for one instant. One of them, the gate ratio, multiplies the length written
   on the note rather than being a length itself, which is why the note reads in
   steps and the channel in percent: the two are the same multiplication and only
@@ -71,6 +71,41 @@ Notes on the prototype
   lanes sharing a channel share a patch and a branch lane borrows the one of
   whatever jumps into it. The Sound panel is where that patch is edited, and an
   edit is heard from the next instant with nothing to undo.
+- **A send is in the patch; what it feeds is in the project.** There is one reverb and
+  one delay for the whole score, so their settings sit on `Project` beside the tempo —
+  but *how much* of a note reaches each is two more fields of `FmPatch`, which makes
+  them lock targets like everything else there. That split is the whole reason the
+  effects are worth having on a sequencer like this one: a `PABS` above one note of a
+  chord puts that note in the reverb and leaves the note above it dry, and no amount of
+  per-channel effect settings could say that.
+
+  It also means **no send ever has to be smoothed.** The send gains are read off the
+  note event, so a voice holds them for its whole life and what moves when the Sound
+  panel moves is the next note. `FmVoicePool.Render` therefore renders a voice once
+  and splits the sample three ways rather than mixing anything afterwards.
+- **The wet path is stereo and the dry one is not.** A reverb with no width and a
+  delay that cannot cross sides would be most of both effects thrown away, so
+  `ReverbBus` and `DelayBus` each keep two lines and `EndProcessing` writes L and R
+  where it used to copy one buffer everywhere. The notes stay centred, because a score
+  has nothing in it that says where a note is: inventing a pan for a `CHAN` lane is a
+  decision about the sequencer rather than about the effects.
+- **The delay time is the one number in the project that is smoothed**, and the reason
+  is what kind of quantity it is. The reverb's size and damping are coefficients, so
+  moving one changes how what is already in the lines decays and there is no seam. A
+  delay tap is a *position*: moved outright, the read pointer lands somewhere
+  unrelated to where it was and the join is a click. So it is rate limited rather than
+  set — a constant speed, which is a constant interval of pitch while it catches up
+  and nothing once it arrives, the sound a tape delay makes when its head is moved. An
+  exponential approach was rejected for starting the glide at whatever speed the jump
+  happened to be wide. A pair of taps and a crossfade is the alternative if the glide
+  is ever unwanted; it costs a second read per sample and cannot be played.
+- **The effect settings are the only mutable state the audio thread reads.** Everything
+  else reaches it stamped into a note, which is what `SendFxRuntime` and the
+  `FmSynth.SetFx` message exist to work around — one reverb serving eight channels
+  cannot ride on a note. `JacquardApp.Update` sends it whenever it differs from the
+  last one sent, and since the delay time is converted to samples on the way, that one
+  comparison covers a bar being dragged, the tempo changing and a file being loaded
+  without any of them knowing that anything downstream cares.
 - **A number is a bar, not a field.** The readout sits on a bar that fills as the
   value rises, dragging scrubs it and a double click types an exact one, so a
   parameter shows where it sits inside its useful range as well as what it is. What
@@ -85,6 +120,16 @@ Notes on the prototype
   channel sounds like, and what one step does to it — and they share a slot because
   no cell is both. There is no window to open, and so no state on screen that the
   score does not decide.
+
+  **The Send panel is the one exception, and it is the exception because it has to
+  be.** One reverb and one delay for the whole project answer to no cell, so there is
+  no cursor position that could bring them up; putting a tile on the plane for the sake
+  of the rule would be inventing score to hold a setting. It pays for the state it adds
+  by not being up unless it has been asked for — a button on the transport row, which
+  is where what belongs to the project already lives — and it takes the close button
+  `Controls.Panel` has always offered and nothing had used. It hangs from the top left,
+  the opposite corner from the cursor's column, so that reaching for an effect never
+  covers what the cursor is saying about the note the effect is for.
 - **The panel is also where a tile is put down**, since the cursor is already the
   answer to where. A cell that will take one — a lane's empty step, the cell under
   a stack, the `TERM` cell that grows the lane — offers the tiles instead of a
@@ -148,6 +193,17 @@ Notes on the prototype
   whatever happens to sit directly above, which makes two unrelated lanes look
   connected; sequencer.md lists that as undecided, and knowing the lane settles
   it.
+- **An old file loses what the synth no longer has, rather than being refused.** A
+  patch key nothing answers to is skipped, so a deleted parameter simply falls back to
+  the default; a *lock* on one has to be named in `ProjectFormat.Retired` to get the
+  same treatment, because an unknown lock target is otherwise an error — a typo in a
+  hand-edited score should not pass silently. Which makes the list a standing
+  obligation: **a target leaving `ParamTargets` belongs in `Retired` in the same
+  change.** It was not, twice. Version 2 dropped the carrier's decay and sustain
+  without recording either, so for four versions a file holding a lock on one could
+  not be opened at all — one of the saved scores in `persistentDataPath` was in
+  exactly that state until 2026-08-09. Only `detune`, dropped by version 5, was
+  entered at the time.
 - **`MathF` is not used in the DSP.** Burst cannot resolve the externs behind
   it, and a job that calls `MathF.Sin` silently drops to managed execution on
   the audio thread, so `FastMath` spells out the sine and the exponential.
@@ -160,5 +216,7 @@ Notes on the prototype
   multiply with this and land on a fraction.
 - Editor menu items: *Jacquard > Rebuild Main Scene* regenerates the scene, and
   *Jacquard > Run Self Test* checks the file format round trip, plays four laps of
-  the sample score without a device, and reads a stack whose gate sits between two
-  notes to prove the descent only ever reaches downwards.
+  the sample score without a device, reads a stack whose gate sits between two
+  notes to prove the descent only ever reaches downwards, and renders the two effect
+  buses to measure that a repeat lands on the beat, that moving the delay time does
+  not splice the signal, and that the reverb's tail settles.

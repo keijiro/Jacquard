@@ -37,8 +37,15 @@ static class FmCurve
 // it is scheduled, which is also why a parameter lock can alter one note without
 // disturbing anything else. gateScale is not an oscillator setting but lives here
 // so that every lock target is a plain field of one struct — and every field is a
-// lock target, which is what makes ParamTargets a list of these ten and nothing
+// lock target, which is what makes ParamTargets a list of these twelve and nothing
 // else.
+//
+// The last two are neither, in the sense that they describe nothing about the
+// oscillator: they are how much of the note goes to each of the two send effects,
+// whose own settings belong to the project rather than to a timbre (SendFx). They
+// are in the patch because a send is worth locking — a reverb on one note of a
+// chord is exactly the accent a lock exists for — and because a send decided at
+// note-on is a send that never has to be smoothed.
 //
 // The two operators get deliberately different envelope shapes, matching what
 // each one actually does. The carrier gates the output, so it is an AR: rise,
@@ -69,9 +76,14 @@ public struct FmPatch
                                   // negative to bend up into the note instead
     public float pitchDecay;      // Time for the pitch to arrive at frequency
 
+    public float reverbSend;      // How much of the note reaches the reverb [0,1]
+    public float delaySend;       // How much of it reaches the delay [0,1]
+
     // The pitch envelope starts out at no depth, so a fresh patch sounds like it
     // did before there was one, but with a decay already set to something a kick
-    // would use: entering a depth is then enough to hear what it does.
+    // would use: entering a depth is then enough to hear what it does. The sends
+    // start silent for the same reason: a project that never opens the Send panel
+    // sounds exactly as it did before there was one.
     public static FmPatch Default => new FmPatch
       { level = 0.8f,
         gateScale = 1.0f,
@@ -82,7 +94,9 @@ public struct FmPatch
         carrierAttack = 0.005f,
         carrierRelease = 0.12f,
         pitchSweep = 0.0f,
-        pitchDecay = 0.05f };
+        pitchDecay = 0.05f,
+        reverbSend = 0.0f,
+        delaySend = 0.0f };
 }
 
 // A note-on event: the complete patch alongside pitch, timing and the exact
@@ -110,6 +124,11 @@ public struct FmNoteEvent
 
     public float pitchSweep;
     public float pitchDecay;
+
+    // Constant for the life of the voice, which is the whole reason a send needs no
+    // smoothing: the gain a note is rendered at never moves under it.
+    public float reverbSend;
+    public float delaySend;
 
     // Total time the note occupies a voice, gate plus carrier release.
     public float TotalDuration => duration + carrierRelease;
@@ -165,7 +184,9 @@ public struct FmNoteEvent
           carrierAttack = patch.carrierAttack,
           carrierRelease = patch.carrierRelease,
           pitchSweep = patch.pitchSweep,
-          pitchDecay = patch.pitchDecay };
+          pitchDecay = patch.pitchDecay,
+          reverbSend = patch.reverbSend,
+          delaySend = patch.delaySend };
 }
 
 } // namespace Jacquard

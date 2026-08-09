@@ -44,8 +44,16 @@ struct FmVoicePool
     }
 
     // Starts every queued note that falls inside this buffer, then renders all
-    // active voices into the mono buffer.
-    public void Render(NativeArray<float> mono, int frameCount, long bufferStart,
+    // active voices into the dry buffer and, in the proportion each note asks for,
+    // into the two send buses.
+    //
+    // A voice is rendered once and split three ways rather than being rendered again
+    // per destination, and its two send gains are read off the note, which means they
+    // are fixed for the life of the voice. That is the whole reason a send needs no
+    // smoothing: what moves when the Sound panel moves is the next note, never this
+    // one.
+    public void Render(NativeArray<float> dry, NativeArray<float> reverbIn,
+                       NativeArray<float> delayIn, int frameCount, long bufferStart,
                        float sampleRate)
     {
         var bufferEnd = bufferStart + frameCount;
@@ -91,7 +99,11 @@ struct FmVoicePool
                 if (time < 0.0f) continue;              // Starts later in this buffer
                 if (time >= total) { voice.Release(); break; }
 
-                mono[frame] += voice.Next(time);
+                var sample = voice.Next(time);
+
+                dry[frame] += sample;
+                reverbIn[frame] += sample * note.reverbSend;
+                delayIn[frame] += sample * note.delaySend;
             }
 
             voices[i] = voice;

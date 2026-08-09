@@ -13,6 +13,10 @@ namespace Jacquard.App {
 // thing you can do with it is schedule an FmNoteEvent, which carries its own
 // timbre and the exact sample position at which it should start. That is what lets
 // a parameter lock alter one note without any state having to be set beforehand.
+//
+// The one exception is the send effects, which are shared by every note and so have
+// nowhere else to live. Even they are held rather than sequenced: SetFx replaces what
+// the audio thread is using, with no position and no schedule.
 
 public sealed class FmSynth : System.IDisposable
 {
@@ -47,6 +51,14 @@ public sealed class FmSynth : System.IDisposable
     public bool Schedule(in FmNoteEvent note)
     {
         var message = note;
+        return _context.SendMessage(_rootOutput, ref message) == Response.Handled;
+    }
+
+    // Hands over the send effect settings. Not scheduled and not queued: it replaces
+    // whatever the audio thread was using, from the next mix cycle.
+    public bool SetFx(in SendFxRuntime fx)
+    {
+        var message = fx;
         return _context.SendMessage(_rootOutput, ref message) == Response.Handled;
     }
 

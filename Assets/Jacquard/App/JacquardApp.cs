@@ -156,6 +156,18 @@ public sealed class JacquardApp : MonoBehaviour
 
         foreach (var note in _pending) Synth.Schedule(note);
 
+        // Hand over the effect settings whenever they are not what was handed over
+        // last. One comparison covers every way they can change — a bar on the Send
+        // panel, the tempo the delay is locked to, a project loaded over the top of
+        // this one — so none of those has to know that anything downstream cares.
+        var fx = SendFxRuntime.FromSettings(Project.Fx, Project.Tempo, Synth.SampleRate);
+
+        if (!fx.Equals(_fx))
+        {
+            Synth.SetFx(fx);
+            _fx = fx;
+        }
+
         Status = Synth.GetStatus();
         _ui.Update();
     }
@@ -234,6 +246,10 @@ public sealed class JacquardApp : MonoBehaviour
 #endif
 
     readonly List<FmNoteEvent> _pending = new();
+
+    // The last effect settings the synth was given, which is what makes sending them
+    // again a comparison rather than a notification from everything that can move one.
+    SendFxRuntime _fx;
 
     long LookaheadSamples => (long)(Lookahead * Synth.SampleRate);
 }

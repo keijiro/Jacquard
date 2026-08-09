@@ -22,42 +22,131 @@ public struct FmSynthStatus
     public int cancelledNotes; // Rejected because every voice outranked it
 }
 
+// The send effects as the audio thread wants them, travelling the same pipe in the
+// opposite direction to the status.
+//
+// This is the only mutable state the audio thread reads, and the first: everything
+// about a note reaches it stamped into the note itself, but one reverb serving every
+// channel cannot be carried by a note. So the settings are pushed whenever they
+// change, which the main thread notices by comparing this struct against the last
+// one it sent.
+//
+// The delay time arrives already converted into a distance in samples. The audio
+// thread has no business knowing what a tempo or a note value is, and the conversion
+// needs the project's tempo, which lives on the other side.
+
+public struct SendFxRuntime
+{
+    public float reverbSize;
+    public float reverbDamp;
+    public float reverbWidth;
+
+    public float delaySamples;
+    public float delayFeedback;
+    public float delayTone;
+    public float delaySpread;
+
+    public static SendFxRuntime FromSettings(in SendFx fx, float tempo, float sampleRate)
+      => new SendFxRuntime
+        { reverbSize = fx.reverbSize,
+          reverbDamp = fx.reverbDamp,
+          reverbWidth = fx.reverbWidth,
+          delaySamples = fx.DelaySeconds(tempo) * sampleRate,
+          delayFeedback = fx.delayFeedback,
+          delayTone = fx.delayTone,
+          delaySpread = fx.delaySpread };
+
+    public bool Equals(in SendFxRuntime other)
+      => reverbSize == other.reverbSize && reverbDamp == other.reverbDamp &&
+         reverbWidth == other.reverbWidth && delaySamples == other.delaySamples &&
+         delayFeedback == other.delayFeedback && delayTone == other.delayTone &&
+         delaySpread == other.delaySpread;
+}
+
 // Realtime part: runs the voices on the audio thread.
 //
 // It owns no timbre state. Notes arrive through the pipe carrying their own patch
 // and an absolute sample position, and are rendered at exactly that position.
+//
+// The mix is a dry bus and two send buses. A voice goes into the dry one at full
+// strength and into each of the others at whatever its note asked for, so the two
+// effects hear a sum of exactly the notes that were sent to them and nothing else.
+// The wet path is stereo where the dry one is not: a reverb with no width and a
+// delay that cannot cross sides would be most of the two effects thrown away, while
+// the notes themselves have nowhere for a position to come from — a score has no
+// pan, and inventing one for it is a different decision than this.
 
 [BurstCompile(CompileSynchronously = true)]
 struct FmSynthRealtime : RootOutputInstance.IRealtime
 {
     internal FmVoicePool pool;
-    internal NativeArray<float> mono; // Mono mix, duplicated to all channels
+    internal ReverbBus reverb;
+    internal DelayBus delay;
+
+    internal NativeArray<float> dry;      // Every voice at full strength
+    internal NativeArray<float> reverbIn; // What the notes sent to the reverb
+    internal NativeArray<float> delayIn;  // What they sent to the delay
+    internal NativeArray<float> outL;     // Wet, then the finished mix
+    internal NativeArray<float> outR;
+
     internal AudioFormat format;
     internal float masterGain;
 
     JobHandle _job;
     ulong _dspSample;
     FmSynthStatus _lastReported;
+    SendFxRuntime _fx;
 
     [BurstCompile(DisableSafetyChecks = true)]
     struct RenderJob : IJob
     {
         public FmVoicePool pool;
-        public NativeArray<float> mono;
+        public ReverbBus reverb;
+        public DelayBus delay;
+
+        public NativeArray<float> dry;
+        public NativeArray<float> reverbIn;
+        public NativeArray<float> delayIn;
+        public NativeArray<float> outL;
+        public NativeArray<float> outR;
+
         public long bufferStart;
         public int frameCount;
         public float sampleRate;
         public float masterGain;
+        public SendFxRuntime fx;
 
         public void Execute()
         {
-            for (var frame = 0; frame < frameCount; frame++) mono[frame] = 0.0f;
-
-            pool.Render(mono, frameCount, bufferStart, sampleRate);
-
-            // Soft clip, so that a dense chord cannot blow past 0dBFS.
             for (var frame = 0; frame < frameCount; frame++)
-                mono[frame] = SoftClip(mono[frame] * masterGain);
+            {
+                dry[frame] = 0.0f;
+                reverbIn[frame] = 0.0f;
+                delayIn[frame] = 0.0f;
+                outL[frame] = 0.0f;
+                outR[frame] = 0.0f;
+            }
+
+            pool.Render(dry, reverbIn, delayIn, frameCount, bufferStart, sampleRate);
+
+            // In parallel rather than in series. Feeding the delay's repeats into the
+            // reverb is a good sound and would be one line, but it is also a decision
+            // about how the two are wired that the panel would then have to offer a
+            // number for, and the brief was the fewest controls that carry.
+            delay.Process(delayIn, outL, outR, frameCount, fx.delaySamples,
+                          fx.delayFeedback, fx.delayTone, fx.delaySpread);
+
+            reverb.Process(reverbIn, outL, outR, frameCount, sampleRate,
+                           fx.reverbSize, fx.reverbDamp, fx.reverbWidth);
+
+            // Soft clip, so that a dense chord cannot blow past 0dBFS. The dry mix
+            // joins here, which is also where the two sides stop being wet only.
+            for (var frame = 0; frame < frameCount; frame++)
+            {
+                var centre = dry[frame];
+                outL[frame] = SoftClip((centre + outL[frame]) * masterGain);
+                outR[frame] = SoftClip((centre + outR[frame]) * masterGain);
+            }
         }
 
         // A Pade approximant of tanh. The library function would read better, but
@@ -70,12 +159,15 @@ struct FmSynthRealtime : RootOutputInstance.IRealtime
         }
     }
 
-    // Receives scheduled notes from the control part and reports diagnostics back.
+    // Receives scheduled notes and effect settings from the control part, and reports
+    // diagnostics back.
     public void Update(UpdatedDataContext context, Pipe pipe)
     {
         foreach (var element in pipe.GetAvailableData(context))
-            if (element.TryGetData(out FmNoteEvent note))
-                pool.Enqueue(note);
+        {
+            if (element.TryGetData(out FmNoteEvent note)) { pool.Enqueue(note); continue; }
+            if (element.TryGetData(out SendFxRuntime fx)) _fx = fx;
+        }
 
         var status = new FmSynthStatus
           { dspSample = _dspSample,
@@ -111,22 +203,39 @@ struct FmSynthRealtime : RootOutputInstance.IRealtime
 
         _job = new RenderJob
           { pool = pool,
-            mono = mono,
+            reverb = reverb,
+            delay = delay,
+            dry = dry,
+            reverbIn = reverbIn,
+            delayIn = delayIn,
+            outL = outL,
+            outR = outR,
             bufferStart = (long)_dspSample,
             frameCount = format.bufferFrameCount,
             sampleRate = format.sampleRate,
-            masterGain = masterGain }.Schedule(input);
+            masterGain = masterGain,
+            fx = _fx }.Schedule(input);
     }
 
+    // The one place the output stops being a single buffer copied across every
+    // channel. A device with one channel hears the two sides summed, and anything
+    // past the second gets the same sum rather than a copy of one side.
     public void EndProcessing(in RealtimeContext context, Pipe pipe, ChannelBuffer output)
     {
         _job.Complete();
 
-        var frameCount = math.min(output.frameCount, mono.Length);
+        var frameCount = math.min(output.frameCount, outL.Length);
+        var stereo = output.channelCount > 1;
 
         for (var frame = 0; frame < frameCount; frame++)
+        {
+            var (left, right) = (outL[frame], outR[frame]);
+            var centre = (left + right) * 0.5f;
+
             for (var channel = 0; channel < output.channelCount; channel++)
-                output[channel, frame] = mono[frame];
+                output[channel, frame] = channel == 0 && stereo ? left
+                                        : channel == 1 ? right : centre;
+        }
     }
 
     // Deallocation happens in Control.Dispose or on re-Configure.

@@ -1,3 +1,5 @@
+using Jacquard.App;
+using Unity.Collections;
 using UnityEditor;
 using UnityEngine;
 
@@ -5,7 +7,8 @@ namespace Jacquard.Editor {
 
 // A few checks that are quicker to run from a menu item than to reason about: the
 // file format has to round-trip, the runners have to produce the notes the mockup
-// score describes, and the oscillator has to make the shapes the patch promises.
+// score describes, and the oscillator and the two effect buses have to make the
+// shapes their parameters promise.
 
 static class SelfTest
 {
@@ -21,7 +24,10 @@ static class SelfTest
         Stack(log);
         Locks(log);
         Channels(log);
+        Sends(log);
         Synth(log);
+        Delay(log);
+        Reverb(log);
 
         Debug.Log(log.ToString());
     }
@@ -219,6 +225,33 @@ static class SelfTest
 
         Check(log, "a lock holding nothing survived the file",
               empty != null && empty.IsEmpty, written);
+
+        // A file naming a target the synth has since dropped has to open, losing the
+        // lock rather than taking the score down with it. This is the shape of one of
+        // the saved scores in Application.persistentDataPath: a version 1 step whose
+        // second lock is on the carrier decay, which version 2 deleted.
+        var legacy = "jacquard 1\ntempo 120\npatch level=0.5\n" +
+                     "lane 1 1 CHAN:1 div=16\n" +
+                     "  step PREL:feedback,6.2 PREL:cardecay,-1.989 C5/0.25\n";
+
+        var opened = true;
+        var tiles = (System.Collections.Generic.List<Tile>)null;
+
+        try { tiles = ProjectFormat.Read(legacy).Score.Lanes[0].Steps[0].Tiles; }
+        catch (System.Exception e) { (opened, written) = (false, e.Message); }
+
+        // Two tiles, not three: the lock that named only a retired target had nothing
+        // left to do and went, and the live one beside it came through untouched.
+        var survivor = opened ? tiles.Find(tile => tile is ParamTile) as ParamTile : null;
+
+        Check(log, "a lock on a retired target is dropped, not refused",
+              opened && tiles.Count == 2 && survivor != null &&
+              survivor.IsEngaged(ParamTargets.Feedback) &&
+              Mathf.Abs(survivor[ParamTargets.Feedback] - 6.2f) < 0.001f,
+              opened ? tiles.Count + " tiles, feedback=" +
+                       (survivor == null ? "none"
+                        : survivor[ParamTargets.Feedback].ToString())
+                     : written);
     }
 
     // Two lanes on different channels, each with its own patch, playing the same
@@ -281,6 +314,80 @@ static class SelfTest
               "ch1=" + legacy.Patches[1].level +
               " ch" + PatchBank.Channels + "=" +
               legacy.Patches[PatchBank.Channels].level);
+    }
+
+    // A send amount is a field of the patch, so a lock reaches it the way it reaches
+    // a timbre and the descent decides which notes it colours. Which is the whole
+    // argument for putting the sends there rather than beside the effects, and it is
+    // worth a check of its own because it is the one thing that would silently still
+    // work if a send were made global by mistake — every note would simply be wet.
+    static void Sends(System.Text.StringBuilder log)
+    {
+        const int sampleRate = 48000;
+
+        var project = new Project();
+        var lane = project.Score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 1);
+
+        var wet = new AbsoluteParamTile();
+        wet.Engage(ParamTargets.ReverbSend, 0.8f);
+
+        // One note above the lock and two below it, which is the split a chord with a
+        // lock partway down it makes.
+        lane.Steps[0].Tiles.Add(new NoteTile { Note = 72 });
+        lane.Steps[0].Tiles.Add(wet);
+        lane.Steps[0].Tiles.Add(new NoteTile { Note = 60 });
+        lane.Steps[0].Tiles.Add(new NoteTile { Note = 64 });
+
+        var sequencer = new Sequencer { Project = project };
+        var notes = new System.Collections.Generic.List<FmNoteEvent>();
+
+        sequencer.Play(0, 0);
+        sequencer.Schedule(0, sampleRate / 10, sampleRate, notes);
+
+        var dry = 0;
+        var sent = 0;
+
+        foreach (var note in notes)
+        {
+            if (note.reverbSend < 0.001f) dry++;
+            if (Mathf.Abs(note.reverbSend - 0.8f) < 0.001f) sent++;
+        }
+
+        Check(log, "a send lock reaches the notes below it",
+              notes.Count == 3 && dry == 1 && sent == 2,
+              notes.Count + " notes, " + dry + " dry and " + sent + " sent");
+
+        // The effects themselves are the project's, so they travel with it rather than
+        // with a patch. Two of the seven and one send are enough to know the line is
+        // being written and read: what would break is the whole line, not one key.
+        project.Fx.reverbSize = 0.9f;
+        project.Fx.delayBeats = DelayTime.Beats[DelayTime.Beats.Length - 1];
+        project.Fx.delaySpread = 0.6f;
+        project.Patches[1].delaySend = 0.4f;
+
+        var reloaded = ProjectFormat.Read(ProjectFormat.Write(project));
+
+        Check(log, "the effects round trip",
+              Mathf.Abs(reloaded.Fx.reverbSize - 0.9f) < 0.001f &&
+              Mathf.Abs(reloaded.Fx.delayBeats - project.Fx.delayBeats) < 0.001f &&
+              Mathf.Abs(reloaded.Fx.delaySpread - 0.6f) < 0.001f &&
+              Mathf.Abs(reloaded.Patches[1].delaySend - 0.4f) < 0.001f,
+              "size=" + reloaded.Fx.reverbSize + " beats=" + reloaded.Fx.delayBeats +
+              " spread=" + reloaded.Fx.delaySpread +
+              " dsend=" + reloaded.Patches[1].delaySend);
+
+        // A version 6 file has no fx line and no sends, and has to come back as a
+        // project that simply never touched either.
+        var legacy = ProjectFormat.Read("jacquard 6\ntempo 120\npatch 1 level=0.5\n");
+
+        Check(log, "a version 6 file reads with the effects at their defaults",
+              Mathf.Abs(legacy.Fx.delayBeats -
+                        DelayTime.Beats[DelayTime.Default]) < 0.001f &&
+              legacy.Patches[1].reverbSend == 0.0f &&
+              Mathf.Abs(legacy.Patches[1].level - 0.5f) < 0.001f,
+              "beats=" + legacy.Fx.delayBeats +
+              " rsend=" + legacy.Patches[1].reverbSend +
+              " level=" + legacy.Patches[1].level);
     }
 
     // The oscillator, which neither the round trip nor the note counts say
@@ -374,7 +481,241 @@ static class SelfTest
               "last sample=" + whole[whole.Length - 1]);
     }
 
+    // The delay, which has two properties worth measuring and no way to see either
+    // without rendering it: that a repeat lands where the tempo says it should, and
+    // that moving the time while it is running does not splice the signal.
+    static void Delay(System.Text.StringBuilder log)
+    {
+        // A beat is exactly half a second at this tempo, so an eighth note is 12000
+        // samples and the expected positions are whole numbers.
+        const float tempo = 120.0f;
+        const float feedback = 0.35f;
+
+        var fx = SendFx.Default;
+        var tap = fx.DelaySeconds(tempo) * SampleRate;
+
+        // Tone off, so a repeat is the one before it times the feedback and nothing
+        // else. The lowpass inside the loop is what makes the repeats darken, and it
+        // would smear the impulse into a tail with no peak left to find.
+        var trace = RenderDelay(Impulse((int)(tap * 3.5f)), tap, feedback, 0.0f, 0.0f);
+
+        var first = Peak(trace, (int)(tap * 0.5f), (int)(tap * 1.5f));
+        var second = Peak(trace, (int)(tap * 1.5f), (int)(tap * 2.5f));
+
+        Check(log, "a repeat lands on the beat it was asked for",
+              Mathf.Abs(first - tap) <= 2.0f && Mathf.Abs(second - tap * 2.0f) <= 3.0f,
+              "peaks at " + first + " and " + second + " against a tap of " + tap);
+
+        var fell = trace[second] / Mathf.Max(trace[first], 1e-9f);
+
+        Check(log, "each repeat falls by the feedback",
+              Mathf.Abs(fell - feedback) < 0.02f,
+              "second/first=" + fell + " against a feedback of " + feedback);
+
+        // The one the rate limit exists for. A tone held through a change of rung has
+        // to stay a tone: a tap that jumped would read from somewhere unrelated to
+        // where it was, and the seam would show up as one step far larger than any the
+        // signal itself takes. Measured against the same signal at a steady tap, which
+        // is the only honest yardstick for what "large" means here.
+        var steady = Continuity(tap, tap);
+        var moved = Continuity(tap, tap * 2.0f);
+
+        Check(log, "changing the delay time does not splice the signal",
+              moved < steady * 2.0f,
+              "largest step " + moved + " while moving against " + steady + " steady");
+    }
+
+    // The reverb, which is a feedback network and so has exactly one way of being
+    // wrong that matters: not settling. A tail that grows, or that reaches a NaN and
+    // stays there, is silent in the editor and a dead output on a device.
+    static void Reverb(System.Text.StringBuilder log)
+    {
+        var input = Burst(Seconds(1.5f), Seconds(0.01f));
+
+        var small = RenderReverb(input, 0.2f, 0.5f, 1.0f);
+        var middle = RenderReverb(input, SendFx.Default.reverbSize, 0.5f, 1.0f);
+        var large = RenderReverb(input, 1.0f, 0.5f, 1.0f);
+
+        var finite = true;
+        foreach (var sample in large)
+            if (float.IsNaN(sample) || float.IsInfinity(sample)) finite = false;
+
+        var early = Rms(large, Seconds(0.02f), Seconds(0.1f));
+        var late = Rms(large, Seconds(1.2f), Seconds(1.5f));
+
+        Check(log, "the tail stays finite", finite, "over " + large.Length + " samples");
+
+        // At the top of the size range the tail is meant to be long, so what is
+        // checked there is only that it is going down: a network whose feedback had
+        // been let past one would grow instead, and that is the failure that matters.
+        Check(log, "the longest tail still settles", finite && late < early && early > 1e-4f,
+              "early=" + early + " late=" + late);
+
+        // Where the panel starts, a second and a half is long enough that the tail
+        // should be all but gone.
+        var settling = Rms(middle, Seconds(0.02f), Seconds(0.1f));
+        var gone = Rms(middle, Seconds(1.2f), Seconds(1.5f));
+
+        Check(log, "a default sized tail dies away", gone < settling * 0.05f,
+              "early=" + settling + " late=" + gone);
+
+        // And the control has to do what it is named: the same input into a larger
+        // room has to still be sounding when a smaller one has finished.
+        var tight = Rms(small, Seconds(1.2f), Seconds(1.5f));
+
+        Check(log, "a larger size decays more slowly", late > tight * 2.0f,
+              "late RMS " + late + " at size 1 against " + tight + " at size 0.2");
+    }
+
+    // Rendering helpers
+    //
+    // Both buses hold their state in NativeArrays, so a check has to allocate one the
+    // way the audio thread's Configure does and hand back a plain array to measure.
+
+    static float[] Impulse(int frames)
+    {
+        var buffer = new float[frames];
+        buffer[0] = 1.0f;
+        return buffer;
+    }
+
+    // A short tone rather than an impulse, since a reverb's input is a note: one
+    // sample carries too little energy for the late tail to rise out of nothing.
+    static float[] Burst(int frames, int length)
+    {
+        var buffer = new float[frames];
+
+        for (var i = 0; i < length; i++)
+            buffer[i] = Mathf.Sin(2.0f * Mathf.PI * 440.0f * i / SampleRate) * 0.5f;
+
+        return buffer;
+    }
+
+    static float[] RenderDelay(float[] input, float tap, float feedback, float tone,
+                               float spread)
+    {
+        var bus = DelayBus.Create(SampleRate);
+        var trace = Render(input, (i, l, r, n) =>
+          bus.Process(i, l, r, n, tap, feedback, tone, spread));
+        bus.Dispose();
+        return trace;
+    }
+
+    static float[] RenderReverb(float[] input, float size, float damp, float width)
+    {
+        var bus = ReverbBus.Create(SampleRate);
+        var trace = Render(input, (i, l, r, n) =>
+          bus.Process(i, l, r, n, SampleRate, size, damp, width));
+        bus.Dispose();
+        return trace;
+    }
+
+    delegate void BusPass(NativeArray<float> input, NativeArray<float> wetL,
+                          NativeArray<float> wetR, int frameCount);
+
+    // One block at a time, like the render job, so that anything a bus carries across
+    // a block boundary is exercised rather than skipped.
+    static float[] Render(float[] input, BusPass pass)
+    {
+        const int block = 256;
+
+        var buffers = new NativeArray<float>[3];
+        for (var i = 0; i < 3; i++)
+            buffers[i] = new NativeArray<float>(block, Allocator.Persistent);
+
+        var (source, wetL, wetR) = (buffers[0], buffers[1], buffers[2]);
+        var trace = new float[input.Length];
+
+        for (var position = 0; position < input.Length; position += block)
+        {
+            var frames = Mathf.Min(block, input.Length - position);
+
+            for (var i = 0; i < block; i++)
+            {
+                source[i] = i < frames ? input[position + i] : 0.0f;
+                // The buses add to the wet buffers, since two of them share a pair.
+                (wetL[i], wetR[i]) = (0.0f, 0.0f);
+            }
+
+            pass(source, wetL, wetR, frames);
+
+            for (var i = 0; i < frames; i++) trace[position + i] = wetL[i];
+        }
+
+        foreach (var buffer in buffers) buffer.Dispose();
+
+        return trace;
+    }
+
+    // The largest step between neighbouring samples once the line is full, with the
+    // tap starting at one distance and being asked for another partway through.
+    static float Continuity(float from, float to)
+    {
+        // Long enough that the second half is entirely past the longer of the two
+        // taps, so what is measured is signal rather than the line filling up.
+        var frames = (int)(from + to) * 3;
+        var input = new float[frames];
+
+        for (var i = 0; i < frames; i++)
+            input[i] = Mathf.Sin(2.0f * Mathf.PI * 220.0f * i / SampleRate) * 0.5f;
+
+        // Rendered by hand rather than through Render, because the tap has to change
+        // partway along and the helper holds one setting for the whole pass.
+        var bus = DelayBus.Create(SampleRate);
+        var change = frames / 3;
+        var trace = new float[frames];
+
+        const int block = 256;
+
+        var source = new NativeArray<float>(block, Allocator.Persistent);
+        var wetL = new NativeArray<float>(block, Allocator.Persistent);
+        var wetR = new NativeArray<float>(block, Allocator.Persistent);
+
+        for (var position = 0; position < frames; position += block)
+        {
+            var count = Mathf.Min(block, frames - position);
+
+            for (var i = 0; i < block; i++)
+            {
+                source[i] = i < count ? input[position + i] : 0.0f;
+                (wetL[i], wetR[i]) = (0.0f, 0.0f);
+            }
+
+            bus.Process(source, wetL, wetR, count,
+                        position < change ? from : to, 0.0f, 0.0f, 0.0f);
+
+            for (var i = 0; i < count; i++) trace[position + i] = wetL[i];
+        }
+
+        source.Dispose();
+        wetL.Dispose();
+        wetR.Dispose();
+        bus.Dispose();
+
+        var largest = 0.0f;
+
+        // From the change onwards, which is where a splice would land. The line has
+        // been full since long before it, so everything measured here is signal.
+        for (var i = change; i < frames; i++)
+            largest = Mathf.Max(largest, Mathf.Abs(trace[i] - trace[i - 1]));
+
+        return largest;
+    }
+
     // Measurement helpers
+
+    static int Peak(float[] buffer, int from, int to)
+    {
+        var (index, height) = (from, 0.0f);
+
+        for (var i = Mathf.Max(from, 0); i < Mathf.Min(to, buffer.Length); i++)
+        {
+            if (Mathf.Abs(buffer[i]) <= height) continue;
+            (index, height) = (i, Mathf.Abs(buffer[i]));
+        }
+
+        return index;
+    }
 
     static int Seconds(float time) => (int)(time * SampleRate);
 
