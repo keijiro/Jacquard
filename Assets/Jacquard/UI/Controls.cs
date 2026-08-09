@@ -16,34 +16,92 @@ namespace Jacquard.App {
 // a figure is a choice out of a list, and the one count that cannot be scrubbed
 // because changing it adds and removes cells.
 
+// What the chrome is laid out for. Auto asks the platform; the other two are here
+// because the difference cannot be felt on the machine the UI is built on — a Mac can
+// show what a tablet will get, but only if it can be told to.
+public enum PointerKind { Auto, Mouse, Touch }
+
 static class Controls
 {
+    // Metrics
+    //
+    // Two sets of them, settled once before anything is built. What separates them is
+    // not the screen but the pointer: a mouse lands on whatever it is over, and a
+    // fingertip covers about nine millimetres of glass no matter what is underneath.
+    // The panel is at a constant pixel size and doubled, so on a tablet one unit here
+    // is one iOS point — which makes a twenty pixel row twenty points against a
+    // guideline of forty-four, and a pair of stepper arrows twenty-two by twenty.
+    //
+    // Only the controls move. The cell pitch in Style is left where it is, because the
+    // score at its current size is the one thing the tablet already got right: what is
+    // too small there is the chrome, and the chrome is all this touches. The two will
+    // separate for good once the plane can be pinched, since the score's size on
+    // screen becomes something the hand holding it decides.
+    //
+    // The growth is spent on the targets and not on the space between them. Paddings,
+    // margins and the rules between sections stay where they are: air around two
+    // things already big enough to hit is air a ten row panel cannot afford, and the
+    // column has to stand Sound under Tile and still reach the bottom of the shortest
+    // screen this runs on.
+
+    public static bool Touch { get; private set; }
+
+    // Read as elements are built, and nothing goes back to correct one afterwards, so
+    // this has to be called before the first control is made.
+    public static void LayOutFor(PointerKind kind)
+      => Touch = kind switch { PointerKind.Mouse => false,
+                               PointerKind.Touch => true,
+                               _ => Application.isMobilePlatform };
+
+    // A control's box, which is also the height of the row it sits on.
+    public static float RowHeight => Touch ? 30.0f : 20.0f;
+
+    // Text on the chrome. It grows by less than the box does, since eleven pixels was
+    // legible on the tablet and only the target was not — and every caption column and
+    // button width below is measured in words, so each of them pays for this.
+    public static float FontSize => Touch ? 13.0f : MouseFontSize;
+
     // The caption column is as narrow as the longest parameter name will go, since a
     // name that wraps or clips is worse than a bar that is a few pixels shorter.
-    public const float LabelWidth = 74.0f;
+    public static float LabelWidth => Touch ? 88.0f : 74.0f;
 
-    public const float RowHeight = 20.0f;
-
-    // Every panel is this wide, which is also what a panel beside another one has to
-    // step over to get out of its way.
+    // Every panel is this wide.
     //
     // What is left after the caption column and the padding is the bar, and a bar
     // only has to be long enough to read a number off and to see roughly where in its
     // range that number sits. Neither wants the width a readout of "500 ms" would
     // have going spare, so the panel is cut back to where the widest row it carries —
     // the lane's Move buttons — still fits.
-    public const float PanelWidth = 192.0f;
+    public static float PanelWidth => Touch ? 248.0f : 192.0f;
+
+    // The transport row: one row of controls with the same air over and under them.
+    public static float ToolbarHeight => RowHeight + (Touch ? 16.0f : 12.0f);
 
     // The corner a control's box is cut to, a shade tighter than a cell's so that a
     // row of them does not read as more tiles.
-    public const float Radius = 4.0f;
+    public static float Radius => Touch ? 5.0f : 4.0f;
+
+    // The space a panel keeps under it, and the same distance the column of them is
+    // held off the edges of the screen: the gap around the panels reads as one gap
+    // whichever side of one it is on. A gap, so it is the same in both sets.
+    public const float PanelGap = 12.0f;
+
+    // A width given in the mouse profile's terms, stretched to hold the same words at
+    // the other's larger type. Never narrower than a row is tall, which is what turns
+    // the one-glyph buttons — the arrows either side of a figure, a panel's close —
+    // from a slot into something square enough to hit.
+    public static float Width(float width)
+      => Touch ? Mathf.Max(Mathf.Round(width * FontSize / MouseFontSize), RowHeight)
+         : width;
+
+    const float MouseFontSize = 11.0f;
 
     public static Label Text(string text, float size, Color color)
       => TileElement.Text(text, size, color);
 
     public static Label Caption(string text)
     {
-        var label = Text(text, 11.0f, Style.Label);
+        var label = Text(text, FontSize, Style.Label);
         label.style.unityTextAlign = TextAnchor.MiddleLeft;
         label.style.width = LabelWidth;
         label.style.flexShrink = 0;
@@ -52,7 +110,7 @@ static class Controls
 
     public static Label Value(string text)
     {
-        var label = Text(text, 11.0f, Style.NoteText);
+        var label = Text(text, FontSize, Style.NoteText);
         label.style.flexGrow = 1;
         return label;
     }
@@ -83,7 +141,7 @@ static class Controls
     public static Button Push(string text, Action onClick, float width = 0.0f)
     {
         var button = new Button(onClick) { text = text };
-        button.style.fontSize = 11;
+        button.style.fontSize = FontSize;
         button.style.height = RowHeight;
         button.style.minWidth = 0;
         button.style.marginLeft = 0;
@@ -98,7 +156,9 @@ static class Controls
         TileElement.SetBorderWidth(button, 1.0f);
         TileElement.SetBorderColor(button, Style.PanelLine);
         TileElement.SetBorderRadius(button, Radius);
-        if (width > 0.0f) button.style.width = width;
+        // Every width here is written against the mouse profile, so a caller never has
+        // to know which set is in force.
+        if (width > 0.0f) button.style.width = Width(width);
         return button;
     }
 
@@ -200,11 +260,16 @@ static class Controls
     // A floating panel. sequencer.md puts the details of a tile in a window of its
     // own, and this is that window: the cell shows the kind and the figure that
     // matters for reading the score, and everything else is set here.
+    //
+    // Where it lands is not decided here. Panels stack down a column of their own, so
+    // one lays itself out in the flow like anything else and carries the gap to the
+    // panel under it; the column is what is pinned to a corner of the screen.
     public static VisualElement Panel(string title, Action onClose)
     {
         var panel = new VisualElement();
-        panel.style.position = Position.Absolute;
         panel.style.width = PanelWidth;
+        panel.style.flexShrink = 0;
+        panel.style.marginBottom = PanelGap;
         panel.style.backgroundColor = Style.Panel;
         panel.style.paddingLeft = 10;
         panel.style.paddingRight = 10;
@@ -217,7 +282,7 @@ static class Controls
         var header = Row();
         header.style.marginBottom = 6;
 
-        var caption = Text(title, 11.0f, Style.NoteText);
+        var caption = Text(title, FontSize, Style.NoteText);
         caption.style.flexGrow = 1;
         caption.style.unityTextAlign = TextAnchor.MiddleLeft;
         header.Add(caption);

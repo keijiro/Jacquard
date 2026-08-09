@@ -26,8 +26,6 @@ sealed class InspectorPanel
         _editor = editor;
 
         Root = Controls.Panel("Tile", null);
-        Root.style.right = 12;
-        Root.style.top = 12;
 
         _body = new VisualElement();
         Root.Add(_body);

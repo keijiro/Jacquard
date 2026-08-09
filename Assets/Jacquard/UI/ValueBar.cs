@@ -155,7 +155,7 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
         _fill.pickingMode = PickingMode.Ignore;
         Add(_fill);
 
-        _readout = TileElement.Text("", Style.ControlSize, Style.NoteText);
+        _readout = TileElement.Text("", Controls.FontSize, Style.NoteText);
         Overlay(_readout);
         Add(_readout);
 
@@ -184,7 +184,7 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
         var input = new TextField();
         Overlay(input);
         input.style.display = DisplayStyle.None;
-        input.style.fontSize = Style.ControlSize;
+        input.style.fontSize = Controls.FontSize;
 
         // The theme dresses the inner input element for a taller field: a border, a
         // background of its own and enough padding to push the text out of the box.

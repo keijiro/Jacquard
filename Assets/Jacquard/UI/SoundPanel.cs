@@ -10,11 +10,11 @@ namespace Jacquard.App {
 // where the channel currently sits inside each range, is what makes a lock's amount
 // mean something.
 //
-// It stands up while the cursor is on a CHAN tile and nowhere else, which is the
-// same rule the Tile panel follows: a panel shows what the cursor is on. A timbre
-// belongs to a channel and a CHAN tile is what a channel is on the plane, so the
-// tile that names the sound is also the one that opens it. A JDST head shows nothing
-// here, since a branch lane borrows its channel rather than owning one.
+// It stands up under the Tile panel while the cursor is on a CHAN tile and nowhere
+// else, which is the same rule the Tile panel follows: a panel shows what the cursor
+// is on. A timbre belongs to a channel and a CHAN tile is what a channel is on the
+// plane, so the tile that names the sound is also the one that opens it. A JDST head
+// shows nothing here, since a branch lane borrows its channel rather than owning one.
 //
 // This is why there is no channel chooser: the tile under the cursor decides which
 // sound is being edited, and a chooser could only disagree with it. A channel with
@@ -32,12 +32,6 @@ sealed class SoundPanel
         // No close button: the cursor decides whether this is up, so a button that
         // put it away would be undone by the next keypress.
         Root = Controls.Panel("Sound", null);
-
-        // One panel to the left of the Tile panel, and level with it. The Tile panel
-        // is always up, so it keeps the corner; this one comes and goes and takes the
-        // slot that moves.
-        Root.style.right = 12 + Controls.PanelWidth + 12;
-        Root.style.top = 12;
 
         _body = new VisualElement();
         Root.Add(_body);

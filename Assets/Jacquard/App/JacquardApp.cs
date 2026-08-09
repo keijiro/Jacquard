@@ -35,6 +35,18 @@ public sealed class JacquardApp : MonoBehaviour
     [field:SerializeField, Range(1, 3)]
     public int PixelScale { get; set; } = 2;
 
+    // What the display is asked for. Sixty is what a hand dragging the plane needs
+    // and what every screen this runs on can hold; a tablet that offers more can be
+    // told to, but nothing here is drawn often enough to want it.
+    [field:SerializeField, Range(30, 120)]
+    public int FrameRate { get; set; } = 60;
+
+    // Which set of control metrics the chrome is built from. Auto is what ships; the
+    // other two are for seeing the tablet's layout on the machine it is written on,
+    // which is the only way to judge it without a build.
+    [field:SerializeField]
+    public PointerKind Pointer { get; set; } = PointerKind.Auto;
+
     // Runtime state
 
     public CoreProject Project { get; private set; }
@@ -85,6 +97,17 @@ public sealed class JacquardApp : MonoBehaviour
 
     void Start()
     {
+        // iOS hands out thirty frames a second unless it is asked for more, and vsync
+        // is not what governs there. The plane is panned by dragging it, so the score
+        // is under a fingertip the whole time a hand moves: at thirty it visibly
+        // trails the finger, which is the one thing a direct manipulation cannot do.
+        // Set on every platform, since where a desktop's vsync already rules this is
+        // simply ignored.
+        Application.targetFrameRate = FrameRate;
+
+        // Before anything is built, since every control reads its size as it is made.
+        Controls.LayOutFor(Pointer);
+
         Project = LoadSampleScore ? CoreProject.CreateSample() : CoreProject.CreateEmpty();
 
         Synth = new FmSynth(MaxVoices);

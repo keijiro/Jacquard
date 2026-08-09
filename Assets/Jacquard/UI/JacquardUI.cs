@@ -55,16 +55,14 @@ sealed class JacquardUI
         _view.LaneDropped += _editor.DropLane;
 
         _inspector = new InspectorPanel(_editor);
-        body.Add(_inspector.Root);
 
-        // These two share the slot beside the inspector. Only one of them ever
+        // These two share the slot under the inspector. Only one of them ever
         // answers to the tile under the cursor, so neither has to know about the
         // other.
         _sound = new SoundPanel(_editor);
-        body.Add(_sound.Root);
-
         _lock = new LockPanel(_editor);
-        body.Add(_lock.Root);
+
+        body.Add(PanelColumn(_inspector.Root, _sound.Root, _lock.Root));
 
         _editor.Changed += OnChanged;
 
@@ -99,7 +97,7 @@ sealed class JacquardUI
         // to it a beat at a time.
         _tempo = Controls.Bar(TempoRange, () => _editor.Project.Tempo,
                               value => _editor.Project.Tempo = value);
-        _tempo.style.width = 78;
+        _tempo.style.width = Controls.Width(78);
         row.Add(_tempo);
 
         row.Add(Separator());
@@ -109,7 +107,7 @@ sealed class JacquardUI
         var chooser = Controls.Chooser("File", _slots,
                                        () => Mathf.Max(0, _slots.IndexOf(_app.Store.Name)),
                                        index => _app.Store.Name = _slots[index]);
-        chooser.style.width = 190;
+        chooser.style.width = Controls.Width(190);
         chooser.style.marginBottom = 0;
         row.Add(chooser);
 
@@ -124,13 +122,39 @@ sealed class JacquardUI
         return row;
     }
 
+    // The panels, in one column down the right hand edge. They stack in the order
+    // they are given rather than each holding a corner of its own: the Tile panel is
+    // always up, so it keeps the top, and whichever of Sound and Lock the cursor calls
+    // for falls in under it. A panel that is down is display: none, which takes it out
+    // of the column rather than leaving its gap behind.
+    //
+    // Under the panels, not beside them, because what is beside them is the score. A
+    // second column costs a panel's width of plane down the whole height of the screen
+    // for the sake of a panel that is up only some of the time and is never as tall as
+    // the screen; a column that grows downwards costs only what it is using.
+    //
+    // The column itself is transparent to the pointer and only as tall as what is on
+    // it, so the plane stays reachable everywhere a panel is not actually drawn.
+    static VisualElement PanelColumn(params VisualElement[] panels)
+    {
+        var column = new VisualElement();
+        column.style.position = Position.Absolute;
+        column.style.right = Controls.PanelGap;
+        column.style.top = Controls.PanelGap;
+        column.pickingMode = PickingMode.Ignore;
+
+        foreach (var panel in panels) column.Add(panel);
+
+        return column;
+    }
+
     static VisualElement Bar()
     {
         var row = new VisualElement();
         row.style.flexDirection = FlexDirection.Row;
         row.style.alignItems = Align.Center;
         row.style.flexShrink = 0;
-        row.style.height = 32;
+        row.style.height = Controls.ToolbarHeight;
         row.style.paddingLeft = 10;
         row.style.paddingRight = 10;
         row.style.borderBottomWidth = 1;
@@ -142,7 +166,9 @@ sealed class JacquardUI
     {
         var line = new VisualElement();
         line.style.width = 1;
-        line.style.height = 18;
+        // Short of the controls either side of it, so it reads as a break in the row
+        // rather than as an edge of one.
+        line.style.height = Controls.RowHeight - 2;
         line.style.flexShrink = 0;
         line.style.backgroundColor = Style.PanelLine;
         line.style.marginLeft = 5;

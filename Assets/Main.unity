@@ -152,6 +152,9 @@ MonoBehaviour:
   <MaxVoices>k__BackingField: 24
   <Lookahead>k__BackingField: 0.12
   <LoadSampleScore>k__BackingField: 1
+  <PixelScale>k__BackingField: 2
+  <FrameRate>k__BackingField: 60
+  <Pointer>k__BackingField: 0
 --- !u!114 &321616738
 MonoBehaviour:
   m_ObjectHideFlags: 0

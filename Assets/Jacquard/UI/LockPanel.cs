@@ -14,9 +14,10 @@ namespace Jacquard.App {
 // lets go again. Whatever is left grey is untouched by this tile, so a lock holding
 // nothing at all does nothing at all, which is what a freshly placed one is.
 //
-// It stands up while the cursor is on a PABS or PREL tile and nowhere else, the rule
-// every panel here follows. That is also why it can share a slot with the Sound
-// panel: a CHAN tile is not a lock, so the two are never up together.
+// It stands up under the Tile panel while the cursor is on a PABS or PREL tile and
+// nowhere else, the rule every panel here follows. That is also why it can share a
+// slot with the Sound panel: a CHAN tile is not a lock, so the two are never up
+// together.
 
 sealed class LockPanel
 {
@@ -29,9 +30,6 @@ sealed class LockPanel
         // No close button, for the reason the Sound panel has none: the cursor
         // decides whether this is up, and the next keypress would undo a button.
         Root = Controls.Panel("Lock", null);
-
-        Root.style.right = 12 + Controls.PanelWidth + 12;
-        Root.style.top = 12;
 
         _body = new VisualElement();
         Root.Add(_body);
