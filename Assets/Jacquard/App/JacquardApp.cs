@@ -141,6 +141,8 @@ public sealed class JacquardApp : MonoBehaviour
 
 #if UNITY_EDITOR
         StandInForTheDevice(ui);
+#elif UNITY_WEBGL
+        FollowTheBrowser(ui);
 #endif
 
         var document = ui.rootVisualElement;
@@ -174,12 +176,18 @@ public sealed class JacquardApp : MonoBehaviour
 
         Status = Synth.GetStatus();
         _ui.Update();
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        // Last, because a page's ratio is not settled the way a device's density is:
+        // it moves under a running app.
+        FollowTheZoom();
+#endif
     }
 
     void OnDestroy()
     {
         Synth?.Dispose();
-#if UNITY_EDITOR
+#if UNITY_EDITOR || UNITY_WEBGL
         if (_panelCopy != null) Destroy(_panelCopy);
 #endif
     }
@@ -241,11 +249,87 @@ public sealed class JacquardApp : MonoBehaviour
 
 #endif
 
+#if UNITY_WEBGL && !UNITY_EDITOR
+
+    // The browser
+
+    // Sizes the interface by the browser's own unit, because a browser will not say how
+    // dense its screen is.
+    //
+    // Web has no DPI to ask for. There is no binding for one anywhere in the platform's
+    // JavaScript, and what `Screen.dpi` answers is 96 — the density a CSS pixel is
+    // nominally defined against — multiplied by the device pixel ratio the runtime
+    // applied to the canvas. Measured in Chrome at ratios of one, two and three:
+    // 96, 192 and 288.
+    //
+    // Held against a reference of 132 that resolves to 0.727, 1.455 and 2.182 pixels to
+    // the unit — and since the drawing buffer is the same ratio larger than the page, the
+    // ratio cancels and **a unit is 0.727 CSS pixels on every display there is**. The
+    // interface does not come out a hundred-and-thirty-secondth of an inch anywhere; it
+    // comes out at whatever three quarters of the browser's own unit happens to measure,
+    // which on a Mac in More Space is 0.122mm against the 0.192mm the iPad gets, and
+    // on an iPad in Safari is 0.140mm — a 30pt touch row landing at 21.8pt, under the
+    // 20pt one the desktop profile would have given it.
+    //
+    // So the physical size is given up here rather than corrected, exactly as it is for
+    // the simulator above, and the panel is handed the ratio as a constant pixel size:
+    // **one unit, one CSS pixel.** That is not a fudge factor. A CSS pixel is the
+    // browser's device-independent unit, and on iOS it is precisely one iOS point — an
+    // iPad's is a hundred-and-thirty-secondth of an inch, which is this project's
+    // reference DPI exactly. The chrome therefore comes out the size the native build
+    // gives it on the one platform where both exist, which is the arithmetic the touch
+    // metrics rest on, and everywhere else it is the size the page said. Browser zoom
+    // then works on the interface as well as on the score, since zooming is a change to
+    // the ratio.
+    //
+    // Dividing 96 back out is how the ratio is read from C#, and it is the ratio that
+    // matters rather than `window.devicePixelRatio`: what `Screen.dpi` carries is the one
+    // the runtime actually applied, so a page that turns off canvas matching or pins the
+    // ratio is followed rather than contradicted.
+    //
+    // On a copy of the settings, for the reason the editor path gives: the asset is what
+    // the app is configured by and never a scratch pad. Nothing on the disk of a player
+    // is at stake, only the one rule.
+    void FollowTheBrowser(UIDocument ui)
+    {
+        var settings = ui.panelSettings;
+        if (settings == null ||
+            settings.scaleMode != PanelScaleMode.ConstantPhysicalSize) return;
+
+        _panelCopy = Instantiate(settings);
+        _panelCopy.scaleMode = PanelScaleMode.ConstantPixelSize;
+        ui.panelSettings = _panelCopy;
+
+        FollowTheZoom();
+    }
+
+    // A device's density is settled before the app starts and a page's ratio is not: it
+    // changes when the page is zoomed and when a window is dragged to another display.
+    // So it is read every frame and written only when it has moved, which is a float
+    // comparison against the value this last put there.
+    void FollowTheZoom()
+    {
+        if (_panelCopy == null) return;
+
+        var scale = Screen.dpi / CssDpi;
+
+        // Nothing sensible to do with a zero, and blanking the panel is worse than
+        // keeping the last good ratio.
+        if (scale > 0.0f && scale != _panelCopy.scale) _panelCopy.scale = scale;
+    }
+
+    // The density a CSS pixel is defined against, and the one number in here that is not
+    // read from anywhere. It is the constant in the specification, not a property of a
+    // screen, which is why it can be written down.
+    const float CssDpi = 96.0f;
+
+#endif
+
     // Private members
 
     JacquardUI _ui;
 
-#if UNITY_EDITOR
+#if UNITY_EDITOR || UNITY_WEBGL
     PanelSettings _panelCopy;
 #endif
 

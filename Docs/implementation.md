@@ -322,7 +322,35 @@ Notes on the prototype
   *mode* rather than of the panel, so picking More Space used to shrink the interface
   and now does not — that is the mode doing what it says.
 
-  **The editor does not preview any of this by itself**, which is what
+  **The browser is the one platform that cannot be sized by the inch at all**, and
+  `JacquardApp.FollowTheBrowser` is where it stops being asked to. Web has no DPI to
+  give: nothing in the platform's JavaScript reports one, and `Screen.dpi` answers 96 —
+  the density a CSS pixel is nominally defined against — times the device pixel ratio
+  the runtime applied to the canvas, measured in Chrome as 96, 192 and 288 at ratios of
+  one, two and three. Against a reference of 132 that is 0.727, 1.455 and 2.182 pixels
+  to the unit, and since the drawing buffer is larger than the page by the same ratio,
+  the ratio cancels: **a unit came out 0.727 CSS pixels on every display there is** —
+  the figure the weak spot above names, except that on the Web it was not a weak spot
+  but the only outcome. On this Mac in More Space that is 0.122mm a unit against the
+  iPad's 0.192mm, and in Safari on an iPad 0.140mm, which puts a 30pt touch row at
+  21.8pt: under the 20pt row the desktop profile would have given it.
+
+  So the physical size is given up there and the panel is handed the ratio as a
+  constant pixel size instead — **one unit, one CSS pixel.** That is the browser's own
+  device-independent unit rather than a fudge factor, and on iOS it is exactly one iOS
+  point: an iPad's CSS pixel is a hundred-and-thirty-secondth of an inch, which is this
+  project's reference DPI, so the chrome comes out the size the native build gives it on
+  the one platform that has both. Browser zoom then works on the interface as well as
+  on the score, since zooming is a change to the ratio — and because a page's ratio
+  moves under a running app, unlike a device's density, `FollowTheZoom` reads it every
+  frame and writes only when it has moved. The ratio is read as `Screen.dpi / 96`, which
+  is the one the runtime actually applied rather than `window.devicePixelRatio`, so a
+  page that turns off canvas matching or pins the ratio is followed rather than argued
+  with. Measured in Chrome after the change: a 192 unit panel is 192, 384 and 576 device
+  pixels at ratios of one, two and three, an emulated iPad gets the touch profile at 248,
+  and changing the ratio under the running page rescales without a reload.
+
+  **The editor does not preview any of this by itself** either, which is what
   `JacquardApp.StandInForTheDevice` is for: UUM-136603 has the panel resolve its
   density against whichever monitor the view is on rather than against the simulated
   device, so an editor-only copy of the settings is switched to a constant pixel size
