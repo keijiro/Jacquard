@@ -28,7 +28,7 @@ the compiler rather than by discipline:
 
 | | |
 | --- | --- |
-| `Audio` | Voice pool, the two effect buses, Burst render job and the Scriptable Audio Pipeline output |
+| `Audio` | Voice pool, the two effect buses, the Burst render job, and the two drivers that carry it to an output |
 | `App` | The MonoBehaviour, the editing operations, file access |
 | `UI` | The score plane, cell icons drawn with Painter2D, the panels |
 
@@ -123,6 +123,24 @@ Notes on the prototype
   last one sent, and since the delay time is converted to samples on the way, that one
   comparison covers a bar being dragged, the tempo changing and a file being loaded
   without any of them knowing that anything downstream cares.
+- **The output has two drivers, and the DSP has none.** `FmSynthCore` holds the voices,
+  the buses and the render job, and is asked only to fill so many frames starting at
+  so many samples. Everywhere the Scriptable Audio Pipeline exists, `FmSynthPipeline`
+  is what asks — on the audio thread, against the pipeline's own clock. The Web
+  platform does not have it, and does not have `OnAudioFilterRead` or a streaming
+  `PCMReaderCallback` either, because the browser mixes audio somewhere a WebAssembly
+  main thread cannot be called from. So `FmSynthWeb` pushes instead: it renders blocks
+  from `Update` and hands each to the Web Audio API through a `.jslib`, which plays
+  them back to back. What it renders against is the browser's own clock, read back as
+  how much of what was pushed is still unplayed, so the position cannot drift from what
+  is being heard and a late frame is an audible gap rather than a synth that has
+  quietly stopped agreeing with the sequencer.
+- **What the push driver costs is one number the app has to respect.** Audio that has
+  been rendered cannot be written into, so `FmSynth.MinimumLead` is how far past the
+  clock the earliest schedulable note lies — zero under the pipeline, and a block past
+  the queue on the Web. The lookahead window and the note preview both add it, which is
+  the whole of the change outside `Audio`. It comes to around 110ms there, so a tapped
+  note answers in about 160 and the sequence is unaffected.
 - **A number is a bar, not a field.** The readout sits on a bar that fills as the
   value rises, dragging scrubs it and a double click types an exact one, so a
   parameter shows where it sits inside its useful range as well as what it is. What

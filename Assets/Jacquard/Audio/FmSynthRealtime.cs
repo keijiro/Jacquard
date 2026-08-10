@@ -1,5 +1,4 @@
 using Unity.Burst;
-using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine.Audio;
@@ -68,102 +67,18 @@ public struct SendFxRuntime
 // It owns no timbre state. Notes arrive through the pipe carrying their own patch
 // and an absolute sample position, and are rendered at exactly that position.
 //
-// The mix is a dry bus and two send buses. A voice goes into the dry one at the pair
-// of gains its pan asks for and into each of the others at whatever its note asked
-// for, so the two effects hear a sum of exactly the notes that were sent to them and
-// nothing else.
-//
-// Every path here is stereo, and each becomes so for its own reason. The wet one,
-// because a reverb with no width and a delay that cannot cross sides would be most of
-// the two effects thrown away — the image is the effect. The dry one, because the pan
-// in the patch is a position per note, which is a finer thing than either bus can say
-// and the one place a chord can be spread out at all.
+// The mix itself is FmSynthCore's; what is here is only the part that belongs to the
+// pipeline — the pipe at either end of it and the clock it renders against.
 
 [BurstCompile(CompileSynchronously = true)]
 struct FmSynthRealtime : RootOutputInstance.IRealtime
 {
-    internal FmVoicePool pool;
-    internal ReverbBus reverb;
-    internal DelayBus delay;
-
-    internal NativeArray<float> dryL;     // Every voice, placed by its own pan
-    internal NativeArray<float> dryR;
-    internal NativeArray<float> reverbIn; // What the notes sent to the reverb
-    internal NativeArray<float> delayIn;  // What they sent to the delay
-    internal NativeArray<float> outL;     // Wet, then the finished mix
-    internal NativeArray<float> outR;
-
-    internal AudioFormat format;
-    internal float masterGain;
+    internal FmSynthCore core;
 
     JobHandle _job;
     ulong _dspSample;
     FmSynthStatus _lastReported;
     SendFxRuntime _fx;
-
-    [BurstCompile(DisableSafetyChecks = true)]
-    struct RenderJob : IJob
-    {
-        public FmVoicePool pool;
-        public ReverbBus reverb;
-        public DelayBus delay;
-
-        public NativeArray<float> dryL;
-        public NativeArray<float> dryR;
-        public NativeArray<float> reverbIn;
-        public NativeArray<float> delayIn;
-        public NativeArray<float> outL;
-        public NativeArray<float> outR;
-
-        public long bufferStart;
-        public int frameCount;
-        public float sampleRate;
-        public float masterGain;
-        public SendFxRuntime fx;
-
-        public void Execute()
-        {
-            for (var frame = 0; frame < frameCount; frame++)
-            {
-                dryL[frame] = 0.0f;
-                dryR[frame] = 0.0f;
-                reverbIn[frame] = 0.0f;
-                delayIn[frame] = 0.0f;
-                outL[frame] = 0.0f;
-                outR[frame] = 0.0f;
-            }
-
-            pool.Render(dryL, dryR, reverbIn, delayIn, frameCount, bufferStart,
-                        sampleRate);
-
-            // In parallel rather than in series. Feeding the delay's repeats into the
-            // reverb is a good sound and would be one line, but it is also a decision
-            // about how the two are wired that the panel would then have to offer a
-            // number for, and the brief was the fewest controls that carry.
-            delay.Process(delayIn, outL, outR, frameCount, fx.delaySamples,
-                          fx.delayFeedback, fx.delayTone, fx.delaySpread);
-
-            reverb.Process(reverbIn, outL, outR, frameCount, sampleRate,
-                           fx.reverbSize, fx.reverbDamp, fx.reverbWidth);
-
-            // Soft clip, so that a dense chord cannot blow past 0dBFS. The dry mix
-            // joins here, which is also where the two sides stop being wet only.
-            for (var frame = 0; frame < frameCount; frame++)
-            {
-                outL[frame] = SoftClip((dryL[frame] + outL[frame]) * masterGain);
-                outR[frame] = SoftClip((dryR[frame] + outR[frame]) * masterGain);
-            }
-        }
-
-        // A Pade approximant of tanh. The library function would read better, but
-        // it is an extern that Burst declines to resolve, and that quietly drops the
-        // whole job back to managed execution on the audio thread.
-        static float SoftClip(float x)
-        {
-            var s = math.min(x * x, 9.0f);
-            return math.clamp(x * (27.0f + s) / (27.0f + 9.0f * s), -1.0f, 1.0f);
-        }
-    }
 
     // Receives scheduled notes and effect settings from the control part, and reports
     // diagnostics back.
@@ -171,22 +86,16 @@ struct FmSynthRealtime : RootOutputInstance.IRealtime
     {
         foreach (var element in pipe.GetAvailableData(context))
         {
-            if (element.TryGetData(out FmNoteEvent note)) { pool.Enqueue(note); continue; }
+            if (element.TryGetData(out FmNoteEvent note)) { core.pool.Enqueue(note); continue; }
             if (element.TryGetData(out SendFxRuntime fx)) _fx = fx;
         }
 
-        var status = new FmSynthStatus
-          { dspSample = _dspSample,
-            activeVoices = pool.ActiveVoiceCount(),
-            queuedNotes = pool.QueuedCount(),
-            droppedNotes = pool.dropped,
-            stolenNotes = pool.stolen,
-            cancelledNotes = pool.cancelled };
+        var status = core.Status(_dspSample);
 
         // Report whenever a count changes, and otherwise a few times a second to
         // keep the reported clock fresh. The periodic report also covers start-up,
         // where the all-zero state would match _lastReported and never be sent.
-        var interval = (ulong)(format.sampleRate / 20);
+        var interval = (ulong)(core.sampleRate / 20);
 
         if (!Differs(status, _lastReported) &&
             status.dspSample - _lastReported.dspSample < interval) return;
@@ -206,22 +115,7 @@ struct FmSynthRealtime : RootOutputInstance.IRealtime
     public void Process(in RealtimeContext context, Pipe pipe, JobHandle input)
     {
         _dspSample = context.dspTime;
-
-        _job = new RenderJob
-          { pool = pool,
-            reverb = reverb,
-            delay = delay,
-            dryL = dryL,
-            dryR = dryR,
-            reverbIn = reverbIn,
-            delayIn = delayIn,
-            outL = outL,
-            outR = outR,
-            bufferStart = (long)_dspSample,
-            frameCount = format.bufferFrameCount,
-            sampleRate = format.sampleRate,
-            masterGain = masterGain,
-            fx = _fx }.Schedule(input);
+        _job = core.Schedule((long)_dspSample, _fx, input);
     }
 
     // The one place the output stops being a single buffer copied across every
@@ -231,12 +125,12 @@ struct FmSynthRealtime : RootOutputInstance.IRealtime
     {
         _job.Complete();
 
-        var frameCount = math.min(output.frameCount, outL.Length);
+        var frameCount = math.min(output.frameCount, core.outL.Length);
         var stereo = output.channelCount > 1;
 
         for (var frame = 0; frame < frameCount; frame++)
         {
-            var (left, right) = (outL[frame], outR[frame]);
+            var (left, right) = (core.outL[frame], core.outR[frame]);
             var centre = (left + right) * 0.5f;
 
             for (var channel = 0; channel < output.channelCount; channel++)

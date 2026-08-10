@@ -149,6 +149,10 @@ public sealed class JacquardApp : MonoBehaviour
 
     void Update()
     {
+        // First, because this is what moves the audio clock on a driver that has no
+        // audio thread of its own, and everything below reads that clock.
+        Synth.Pump();
+
         // Hand over every note that falls inside the lookahead window.
         _pending.Clear();
         Sequencer.Schedule(Synth.CurrentSample, LookaheadSamples,
@@ -251,7 +255,10 @@ public sealed class JacquardApp : MonoBehaviour
     // again a comparison rather than a notification from everything that can move one.
     SendFxRuntime _fx;
 
-    long LookaheadSamples => (long)(Lookahead * Synth.SampleRate);
+    // The window, plus however far past the clock the driver's earliest schedulable
+    // note lies. Under the pipeline that is nothing and this is just the window.
+    long LookaheadSamples
+      => (long)(Lookahead * Synth.SampleRate) + Synth.MinimumLead;
 }
 
 } // namespace Jacquard.App

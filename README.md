@@ -7,6 +7,11 @@ turn sixteen slots into something that changes as it repeats.
 
 Built with Unity 6.5 (6000.5.6f1). Open the project and play `Assets/Main.unity`.
 
+The synth runs on the Scriptable Audio Pipeline, which the Web platform does not
+support; there the same DSP is rendered from `Update` and pushed to the Web Audio
+API instead, at the cost of about 110ms more latency before a note can sound.
+Nothing else differs, and no setting selects it.
+
 Using it
 --------
 

@@ -204,7 +204,7 @@ public sealed class ScoreEditor
         if (Synth == null) return;
 
         var patch = Project.Patches[channel];
-        var start = Synth.CurrentSample + Synth.SampleRate / 20;
+        var start = Synth.CurrentSample + Synth.MinimumLead + Synth.SampleRate / 20;
         var length = 60.0f / Math.Max(Project.Tempo, 1.0f) / 4.0f;
 
         Synth.Schedule(FmNoteEvent.FromPatch(patch, note, length, start));
