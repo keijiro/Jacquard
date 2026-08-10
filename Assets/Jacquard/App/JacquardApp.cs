@@ -30,8 +30,20 @@ public sealed class JacquardApp : MonoBehaviour
     [field:SerializeField, Range(0.02f, 0.5f)]
     public float Lookahead { get; set; } = 0.12f;
 
+    // The score the app opens on, as a file rather than as code. What it holds is a
+    // real piece of work — eight patches and a handful of lanes — and the one thing
+    // that is certain about it is that it will be replaced again. Written out by the
+    // app's own Save and copied in, so replacing it is a copy rather than a
+    // transcription, and the format is exercised by the same reader every load uses.
+    //
+    // A double extension because Unity imports a TextAsset by extension and .jacquard
+    // is not one it knows; the alternative is a ScriptedImporter for one file.
+    //
+    // Nothing here is a fallback for a missing asset beyond an empty score: leaving
+    // the field unassigned is how the app is started with nothing in it, which is the
+    // only other thing this used to be able to do.
     [field:SerializeField]
-    public bool LoadSampleScore { get; set; } = true;
+    public TextAsset StartupScore { get; set; }
 
     // How big a unit of this interface comes out is not settled here any more. It
     // belongs to the panel settings asset, which holds a constant physical size
@@ -106,6 +118,27 @@ public sealed class JacquardApp : MonoBehaviour
         Editor.Commit();
     }
 
+    // The score the app opens on. A file that will not read is not worth stopping for
+    // — there is a whole app behind it that works without one — so it comes back as an
+    // empty score with something to say, which is what the status line is for. What is
+    // said outlives the listing that would otherwise be there, since a startup file
+    // that has gone stale is the more useful of the two things to be told.
+    CoreProject ReadStartupScore()
+    {
+        if (StartupScore == null) return CoreProject.CreateEmpty();
+
+        try
+        {
+            return ProjectFormat.Read(StartupScore.text);
+        }
+        catch (System.Exception error)
+        {
+            Debug.LogException(error);
+            _startupProblem = "could not read " + StartupScore.name + ": " + error.Message;
+            return CoreProject.CreateEmpty();
+        }
+    }
+
     // MonoBehaviour implementation
 
     void Start()
@@ -121,7 +154,7 @@ public sealed class JacquardApp : MonoBehaviour
         // Before anything is built, since every control reads its size as it is made.
         Controls.LayOutFor(Pointer);
 
-        Project = LoadSampleScore ? CoreProject.CreateSample() : CoreProject.CreateEmpty();
+        Project = ReadStartupScore();
 
         Synth = new FmSynth(MaxVoices);
         Sequencer = new Sequencer { Project = Project };
@@ -132,7 +165,7 @@ public sealed class JacquardApp : MonoBehaviour
           { Project = Project, Sequencer = Sequencer, Synth = Synth, View = View };
 
         Store = new ProjectStore();
-        Message = Store.Listing();
+        Message = _startupProblem ?? Store.Listing();
 
         // The UXML holds nothing but a full-height root to build into. Adding to the
         // document root instead would put the chrome below that element rather than
@@ -328,6 +361,10 @@ public sealed class JacquardApp : MonoBehaviour
     // Private members
 
     JacquardUI _ui;
+
+    // Whatever the startup file had to say for itself, held until there is a status
+    // line to say it on.
+    string _startupProblem;
 
 #if UNITY_EDITOR || UNITY_WEBGL
     PanelSettings _panelCopy;

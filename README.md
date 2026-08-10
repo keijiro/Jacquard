@@ -57,6 +57,11 @@ one line per step; pick a slot with the File arrows. In a Web build that path is
 the browser's own storage, so a save keeps across a reload but not across clearing
 the site's data.
 
+The score the app opens on is one of those files, checked in at
+`Assets/Jacquard/Scores/Startup.jacquard.txt`. To replace it, save the score from
+the app and copy the file over that one, then run **Jacquard > Run Self Test** to
+be told whether it still reads as the current version.
+
 Documentation
 -------------
 

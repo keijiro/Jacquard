@@ -20,6 +20,7 @@ static class SelfTest
         var log = new System.Text.StringBuilder("Jacquard self test\n");
 
         RoundTrip(log);
+        StartupScore(log);
         Playback(log);
         Stack(log);
         Locks(log);
@@ -61,6 +62,42 @@ static class SelfTest
 
         log.Append(branch?.JumpSource != null
           ? "  branch link: resolved\n" : "  BRANCH LINK LOST\n");
+    }
+
+    // The score the app opens on is a file rather than code, so nothing about it is
+    // checked by compiling. What can go stale is the version it was written at: the
+    // reader takes an older file, but a startup score left behind by a format bump
+    // loses whatever the bump added, silently and on every launch. Reading it and
+    // writing it back at the current version says both things at once — that it still
+    // parses, and whether it is already what this build would write.
+    static void StartupScore(System.Text.StringBuilder log)
+    {
+        var asset = AssetDatabase.LoadAssetAtPath<TextAsset>(SceneBuilder.StartupScorePath);
+
+        if (asset == null)
+        {
+            log.Append("  STARTUP SCORE MISSING at ")
+               .Append(SceneBuilder.StartupScorePath).Append('\n');
+            return;
+        }
+
+        try
+        {
+            var project = ProjectFormat.Read(asset.text);
+            var rewritten = ProjectFormat.Write(project);
+
+            log.Append("  startup score: ").Append(project.Score.Lanes.Count)
+               .Append(" lanes at ").Append(project.Tempo).Append("bpm\n");
+
+            log.Append(rewritten == asset.text
+              ? "  startup version: current\n"
+              : "  startup version: readable but not what this build writes; "
+                + "save it again from the app\n");
+        }
+        catch (System.Exception error)
+        {
+            log.Append("  STARTUP SCORE UNREADABLE: ").Append(error.Message).Append('\n');
+        }
     }
 
     // Runs the mockup score for four laps' worth of samples and counts what comes

@@ -16,6 +16,11 @@ static class SceneBuilder
 {
     const string ScenePath = "Assets/Main.unity";
 
+    // The score the app opens on. Replacing it is a matter of writing another file
+    // over this one — save the score from the app and copy it here — so the name is
+    // worth having in one place, where the self test can read the same one.
+    public const string StartupScorePath = "Assets/Jacquard/Scores/Startup.jacquard.txt";
+
     [MenuItem("Jacquard/Rebuild Main Scene")]
     public static void Build()
     {
@@ -40,7 +45,8 @@ static class SceneBuilder
         document.visualTreeAsset =
           AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/UI/Main.uxml");
 
-        appObject.AddComponent<JacquardApp>();
+        var app = appObject.AddComponent<JacquardApp>();
+        app.StartupScore = AssetDatabase.LoadAssetAtPath<TextAsset>(StartupScorePath);
 
         EditorSceneManager.SaveScene(scene, ScenePath);
 

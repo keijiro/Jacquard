@@ -261,6 +261,26 @@ Notes on the prototype
   whatever happens to sit directly above, which makes two unrelated lanes look
   connected; sequencer.md lists that as undecided, and knowing the lane settles
   it.
+- **The score the app opens on is a file, not code.** `Project.CreateSample()` built one
+  by hand, which was right while the demonstration case was small and wrong the moment
+  it became a real piece of work: what is wanted now is eight patches and seven lanes,
+  and transcribing that into C# literals would be two hundred lines of numbers that no
+  one can read and that have to be re-transcribed every time the piece changes. So
+  `Assets/Jacquard/Scores/Startup.jacquard.txt` holds it in the format the app already
+  writes, `JacquardApp.StartupScore` reads it through the same `ProjectFormat.Read` a
+  load uses, and replacing it is a file copy. A double extension because Unity imports
+  a `TextAsset` by extension and `.jacquard` is not one it knows.
+  `CreateSample()` stays, with only its other job: it is the self test's fixture, the
+  one score that names every kind of tile, and a fixture is better as code than as an
+  asset that can be edited out from under a check. What the split buys is that neither
+  is answering to the other's requirements — the demonstration can become whatever
+  sounds best without a test noticing.
+  The cost is that nothing about the startup file is checked by compiling, and the way
+  it goes wrong is quiet: the reader takes an older version, so a startup score left
+  behind by a format bump loses whatever the bump added, silently and on every launch.
+  Hence one self test that reads it and writes it back — the same round trip as above,
+  used to say *this file is already what this build writes* rather than *the format is
+  consistent*.
 - **An old file loses what the synth no longer has, rather than being refused.** A
   patch key nothing answers to is skipped, so a deleted parameter simply falls back to
   the default; a *lock* on one has to be named in `ProjectFormat.Retired` to get the
