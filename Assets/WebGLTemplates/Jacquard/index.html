@@ -56,6 +56,12 @@
       height: 100%;
       display: block;
       touch-action: none;
+      /* Chrome rings the canvas when a key gives it focus, which here is a line drawn
+         around the whole window the first time space is pressed. A focus ring is worth
+         keeping where it says which of several things will take the typing; this canvas
+         is the entire application, so it says nothing, and the app draws its own cursor
+         on the plane for the question the ring would be answering. */
+      outline: none;
     }
   </style>
 </head>
