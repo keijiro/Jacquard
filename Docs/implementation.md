@@ -135,6 +135,18 @@ Notes on the prototype
   how much of what was pushed is still unplayed, so the position cannot drift from what
   is being heard and a late frame is an audible gap rather than a synth that has
   quietly stopped agreeing with the sequencer.
+- **The Web page is the project's own, because the canvas has to be the window.** Both
+  built-in templates ship the canvas at the size Player Settings names and leave it
+  there, which for a plane that is panned around means the work area is whatever was
+  guessed at build time. `Assets/WebGLTemplates/Jacquard` fixes the canvas to all four
+  edges instead — Unity matches the drawing buffer to it every frame, device pixel ratio
+  included, so a resized window is simply more score. It also hands the canvas
+  `touch-action: none`, without which the browser keeps the drag, the pinch and the
+  double tap that the chrome and the plane are built around. Post-processing is off on
+  the renderer for the same platform: URP loads the FSR upscaling material whether or
+  not the upscaler is selected, and that shader does not exist on GLES3, so the only
+  way to stop the warning is to not have a post-process stack — and nothing here has
+  ever used one.
 - **What the push driver costs is one number the app has to respect.** Audio that has
   been rendered cannot be written into, so `FmSynth.MinimumLead` is how far past the
   clock the earliest schedulable note lies — zero under the pipeline, and a block past

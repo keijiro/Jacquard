@@ -3,6 +3,7 @@ Desktop.ini
 .DS_Store
 *.swp
 
+/Data
 /GeneratedAssets
 /Library
 /Logs

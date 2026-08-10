@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<!--
+  The page Jacquard is served on.
+
+  What it is for is one thing the built-in templates will not do: the canvas is the
+  window, and it stays the window when the window changes. Both of those ship at the
+  size Player Settings names and leave it there, which for a score that is panned
+  around a plane means the work area is whatever was guessed at build time.
+
+  Fixed positioning against all four edges rather than a height in viewport units,
+  because a mobile browser's toolbars slide in and out and every unit that sounds like
+  the viewport measures a different moment of that. The width and height are still
+  spelled out: a canvas is a replaced element, so left and right alone would leave it
+  at its intrinsic 300 by 150.
+
+  Nothing has to be done to make Unity follow the resize. The runtime reads the
+  canvas's client size every frame and matches the drawing buffer to it, device pixel
+  ratio included, which is what matchWebGLToCanvasSize means and why it is left alone.
+
+  touch-action is the other half of being usable by hand. The plane is panned by
+  dragging it and the chrome is sized for a fingertip, so every gesture the browser
+  would rather keep for itself — scroll, pinch to zoom, double tap to zoom — is a
+  gesture taken away from the app. Handing the whole canvas over is the only way to
+  get them all, and it is safe here because there is nothing on this page to scroll.
+
+  Diagnostics are deliberately not wired in: the Show Diagnostics setting will build,
+  but its icon and overlay are absent. Copy the SHOW_DIAGNOSTICS blocks out of the
+  Minimal template if that is ever wanted.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="viewport"
+        content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
+  <title>{{{ PRODUCT_NAME }}}</title>
+  <!-- There is no icon to serve, and saying so is what stops the browser asking for
+       one and logging the 404 it gets. -->
+  <link rel="icon" href="data:,">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      border: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      background: {{{ BACKGROUND_FILENAME ? 'url(\'Build/' + BACKGROUND_FILENAME.replace(/'/g, '%27') + '\') center / cover' : BACKGROUND_COLOR }}};
+    }
+
+    #unity-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="unity-canvas" width={{{ WIDTH }}} height={{{ HEIGHT }}} tabindex="-1"></canvas>
+  <script src="Build/{{{ LOADER_FILENAME }}}"></script>
+  <script>
+    createUnityInstance(document.querySelector("#unity-canvas"), {
+      arguments: [],
+      dataUrl: "Build/{{{ DATA_FILENAME }}}",
+      frameworkUrl: "Build/{{{ FRAMEWORK_FILENAME }}}",
+#if USE_WASM
+      codeUrl: "Build/{{{ CODE_FILENAME }}}",
+#endif
+#if SYMBOLS_FILENAME
+      symbolsUrl: "Build/{{{ SYMBOLS_FILENAME }}}",
+#endif
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+      productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+      productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+    }).catch((message) => {
+      alert(message);
+    });
+  </script>
+</body>
+
+</html>
