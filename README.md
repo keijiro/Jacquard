@@ -53,7 +53,9 @@ it yet or not, so nothing else can grow across it and no lane can be dropped on
 one. Give a lane a clear row of its own and it will take tiles anywhere along it.
 
 Scores are saved under `Application.persistentDataPath/Scores` as plain text,
-one line per step; pick a slot with the File arrows.
+one line per step; pick a slot with the File arrows. In a Web build that path is
+the browser's own storage, so a save keeps across a reload but not across clearing
+the site's data.
 
 Documentation
 -------------

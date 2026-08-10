@@ -84,6 +84,13 @@
       companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
       productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
       productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+      // Without this, a write to Application.persistentDataPath lands in the
+      // in-memory filesystem and goes no further: the runtime only mounts IndexedDB
+      // with automatic persistence when the page asks for it, and nothing else in
+      // this app calls the sync by hand. Saving a score would then report success
+      // and be gone on the next reload. It is still the browser's storage, so a
+      // cleared site is a cleared score, but within one browser a save now keeps.
+      autoSyncPersistentDataPath: true,
     }).catch((message) => {
       alert(message);
     });
