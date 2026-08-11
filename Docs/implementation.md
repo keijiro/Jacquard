@@ -347,10 +347,24 @@ Notes on the prototype
   nowhere lit up for it, which says so without a second colour.
 - **The cell pitch is what the rest of the plane is derived from.** A cell is
   30x32 with a 4px gutter, set by what has to fit inside one rather than by taste:
-  a note name with its accidental gutter is a little over twenty pixels wide, and
+  a sharp note name is a little over twenty pixels wide, and
   the icons are drawn in a 15x15 box. Keeping those numbers in `Style` alone is
   what lets the painted layers and the tile elements agree on where a cell is to
   the pixel.
+
+  **The accidental gutter stands only on the notes that have an accidental.** It used
+  to stand on every one of them, so that the letter kept its place as a note was
+  transposed through a sharp and back — which put a gap in the middle of every plain
+  name, five pixels of the twenty a name has to fit in, to spare a movement nobody was
+  watching for. A name is read; it is not aligned against the name it was a moment ago.
+  What remains of the rule is that the gutter is a fixed five pixels rather than a
+  share of the type size, because what it holds is four 1px strokes and a scaled gutter
+  would put them on half pixels at most sizes.
+
+  The note is set at 13 rather than 15 for the same reason the gutter went: a name that
+  fills its cell to the border reads as a cell crammed with a name. Nothing else moved
+  with it — the length under a name and the `CHAN` head were already smaller — so the
+  note is still plainly the content of the cell and the rest is still plainly labels.
 - **Chain lines** are drawn only between cells of the same stack. mockup.html joins
   whatever happens to sit directly above, which makes two unrelated lanes look
   connected; sequencer.md lists that as undecided, and knowing the lane settles

@@ -74,9 +74,16 @@ sealed class TileElement : VisualElement
     void OnGenerateVisualContent(MeshGenerationContext context)
       => TileIcons.Draw(context.painter2D, Tile, _color);
 
-    // A note reads as letter, accidental gutter, octave — the gutter is always
-    // there, so the letter sits in the same place whether the note is sharp or
-    // not. The length only appears when it is not the default single step.
+    // A note reads as letter and octave, with the gutter the sharp is drawn in between
+    // them only when there is a sharp.
+    //
+    // The gutter used to stand on every note, so that the letter kept its place as a
+    // note was transposed through a sharp and back. That was a gap in the middle of
+    // every plain name to spare a movement no one was watching for: five pixels of the
+    // twenty a name has to fit in, spent on the two thirds of notes that have nothing
+    // to put there. A name is read, not aligned against the name it was a moment ago.
+    //
+    // The length only appears when it is not the default single step.
     static VisualElement NoteLabel(NoteTile note)
     {
         var column = new VisualElement();
@@ -92,7 +99,7 @@ sealed class TileElement : VisualElement
         var name = Pitch.ToClassName(note.Note);
 
         row.Add(Text(name.Substring(0, 1), Style.NoteSize, Style.NoteText));
-        row.Add(Accidental(name.Length > 1));
+        if (name.Length > 1) row.Add(Accidental());
         row.Add(Text(Pitch.ToOctave(note.Note).ToString(), Style.NoteSize,
                      Style.NoteText));
 
@@ -112,15 +119,17 @@ sealed class TileElement : VisualElement
     // The sharp is drawn rather than typeset: it is the one glyph in the whole UI
     // that a runtime font may not carry, and at this size a few strokes are more
     // legible than a scaled down character anyway.
-    static VisualElement Accidental(bool sharp)
+    //
+    // Its box is a fixed five pixels rather than a share of the note size, because what
+    // it holds is four 1px strokes: a gutter that scaled would put them on half pixels
+    // at most sizes, and the mark is small enough that a blurred one is a smudge.
+    static VisualElement Accidental()
     {
         var element = new VisualElement();
         element.style.width = Style.AccidentalGutter;
         element.style.height = Style.NoteSize;
         element.style.flexShrink = 0;
         element.pickingMode = PickingMode.Ignore;
-
-        if (!sharp) return element;
 
         element.generateVisualContent += context =>
         {

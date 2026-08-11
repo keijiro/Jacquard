@@ -9,9 +9,9 @@ namespace Jacquard.App {
 // place is what lets the painted layers and the tile elements agree on where a
 // cell is to the pixel.
 //
-// The pitch is set by what has to fit inside a cell rather than by taste: a note
-// name at NoteSize with its accidental gutter is a little over twenty pixels wide,
-// and stacked over a length label it is a little under thirty tall. What is left
+// The pitch is set by what has to fit inside a cell rather than by taste: a sharp
+// note name at NoteSize, letter and gutter and octave, is a little over twenty pixels
+// wide, and stacked over a length label it is a little under thirty tall. What is left
 // over is margin, and it is kept thin, because a plane holds more of the score the
 // tighter the pitch is and the score is what this window is for.
 
@@ -28,16 +28,14 @@ static class Style
     public const float StrideX = CellWidth + Gap;
     public const float StrideY = CellHeight + Gap;
 
-    public const float NoteSize = 15.0f;
+    public const float NoteSize = 13.0f;
     public const float LengthSize = 9.0f;
     public const float ControlSize = 11.0f;
 
-    // The sharp is typeset as a small raised glyph in a fixed gutter between the
-    // note letter and the octave, so every note label has the same rhythm whether
-    // it carries an accidental or not.
+    // The gutter the sharp is drawn in, between the note letter and the octave. It is
+    // there only when there is a sharp to put in it: a note that has none reads as two
+    // characters side by side.
     public const float AccidentalGutter = 5.0f;
-    public const float AccidentalSize = NoteSize * 0.62f;
-    public const float AccidentalRise = NoteSize * 0.42f;
 
     // The dotted rail: a 2px dot every 7px, at 35% so that it reads as a guide
     // rather than as content.
