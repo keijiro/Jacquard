@@ -67,9 +67,11 @@ sealed class JacquardUI
         body.Add(PanelColumn(false, _inspector.Root, _sound.Root, _lock.Root));
 
         // The effects are the project's, not a cell's, so they get a column of their
-        // own on the other edge rather than a slot in the cursor's.
-        _send = new SendPanel(_editor, () => ShowSend(false));
-        body.Add(PanelColumn(true, _send.Root));
+        // own on the other edge rather than a slot in the cursor's. One panel each: a
+        // heading inside a panel was doing the work a panel does.
+        _reverb = new SendPanel(_editor, SendPanel.Effect.Reverb);
+        _delay = new SendPanel(_editor, SendPanel.Effect.Delay);
+        body.Add(PanelColumn(true, _reverb.Root, _delay.Root));
         ShowSend(false);
 
         _editor.Changed += OnChanged;
@@ -157,9 +159,9 @@ sealed class JacquardUI
     // using.
     //
     // The left edge is a second column all the same, and this is what it is for: the
-    // Send FX panel is nothing to do with the cursor, so standing it under the Tile
+    // send effects are nothing to do with the cursor, so standing them under the Tile
     // panel would put a project setting in the queue behind whatever cell is selected,
-    // and it would move down the screen every time the Tile panel grew a line.
+    // and they would move down the screen every time the Tile panel grew a line.
     // Opposite corners also mean that reaching for an effect never covers what the
     // cursor is saying about the note the effect is for.
     //
@@ -189,8 +191,8 @@ sealed class JacquardUI
         row.style.alignItems = Align.Center;
         row.style.flexShrink = 0;
         row.style.height = Controls.ToolbarHeight;
-        row.style.paddingLeft = 10;
-        row.style.paddingRight = 10;
+        row.style.paddingLeft = Controls.Inset;
+        row.style.paddingRight = Controls.Inset;
         row.style.borderBottomWidth = 1;
         row.style.borderBottomColor = Style.PanelLine;
         return row;
@@ -205,8 +207,11 @@ sealed class JacquardUI
         line.style.height = Controls.RowHeight - 2;
         line.style.flexShrink = 0;
         line.style.backgroundColor = Style.PanelLine;
-        line.style.marginLeft = 5;
-        line.style.marginRight = 8;
+        // Wider air than the gap between two buttons, since this is what tells one
+        // group of them from the next — and short on the left by the gap the control
+        // before it has already left, the way a rule down a panel is short on top.
+        line.style.marginLeft = SeparatorAir - Controls.Gap;
+        line.style.marginRight = SeparatorAir;
         return line;
     }
 
@@ -220,10 +225,11 @@ sealed class JacquardUI
         // and moving a lane can change which channel a lock colours.
         _sound.Refresh();
         _lock.Refresh();
-        // Not in OnCursorMoved, since nothing on the Send FX panel answers to a cell.
-        // This is for the one change that does reach it: a load, which arrives with
+        // Not in OnCursorMoved, since nothing on the send panels answers to a cell.
+        // This is for the one change that does reach them: a load, which arrives with
         // effect settings of its own.
-        _send.Refresh();
+        _reverb.Refresh();
+        _delay.Refresh();
     }
 
     // Every panel on the right shows whatever the cursor is on: the inspector the
@@ -235,12 +241,18 @@ sealed class JacquardUI
         _lock.Refresh();
     }
 
-    // The button and the panel's own close are the two halves of one switch, so both
-    // come through here rather than each setting what it can reach.
+    // The one thing that raises and lowers the send effects. It is the transport button
+    // and nothing else, so the button's own look and what it shows are set in the same
+    // place and cannot come apart — and the two panels move together, since they are
+    // one setting of the project in two boxes rather than two things to arrange.
     void ShowSend(bool shown)
     {
         _sendShown = shown;
-        _send.Root.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+
+        var display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+        _reverb.Root.style.display = display;
+        _delay.Root.style.display = display;
+
         Controls.SetActive(_sendButton, shown);
     }
 
@@ -309,7 +321,8 @@ sealed class JacquardUI
     readonly InspectorPanel _inspector;
     readonly SoundPanel _sound;
     readonly LockPanel _lock;
-    readonly SendPanel _send;
+    readonly SendPanel _reverb;
+    readonly SendPanel _delay;
     readonly StringBuilder _text = new();
 
     Button _play;
@@ -318,6 +331,8 @@ sealed class JacquardUI
     ValueBar _tempo;
     Label _status;
     List<string> _slots;
+
+    const float SeparatorAir = 8.0f;
 
     // A tempo below a walking pace or above a drum machine's top speed is of no
     // interest, so the bar covers the useful span and typing covers the rest.

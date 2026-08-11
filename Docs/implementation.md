@@ -184,20 +184,60 @@ Notes on the prototype
   no cell is both. There is no window to open, and so no state on screen that the
   score does not decide.
 
-  **The Send FX panel is the one exception, and it is the exception because it has to
-  be.** One reverb and one delay for the whole project answer to no cell, so there is
-  no cursor position that could bring them up; putting a tile on the plane for the sake
-  of the rule would be inventing score to hold a setting. It pays for the state it adds
-  by not being up unless it has been asked for — a button on the transport row, which
-  is where what belongs to the project already lives — and it takes the close button
-  `Controls.Panel` has always offered and nothing had used. It hangs from the top left,
-  the opposite corner from the cursor's column, so that reaching for an effect never
-  covers what the cursor is saying about the note the effect is for.
+  **A panel's header is its subject, not its name.** It reads *Note Tile*, *Cycle Gate
+  Tile*, *Channel 1 Sound*, *Channel 5 Lock* — the kind of panel and the thing it is
+  showing on one line, since which panel this is was never in doubt and the thing
+  changes under the cursor. Each of them used to say the kind in the header and repeat
+  the subject in a caption row underneath, which cost every panel a row to say half of
+  what one line says now. `Controls.Panel` hands the header label back for this, and
+  the panels that never change subject — Reverb and Delay — simply do not ask for it.
 
-  It is called **Send FX** and not Send, on the panel and on the button both. A send
-  is what a *channel* does, and the amounts are on the Sound panel named after the
-  effect each one feeds; a panel called Send would be named after the sending and hold
-  none of it. What is here is the receiving end.
+  **A panel is spaced out of two numbers.** `Controls.Gap` is the space between any two
+  things standing next to each other — two rows, two buttons, a heading and what it
+  heads, the header and the rule under it — and `Controls.Inset` is the panel's own
+  margin from its edge to everything it holds. Nothing in a panel is a number of its
+  own any more; what is not one of the two is a stated subtraction from one.
+
+  The subtraction is always the same one. **A gap is carried below and to the right, by
+  the thing above and to the left of it**, so anything that comes between two others
+  adds only what is missing: a rule has no margin over it, because the row above has
+  already left one, and the panel's bottom inset is short by a gap because the last row
+  laid one down. That is what puts equal air on both sides of every rule without any of
+  them knowing what they are standing between.
+
+  The last piece is that **a heading is as tall as a row**, header included. A control
+  is a twenty pixel box holding thirteen pixels of text, so a bare line of text between
+  two of them is short by the air the boxes carry — every gap measures right and the
+  words still crowd. Given the row height, the panels measure the same read either way.
+
+  **The send effects are the one exception, and they are the exception because they
+  have to be.** One reverb and one delay for the whole project answer to no cell, so
+  there is no cursor position that could bring them up; putting a tile on the plane for
+  the sake of the rule would be inventing score to hold a setting. They pay for the
+  state they add by not being up unless asked for — a button on the transport row,
+  which is where what belongs to the project already lives — and that button is the
+  whole of the switch. One of them wore a close of its own for a while, which was a
+  control the other panels had no use for and a second way to do what the button on the
+  row already did. `Controls.Panel` no longer offers one at all: a panel is put away by
+  whatever put it up, and the header is a title and nothing else. They hang from the top
+  left, the opposite corner from the cursor's column, so that reaching for an effect
+  never covers what the cursor is saying about the note the effect is for.
+
+  **One panel each, Reverb and Delay, and not one panel with two headings in it.** A
+  panel is already the thing that says *this group of rows is about that*, so a heading
+  inside one was a second answer to a question the panel had answered: the first row of
+  a group stood against a rule and the last against nothing, and the column read as one
+  loose list rather than as two settled ones. Split, each effect gets the header, the
+  rule and the inset every other group of rows on screen gets, and the left column
+  stacks two panels the way the right one does. They are raised and lowered together,
+  since they are one setting of the project in two boxes rather than two things to
+  arrange.
+
+  The button that raises them says **Send FX** and not Send. A send is what a *channel*
+  does, and the amounts are on the Sound panel named after the effect each one feeds; a
+  button called Send would be named after the sending and raise none of it. What comes
+  up is the receiving end — which is why the button names the pair and each panel names
+  an effect.
 - **The panel is also where a tile is put down**, since the cursor is already the
   answer to where. A cell that will take one — a lane's empty step, the cell under
   a stack, the `TERM` cell that grows the lane — offers the tiles instead of a
@@ -207,6 +247,16 @@ Notes on the prototype
   plane. A tile therefore only ever lands on free ground: a stack is built from the
   top down rather than by inserting above what is already there, which is the order
   the runner reads it in anyway.
+- **The chrome never shows a token.** `PABS` and `GCYC` are how a tile is spelled in
+  a saved file and how this codebase names one; on screen a tile is *Absolute Lock*
+  and *Cycle Gate*, on the button that places it and in the header over it afterwards,
+  so the two read as the same thing. The palette used to be a row of the
+  four letter codes, which was three buttons to a line and a code to be learned before
+  any of them meant anything — and there is nowhere else to learn it, since this panel
+  is the only place a tile is ever chosen. What the panel hands the editor is a
+  `TileKind` for the same reason: a token passed between them is a token waiting to be
+  printed. The one token still shown is a note's, because `A4` is the pitch itself
+  rather than a code standing in for one.
 - **A tile is moved by carrying it**, which is the one edit with no button behind
   it: where a tile goes is a position, and a plane is already the thing that
   answers positions. Dragging a tile within its own step reorders the stack, one

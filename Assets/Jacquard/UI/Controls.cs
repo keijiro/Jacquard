@@ -100,15 +100,42 @@ static class Controls
     // row of them does not read as more tiles.
     public static float Radius => Touch ? 5.0f : 4.0f;
 
+    // Spacing
+    //
+    // Two numbers and one rule. Gap is the space between any two things standing next
+    // to each other in a panel — two rows, two buttons, a heading and what it heads.
+    // Inset is the panel's own, from its edge to everything it holds.
+    //
+    // The rule is that a gap is carried underneath and to the right, by the thing
+    // above and to the left of it. Anything that comes between two others therefore
+    // adds only what is missing rather than a gap of its own: a rule takes its space
+    // underneath and lets the row above supply the space over it, which is what keeps
+    // the air either side of it equal without either of them having to know what it is
+    // standing between. The panel's bottom inset is short by a gap for the same
+    // reason — the last row already laid one down — so the inset reads the same on
+    // all four sides.
+    //
+    // Nothing here is emphasis. A header is a line of the panel like any other, spaced
+    // like any other, because which panel it is was never the question the eye is
+    // asking; what it says is.
+    //
+    // None of these grows with the touch profile, for the reason the metrics above
+    // give: what a fingertip needs is a bigger target and not more space between
+    // targets, and the column has to stand Sound under Tile and still reach the bottom
+    // of the shortest screen this runs on.
+    public const float Gap = 3.0f;
+    public const float Inset = 10.0f;
+
     // The space a panel keeps under it, and the same distance the column of them is
     // held off the edges of the screen: the gap around the panels reads as one gap
-    // whichever side of one it is on. A gap, so it is the same in both sets.
+    // whichever side of one it is on. Wider than the inset, so that two panels read as
+    // two things rather than as one with a line drawn across it.
     public const float PanelGap = 12.0f;
 
     // A width given in the mouse profile's terms, stretched to hold the same words at
     // the other's larger type. Never narrower than a row is tall, which is what turns
-    // the one-glyph buttons — the arrows either side of a figure, a panel's close —
-    // from a slot into something square enough to hit.
+    // the one-glyph buttons — the arrows either side of a figure, the plus and minus of
+    // a stepper — from a slot into something square enough to hit.
     public static float Width(float width)
       => Touch ? Mathf.Max(Mathf.Round(width * FontSize / MouseFontSize), RowHeight)
          : width;
@@ -134,24 +161,42 @@ static class Controls
         return label;
     }
 
+    // A heading over a group of rows, for a panel that holds more than one group. It
+    // is a caption in the same dim grey — a group is named, not announced — standing
+    // where a row would and carrying the gap a row carries.
+    //
+    // It is also as tall as a row, which is what actually makes it sit like one. A
+    // control is a twenty pixel box around thirteen pixels of text, so a bare line of
+    // text between two of them is short by the air the boxes hold: measured between
+    // the boxes every gap here is a gap, and measured between the words the line
+    // would hug whatever is over it.
+    public static Label Heading(string text)
+    {
+        var label = Caption(text);
+        label.style.height = RowHeight;
+        label.style.marginBottom = Gap;
+        return label;
+    }
+
     public static VisualElement Row()
     {
         var row = new VisualElement();
         row.style.flexDirection = FlexDirection.Row;
         row.style.alignItems = Align.Center;
         row.style.flexShrink = 0;
-        row.style.marginBottom = 3;
+        row.style.marginBottom = Gap;
         return row;
     }
 
+    // No margin over it: whatever it follows has already left a gap there, and a rule
+    // that added one of its own would sit low in the space it is dividing.
     public static VisualElement Divider()
     {
         var line = new VisualElement();
         line.style.height = 1;
         line.style.flexShrink = 0;
         line.style.backgroundColor = Style.PanelLine;
-        line.style.marginTop = 6;
-        line.style.marginBottom = 6;
+        line.style.marginBottom = Gap;
         return line;
     }
 
@@ -164,11 +209,13 @@ static class Controls
         button.style.height = RowHeight;
         button.style.minWidth = 0;
         button.style.marginLeft = 0;
-        button.style.marginRight = 3;
+        button.style.marginRight = Gap;
         button.style.marginTop = 0;
         button.style.marginBottom = 0;
-        button.style.paddingLeft = 6;
-        button.style.paddingRight = 6;
+        // Air inside the box rather than around it, so a word is not up against the
+        // border. Twice the gap, since this is the one place two edges meet.
+        button.style.paddingLeft = Gap * 2;
+        button.style.paddingRight = Gap * 2;
         button.style.backgroundColor = Style.ControlBackground;
         button.style.color = Style.NoteText;
         button.style.unityTextAlign = TextAnchor.MiddleCenter;
@@ -288,37 +335,49 @@ static class Controls
     // Where it lands is not decided here. Panels stack down a column of their own, so
     // one lays itself out in the flow like anything else and carries the gap to the
     // panel under it; the column is what is pinned to a corner of the screen.
-    public static VisualElement Panel(string title, Action onClose)
+    //
+    // Nothing on the header but the header. A panel is put away by whatever put it up —
+    // the cursor for three of them, the transport row's button for the fourth — so a
+    // close of its own would be a second switch for something that already has one, and
+    // a control where the eye goes for a title.
+    public static VisualElement Panel(string title) => Panel(title, out _);
+
+    // The same, with the title handed back to be rewritten.
+    //
+    // A panel here names what it is currently showing rather than what kind of panel
+    // it is, and what it is showing follows the cursor: the header is "Note Tile" and
+    // then "Cycle Gate Tile", not "Tile" with a second line under it repeating the
+    // part that changed. That line was a row of chrome per panel saying what the
+    // header had room for, in a column that has to reach the bottom of the shortest
+    // screen this runs on.
+    public static VisualElement Panel(string title, out Label header)
     {
         var panel = new VisualElement();
         panel.style.width = PanelWidth;
         panel.style.flexShrink = 0;
         panel.style.marginBottom = PanelGap;
         panel.style.backgroundColor = Style.Panel;
-        panel.style.paddingLeft = 10;
-        panel.style.paddingRight = 10;
-        panel.style.paddingTop = 8;
-        panel.style.paddingBottom = 10;
+        panel.style.paddingLeft = Inset;
+        panel.style.paddingRight = Inset;
+        panel.style.paddingTop = Inset;
+        // Short by a gap, which the last row on the panel has already put there.
+        panel.style.paddingBottom = Inset - Gap;
         TileElement.SetBorderWidth(panel, 1.0f);
         TileElement.SetBorderColor(panel, Style.PanelLine);
         TileElement.SetBorderRadius(panel, 6.0f);
 
-        var header = Row();
-        header.style.marginBottom = 6;
+        // Spaced like any other row, and as tall as one, so that the rule under it
+        // falls where a rule between two groups of rows falls. What the header says
+        // changes; that it is a header is not worth a band of air to announce.
+        var row = Row();
+        row.style.height = RowHeight;
 
-        var caption = Text(title, FontSize, Style.NoteText);
-        caption.style.flexGrow = 1;
-        caption.style.unityTextAlign = TextAnchor.MiddleLeft;
-        header.Add(caption);
+        header = Text(title, FontSize, Style.NoteText);
+        header.style.flexGrow = 1;
+        header.style.unityTextAlign = TextAnchor.MiddleLeft;
+        row.Add(header);
 
-        if (onClose != null)
-        {
-            var close = Push("x", onClose, 20);
-            close.style.marginRight = 0;
-            header.Add(close);
-        }
-
-        panel.Add(header);
+        panel.Add(row);
         return panel;
     }
 }

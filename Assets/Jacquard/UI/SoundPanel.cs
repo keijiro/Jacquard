@@ -29,9 +29,7 @@ sealed class SoundPanel
     {
         _editor = editor;
 
-        // No close button: the cursor decides whether this is up, so a button that
-        // put it away would be undone by the next keypress.
-        Root = Controls.Panel("Sound", null);
+        Root = Controls.Panel("Sound", out _title);
 
         _body = new VisualElement();
         Root.Add(_body);
@@ -66,6 +64,7 @@ sealed class SoundPanel
     // Private members
 
     readonly ScoreEditor _editor;
+    readonly Label _title;
     readonly VisualElement _body;
 
     int _channel;
@@ -76,10 +75,14 @@ sealed class SoundPanel
     {
         _body.Clear();
 
-        // The subject of the panel, named the way every other panel names its own:
-        // the Tile panel says which tile it is showing, and this says which channel.
-        // It is also the only place the number appears now that there is no chooser.
-        _body.Add(Controls.Caption("Channel " + _channel));
+        // The subject of the panel is in the header, the way every other panel names
+        // its own: the Tile panel says which tile it is showing, and this says which
+        // channel's sound. It is also the only place the number appears now that there
+        // is no chooser.
+        _title.text = "Channel " + _channel + " Sound";
+
+        // The rule stays where the caption's was: it is what separates the header from
+        // the rows, which the Tile panel puts above its first section too.
         _body.Add(Controls.Divider());
 
         for (var target = 0; target < ParamTargets.Count; target++)
@@ -92,7 +95,13 @@ sealed class SoundPanel
         }
 
         _body.Add(Controls.Divider());
-        _body.Add(Controls.Push("Audition", Audition, 70));
+
+        // On a row of its own rather than loose in the column, so that it leaves the
+        // gap under it that every other row does and the panel closes on the same
+        // inset it opened with.
+        var row = Controls.Row();
+        row.Add(Controls.Push("Audition", Audition, 70));
+        _body.Add(row);
     }
 
     // The bank hands out a reference, which is what lets a field be written in

@@ -27,9 +27,7 @@ sealed class LockPanel
     {
         _editor = editor;
 
-        // No close button, for the reason the Sound panel has none: the cursor
-        // decides whether this is up, and the next keypress would undo a button.
-        Root = Controls.Panel("Lock", null);
+        Root = Controls.Panel("Lock", out _title);
 
         _body = new VisualElement();
         Root.Add(_body);
@@ -65,6 +63,7 @@ sealed class LockPanel
     // Private members
 
     readonly ScoreEditor _editor;
+    readonly Label _title;
     readonly VisualElement _body;
 
     ParamTile _tile;
@@ -74,11 +73,11 @@ sealed class LockPanel
     {
         _body.Clear();
 
-        // Which channel this lock colours. A lock always takes the whole channel,
-        // and this is the only place the number appears for one: the tile itself
-        // does not carry it, and a branch lane borrows it from the jump that
-        // reaches it.
-        _body.Add(Controls.Caption("Channel " + _channel));
+        // Which channel this lock colours, in the header the way the Sound panel names
+        // the channel it is voicing. A lock always takes the whole channel, and this is
+        // the only place the number appears for one: the tile itself does not carry it,
+        // and a branch lane borrows it from the jump that reaches it.
+        _title.text = "Channel " + _channel + " Lock";
         _body.Add(Controls.Divider());
 
         for (var target = 0; target < ParamTargets.Count; target++)
@@ -109,7 +108,7 @@ sealed class LockPanel
             style.flexDirection = FlexDirection.Row;
             style.alignItems = Align.Center;
             style.flexShrink = 0;
-            style.marginBottom = 3;
+            style.marginBottom = Controls.Gap;
 
             _caption = Controls.Caption(ParamTargets.Name(target));
 

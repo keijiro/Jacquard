@@ -11,8 +11,11 @@ namespace Jacquard {
 // when the modifier alone would not carry the meaning, so there is an
 // AbsoluteParamTile and a CycleGateTile but a plain JumpTile.
 //
-// Token is the four character display code, not the data: it is what the cell
-// (or an inspector caption) shows, and the file format has its own spellings.
+// Token is the four character code a tile is spelled with, not the data. It is
+// what a saved file writes and what this codebase calls a tile by; it is not what
+// the UI shows, since a panel names a tile in words and a cell draws an icon. The
+// note is the exception at both ends: its token is the pitch name itself, so it is
+// the one token a caption is happy to print.
 
 public abstract class Tile
 {

@@ -25,7 +25,7 @@ sealed class InspectorPanel
     {
         _editor = editor;
 
-        Root = Controls.Panel("Tile", null);
+        Root = Controls.Panel("Tile", out _title);
 
         _body = new VisualElement();
         Root.Add(_body);
@@ -62,6 +62,7 @@ sealed class InspectorPanel
     // Private members
 
     readonly ScoreEditor _editor;
+    readonly Label _title;
     readonly VisualElement _body;
 
     Tile _tile;
@@ -70,7 +71,7 @@ sealed class InspectorPanel
 
     void Build(Tile tile, Lane lane)
     {
-        _body.Add(Controls.Caption(Describe(tile)));
+        _title.text = Title(tile);
 
         // Free ground, whether that is a lane's own empty step or the terminator it
         // grows from. What such a cell is for is the tile that goes on it.
@@ -99,19 +100,28 @@ sealed class InspectorPanel
         _body.Add(content);
     }
 
-    static string Describe(Tile tile) => tile switch
+    // The panel's own header, which says what is under the cursor rather than which
+    // panel this is. A cell that holds nothing is the only thing here that is not a
+    // tile, and the pitch is left out of a note's: the bar underneath spells it, and
+    // a header that changed as a pitch was dragged would be a second readout.
+    static string Title(Tile tile) => tile == null ? "Empty Cell" : Name(tile) + " Tile";
+
+    // In words, not in tokens. The four character codes are how a tile is spelled in
+    // a saved file and how this codebase talks about one, and neither is a reason to
+    // make a user learn that PABS is the lock that sets a value: the cell already
+    // carries the icon, and what this name owes it is what it does.
+    static string Name(Tile tile) => tile switch
     {
-        null => "Empty cell",
-        NoteTile note => "Note " + note.Token,
-        AbsoluteParamTile => "PABS  absolute lock",
-        RelativeParamTile => "PREL  relative lock",
-        CycleGateTile => "GCYC  cycle gate",
-        ProbGateTile => "GPRB  probability gate",
-        ChannelTile => "CHAN  channel start",
-        TerminatorTile => "TERM  lane end",
-        JumpTile => "JUMP  branch out",
-        JumpDestTile => "JDST  branch target",
-        _ => tile.Token
+        NoteTile => "Note",
+        AbsoluteParamTile => "Absolute Lock",
+        RelativeParamTile => "Relative Lock",
+        CycleGateTile => "Cycle Gate",
+        ProbGateTile => "Chance Gate",
+        ChannelTile => "Channel Start",
+        TerminatorTile => "Lane End",
+        JumpTile => "Jump",
+        JumpDestTile => "Jump Target",
+        _ => "Unknown"
     };
 
     // The tiles a free cell will take, the note first because that is what most of
@@ -122,11 +132,12 @@ sealed class InspectorPanel
         grid.style.flexDirection = FlexDirection.Row;
         grid.style.flexWrap = Wrap.Wrap;
 
-        foreach (var kind in Kinds)
+        foreach (var (label, kind) in Palette)
         {
-            var name = kind;
-            var button = Controls.Push(name, () => Act(() => _editor.Put(name)), 52);
-            button.style.marginBottom = 3;
+            var pick = kind;
+            var button = Controls.Push(label, () => Act(() => _editor.Put(pick)),
+                                       PaletteButtonWidth);
+            button.style.marginBottom = Controls.Gap;
             grid.Add(button);
         }
 
@@ -229,7 +240,7 @@ sealed class InspectorPanel
     {
         var body = new VisualElement();
 
-        body.Add(Controls.Caption("Lane"));
+        body.Add(Controls.Heading("Lane"));
 
         // The one number here that is still stepped rather than scrubbed: a step is a
         // cell, growing only happens where there is free ground for one, and a refused
@@ -302,11 +313,26 @@ sealed class InspectorPanel
     static readonly ValueBar.Range FiresOnRange =
       ValueBar.Integer(1.0f, CycleGateTile.MaxPeriod);
 
-    // What can be put on a free cell, in the order the buttons read. The note leads
-    // because it is the tile a cell usually wants; the rest keep the spelling the
-    // cells themselves use, so a button and the tile it makes are the same word.
-    static readonly string[] Kinds =
-      { "NOTE", "PABS", "PREL", "GCYC", "GPRB", "JUMP" };
+    // What can be put on a free cell, in the order the buttons read: the note first
+    // because it is the tile a cell usually wants, then the pairs, then the jump.
+    //
+    // Each button says what the tile does rather than what it is called in a file. A
+    // row of four letter tokens fitted three to a line and told a newcomer nothing,
+    // and this panel is the only place a tile is ever chosen, so the words have to
+    // carry it. They are the same words the header then shows over the placed tile, so
+    // a button and what it made read as the same thing.
+    static readonly (string Label, TileKind Kind)[] Palette =
+      { ("Note", TileKind.Note),
+        ("Jump", TileKind.Jump),
+        ("Absolute Lock", TileKind.AbsoluteLock),
+        ("Relative Lock", TileKind.RelativeLock),
+        ("Cycle Gate", TileKind.CycleGate),
+        ("Chance Gate", TileKind.ChanceGate) };
+
+    // Two to a line, which is what the words need and what the panel has room for
+    // once the margin between a pair is counted. A wider button would fall to one a
+    // line and make a six tile palette six rows tall.
+    const float PaletteButtonWidth = 82.0f;
 }
 
 } // namespace Jacquard.App

@@ -4,6 +4,18 @@ using UnityEngine.UIElements;
 
 namespace Jacquard.App {
 
+// What can be asked for by name, which is only the tiles a user puts down: the
+// terminator is implied and a jump destination arrives with the jump that reaches
+// it, so neither is ever asked for.
+//
+// This is deliberately not the file format's four character token. A token is a
+// spelling for a file, and the panel that offers these has to name them in words
+// instead — so the two are kept apart rather than one standing in for the other.
+public enum TileKind
+{
+    Note, AbsoluteLock, RelativeLock, CycleGate, ChanceGate, Jump
+}
+
 // Editing operations, one place for every change the user can make to a score.
 //
 // The cursor is also the selection: there is no separate notion of a selected
@@ -66,7 +78,7 @@ public sealed class ScoreEditor
     // Places whatever the panel hands over. A jump brings its branch lane along,
     // so that one jump to one destination holds at every moment of editing rather
     // than being checked afterwards.
-    public void Put(string kind)
+    public void Put(TileKind kind)
     {
         Tile tile = kind switch
         {
@@ -74,11 +86,11 @@ public sealed class ScoreEditor
             // what there is to say about one, so it is said on the panel rather
             // than guessed at here: a lock that arrived already moving the level
             // would be a choice nobody made.
-            "PABS" => new AbsoluteParamTile(),
-            "PREL" => new RelativeParamTile(),
-            "GCYC" => new CycleGateTile { Period = 4, Index = 1 },
-            "GPRB" => new ProbGateTile { Percent = 50 },
-            "JUMP" => new JumpTile(),
+            TileKind.AbsoluteLock => new AbsoluteParamTile(),
+            TileKind.RelativeLock => new RelativeParamTile(),
+            TileKind.CycleGate => new CycleGateTile { Period = 4, Index = 1 },
+            TileKind.ChanceGate => new ProbGateTile { Percent = 50 },
+            TileKind.Jump => new JumpTile(),
             _ => new NoteTile { Note = _notePitch, Length = _noteLength }
         };
 
@@ -97,7 +109,7 @@ public sealed class ScoreEditor
 
     // The shorthand for the Note button, since a note is what most cells get and a
     // double click is already on the cell that would take one.
-    public void PlaceNote() => Put("NOTE");
+    public void PlaceNote() => Put(TileKind.Note);
 
     bool Put(Tile tile) => CanPlace && Score.Place(View.Cursor, tile);
 

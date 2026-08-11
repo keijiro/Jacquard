@@ -1,47 +1,54 @@
-using System;
 using UnityEngine.UIElements;
 
 namespace Jacquard.App {
 
-// The two send effects.
+// One send effect: the reverb or the delay, one instance of this per effect.
 //
-// Titled "Send FX" rather than "Send", and the button that raises it says the same.
-// A send is what a channel does — the amounts are on the Sound panel and named after
-// the effect each one feeds — so a panel called Send would be named after the sending
-// and hold none of it. What is here is the receiving end: the two effects those
-// amounts arrive at.
+// Two panels and not one with two headings in it. A panel here is already the thing
+// that says "this group of rows is about that", so a heading inside one was a second
+// answer to a question the panel had answered — and the first row of a group sat
+// against a rule while the last sat against nothing, which is what made the column
+// read as one loose list rather than as two settled ones. Split, each effect gets the
+// header, the rule and the inset every other group of rows on screen gets.
 //
-// The one panel here whose contents the cursor has nothing to do with. Everything
-// else on screen answers to a cell — the Tile panel to the tile under the cursor, the
-// Sound panel to the channel a CHAN tile names, the Lock panel to what a lock holds —
-// because everything else is a property of something written on the plane. One reverb
-// and one delay for the whole project are not: there is no cell that is the reverb,
-// and putting one on the plane would be inventing a tile for the sake of a rule.
+// They are titled "Reverb" and "Delay" while the button that raises them says "Send
+// FX", which is the pair named by what reaches them: a send is what a channel does,
+// and the amounts sending into these are on the Sound panel under the name of the
+// effect each one feeds. The button names the arrangement; a panel names an effect.
 //
-// So this is the exception to "nothing is toggled", and it pays for it by not being up
-// unless it has been asked for: a button on the transport row, where the rest of what
-// belongs to the project as a whole already is. That is also why it takes the close
-// button Controls.Panel has always offered and nothing has used — for a panel the
-// cursor governs, a close would be undone by the next keypress, and for this one it
-// is simply the other half of the switch.
+// The two panels here are the only ones whose contents the cursor has nothing to do
+// with. Everything else on screen answers to a cell — the Tile panel to the tile under
+// the cursor, the Sound panel to the channel a CHAN tile names, the Lock panel to what
+// a lock holds — because everything else is a property of something written on the
+// plane. One reverb and one delay for the whole project are not: there is no cell that
+// is the reverb, and putting one on the plane would be inventing a tile for the sake
+// of a rule.
 //
-// It sits at the top left, the opposite corner to the cursor's column, so that
+// So these are the exception to "nothing is toggled", and they pay for it by not being
+// up unless they have been asked for: a button on the transport row, where the rest of
+// what belongs to the project as a whole already is. That button is the whole of the
+// switch, and it raises and lowers them together — they are one setting of the project
+// in two boxes, not two things to be arranged.
+//
+// They sit at the top left, the opposite corner to the cursor's column, so that
 // reaching for an effect never means covering what the cursor is showing about the
 // note the effect is for.
 //
-// Seven bars and no more, in two named groups. The send amounts are not here: how
-// much of a channel goes to the reverb is a property of that channel, so it is in the
-// patch and on the Sound panel with the rest of the timbre, and a lock can reach it.
+// Seven bars between them and no more. The send amounts are not here: how much of a
+// channel goes to the reverb is a property of that channel, so it is in the patch and
+// on the Sound panel with the rest of the timbre, and a lock can reach it.
 
 sealed class SendPanel
 {
+    public enum Effect { Reverb, Delay }
+
     public VisualElement Root { get; }
 
-    public SendPanel(ScoreEditor editor, Action onClose)
+    public SendPanel(ScoreEditor editor, Effect effect)
     {
-        _editor = editor;
+        (_editor, _effect) = (editor, effect);
 
-        Root = Controls.Panel("Send FX", onClose);
+        Root = Controls.Panel(effect == Effect.Reverb ? "Reverb" : "Delay");
 
         _body = new VisualElement();
         Root.Add(_body);
@@ -69,6 +76,7 @@ sealed class SendPanel
     // Private members
 
     readonly ScoreEditor _editor;
+    readonly Effect _effect;
     readonly VisualElement _body;
 
     Project _project;
@@ -79,18 +87,24 @@ sealed class SendPanel
 
         _body.Clear();
 
-        _body.Add(Controls.Caption("Reverb"));
+        // Under the header, where every panel here puts one.
+        _body.Add(Controls.Divider());
+
+        if (_effect == Effect.Reverb) BuildReverb(); else BuildDelay();
+    }
+
+    void BuildReverb()
+    {
         _body.Add(Controls.Bar("Size", Unit,
                                () => Fx.reverbSize, v => Fx.reverbSize = v));
         _body.Add(Controls.Bar("Damp", Unit,
                                () => Fx.reverbDamp, v => Fx.reverbDamp = v));
         _body.Add(Controls.Bar("Width", Unit,
                                () => Fx.reverbWidth, v => Fx.reverbWidth = v));
+    }
 
-        _body.Add(Controls.Divider());
-
-        _body.Add(Controls.Caption("Delay"));
-
+    void BuildDelay()
+    {
         // The one control here that is not a bar. A delay time is a note value rather
         // than a number, so what it needs is a list to step through: sequencer.md
         // keeps a number on a bar and a choice out of a set on a pair of arrows, and
