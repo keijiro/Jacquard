@@ -6,14 +6,16 @@ using UnityEngine.UIElements;
 namespace Jacquard.App {
 
 // Assembles the screen: one row of chrome above a scrolling score plane, with a
-// column of panels floating over each of its top corners.
+// column of panels floating over each of its top corners and one panel along the
+// bottom edge.
 //
 // The row carries what belongs to the project as a whole and nothing else. Anything
 // that applies to a cell is on the panel that follows the cursor, which is where the
 // cell already is, and the plane keeps the screen that a palette and a paragraph of
-// keys used to take. The one switch on the row is the one panel a cell cannot ask
-// for, since the send effects belong to the project rather than to anything written
-// on the plane.
+// keys used to take. The two switches on the row are the two panels a cell cannot ask
+// for: the send effects, which belong to the project rather than to anything written
+// on the plane, and the punch-in effects, which belong to nothing at all — they are
+// held rather than set, and what they colour is gone as soon as the hand is off.
 //
 // prototype.md leaves the application level UI to be designed here, so it is kept
 // to what a prototype has to prove: that every kind of tile can be put down, tuned
@@ -74,6 +76,12 @@ sealed class JacquardUI
         body.Add(PanelColumn(true, _reverb.Root, _delay.Root));
         ShowSend(false);
 
+        // Neither column, because this one is not read: it is played. The columns are
+        // where the eye goes and the bottom edge is where the hands already are.
+        _punch = new PunchPanel(app.Punch, () => _app.Synth.CurrentSample, Refocus);
+        body.Add(PanelDock(_punch.Root));
+        ShowPunch(false);
+
         _editor.Changed += OnChanged;
 
         _view.Rebuild();
@@ -123,6 +131,14 @@ sealed class JacquardUI
         _sendButton = Controls.Push("Send FX",
                                     () => { ShowSend(!_sendShown); Refocus(); }, 62);
         row.Add(_sendButton);
+
+        // Beside it, since the two are the same kind of thing: a panel no cell can ask
+        // for, raised by the only switch it has. What separates them is that the send
+        // effects are a setting of the project and these are not a setting at all, so
+        // this one raises the buttons and the buttons are the whole of the effect.
+        _punchButton = Controls.Push("Punch-in FX",
+                                     () => { ShowPunch(!_punchShown); Refocus(); }, 78);
+        row.Add(_punchButton);
 
         row.Add(Separator());
 
@@ -182,6 +198,31 @@ sealed class JacquardUI
         foreach (var panel in panels) column.Add(panel);
 
         return column;
+    }
+
+    // One panel along the bottom edge, centred, for the one panel that is played
+    // rather than read.
+    //
+    // A column would put it under one hand and out of reach of the other, and the
+    // corner it took would be a corner of the plane covered by something up only while
+    // it is being used. Across the bottom it is the width of its own contents and no
+    // more, it sits where both thumbs already are on a tablet held in two hands, and
+    // the score it is punching stays where it was.
+    //
+    // The panel's own bottom margin is what holds it off the edge, which is the same
+    // gap the columns are inset by and the same rule everything else here follows: a
+    // gap belongs to the thing above and to the left of it.
+    static VisualElement PanelDock(VisualElement panel)
+    {
+        var dock = new VisualElement();
+        dock.style.position = Position.Absolute;
+        dock.style.left = 0;
+        dock.style.right = 0;
+        dock.style.bottom = 0;
+        dock.style.alignItems = Align.Center;
+        dock.pickingMode = PickingMode.Ignore;
+        dock.Add(panel);
+        return dock;
     }
 
     static VisualElement Bar()
@@ -256,6 +297,19 @@ sealed class JacquardUI
         Controls.SetActive(_sendButton, shown);
     }
 
+    // The same switch for the one panel that holds nothing. Lowering it does not lift
+    // whatever is held on it, because a button cannot be held once it is not on screen:
+    // losing the panel loses the pointer capture, and losing the capture is already
+    // what ends an effect.
+    void ShowPunch(bool shown)
+    {
+        _punchShown = shown;
+
+        _punch.Root.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+
+        Controls.SetActive(_punchButton, shown);
+    }
+
     void OnKey(KeyDownEvent evt)
     {
         if (evt.keyCode == KeyCode.Space || evt.character == ' ')
@@ -323,11 +377,14 @@ sealed class JacquardUI
     readonly LockPanel _lock;
     readonly SendPanel _reverb;
     readonly SendPanel _delay;
+    readonly PunchPanel _punch;
     readonly StringBuilder _text = new();
 
     Button _play;
     Button _sendButton;
     bool _sendShown;
+    Button _punchButton;
+    bool _punchShown;
     ValueBar _tempo;
     Label _status;
     List<string> _slots;

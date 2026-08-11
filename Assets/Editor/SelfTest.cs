@@ -27,6 +27,7 @@ static class SelfTest
         Channels(log);
         Sends(log);
         Pan(log);
+        Punch(log);
         Synth(log);
         Delay(log);
         Reverb(log);
@@ -516,6 +517,266 @@ static class SelfTest
               legacy.Patches[1].pan == 0.0f,
               "pan=" + reloaded.Patches[1].pan +
               " version 7 pan=" + legacy.Patches[1].pan);
+    }
+
+    // The punch-in effects, which are the one thing that colours a note without being
+    // written anywhere on the plane.
+    //
+    // Driven exactly the way the app drives them, since that is most of what there is
+    // to get wrong: the sequencer runs a window ahead and the handover follows at a
+    // much shorter one, and what a punch reaches is precisely what has not been handed
+    // over yet. A run that only called the modifiers would prove nothing about the
+    // thing this feature is actually made of.
+    static void Punch(System.Text.StringBuilder log)
+    {
+        const int sampleRate = 48000;
+
+        // Forty sixteenths, which is long enough to see a ramp turn over.
+        const long span = PunchSixteenth * 40;
+
+        var origin = PunchLookahead;
+
+        // With nothing held this layer is a length of pipe, and a feature that is up
+        // on the screen more often than it is being used has to be exactly that.
+        var plain = PunchRun(null, span, sampleRate);
+
+        var inert = plain.Count == 40;
+        for (var i = 0; i < 40 && inert; i++) inert = PunchNoteAt(plain, i) == 60 + i % 16;
+
+        Check(log, "nothing held hands the sequence over untouched",
+              inert, plain.Count + " notes");
+
+        var up = PunchRun((punch, now) =>
+          { if (now == 0) punch.Press(PunchEffect.OctaveUp, origin); }, span, sampleRate);
+
+        Check(log, "an octave up is an octave up",
+              PunchNoteAt(up, 0) == 72 && PunchNoteAt(up, 5) == 77,
+              PunchNoteAt(up, 0) + " and " + PunchNoteAt(up, 5));
+
+        // Both octaves at once is the case that says the semitones are summed and the
+        // frequency multiplied once, rather than each effect multiplying in turn.
+        var flat = PunchRun((punch, now) =>
+          { if (now > 0) return;
+            punch.Press(PunchEffect.OctaveUp, origin);
+            punch.Press(PunchEffect.OctaveDown, origin); }, span, sampleRate);
+
+        Check(log, "an octave each way cancels",
+              PunchNoteAt(flat, 3) == 63, PunchNoteAt(flat, 3).ToString());
+
+        // Both ends of the gate on their own first, since each one reaches the release
+        // as well and a stab whose tail is a quarter of a second is not a stab. The
+        // patch's release is 120ms, so the one is cut to ten and the other doubled.
+        var stab = PunchRun((punch, now) =>
+          { if (now == 0) punch.Press(PunchEffect.Stab, origin); }, span, sampleRate);
+
+        var stabbed = PunchEventAt(stab, 3);
+
+        Check(log, "a stab cuts the tail down with the gate",
+              Mathf.Abs(stabbed.duration - 0.0125f) < 0.0001f &&
+              Mathf.Abs(stabbed.carrierRelease - 0.01f) < 0.0001f,
+              stabbed.duration + "s over " + stabbed.carrierRelease + "s");
+
+        var sustain = PunchRun((punch, now) =>
+          { if (now == 0) punch.Press(PunchEffect.Sustain, origin); }, span, sampleRate);
+
+        var sustained = PunchEventAt(sustain, 3);
+
+        Check(log, "a sustain stretches the tail with the gate",
+              Mathf.Abs(sustained.duration - 0.25f) < 0.0001f &&
+              Mathf.Abs(sustained.carrierRelease - 0.24f) < 0.0001f,
+              sustained.duration + "s over " + sustained.carrierRelease + "s");
+
+        // Together: Stab sets both and Sustain doubles whatever it finds, which is the
+        // whole of what "in one order" buys. A release already under ten milliseconds
+        // is left alone, since a button that means shorter must not lengthen one.
+        var gated = PunchRun((punch, now) =>
+          { if (now > 0) return;
+            punch.Press(PunchEffect.Stab, origin);
+            punch.Press(PunchEffect.Sustain, origin); }, span, sampleRate);
+
+        var both = PunchEventAt(gated, 3);
+
+        Check(log, "a stab held under a sustain is a fifth of a step",
+              Mathf.Abs(both.duration - 0.025f) < 0.0001f &&
+              Mathf.Abs(both.carrierRelease - 0.02f) < 0.0001f,
+              both.duration + "s over " + both.carrierRelease + "s");
+
+        var brief = PunchRun((punch, now) =>
+          { if (now == 0) punch.Press(PunchEffect.Stab, origin); },
+          span, sampleRate, 0.004f);
+
+        Check(log, "a stab leaves a tail already shorter than it would make one",
+              Mathf.Abs(PunchEventAt(brief, 3).carrierRelease - 0.004f) < 0.0001f,
+              PunchEventAt(brief, 3).carrierRelease + "s");
+
+        // A semitone a step from the press, turning over after two bars of them.
+        var rise = PunchRun((punch, now) =>
+          { if (now == 0) punch.Press(PunchEffect.Rise, origin); }, span, sampleRate);
+
+        Check(log, "a rise climbs a semitone a step and resets after two bars",
+              PunchNoteAt(rise, 0) == 60 && PunchNoteAt(rise, 1) == 62 &&
+              PunchNoteAt(rise, 31) == 106 && PunchNoteAt(rise, 32) == 60,
+              PunchNoteAt(rise, 0) + " " + PunchNoteAt(rise, 1) + " " +
+              PunchNoteAt(rise, 31) + " " + PunchNoteAt(rise, 32));
+
+        var wet = PunchRun((punch, now) =>
+          { if (now == 0) punch.Press(PunchEffect.Reverb, origin); }, span, sampleRate);
+
+        Check(log, "a throw puts every note in the reverb",
+              wet.TrueForAll(note => Mathf.Abs(note.reverbSend - 1.0f) < 0.0001f),
+              wet.Count + " notes");
+
+        // Pressed a third of the way through the fifth step, which is the case the
+        // record of what has sounded exists for: that step's note was handed over
+        // before the press and is not in anything still to come.
+        var roll = PunchRun((punch, now) =>
+          { if (now == origin + PunchSixteenth * 4 + 2000)
+                punch.Press(PunchEffect.Roll1, now); }, span, sampleRate);
+
+        Check(log, "a sixteenth roll catches the step the hand was on and stands in for the rest",
+              roll.Count == 40 && PunchNoteAt(roll, 4) == 64 &&
+              PunchNoteAt(roll, 5) == 64 && PunchNoteAt(roll, 10) == 64,
+              roll.Count + " notes, " + PunchNoteAt(roll, 5) + " where 65 was");
+
+        // Letting go hands the sequence straight back, at the step it had reached
+        // rather than the one it was standing on when the hand arrived.
+        var released = PunchRun((punch, now) =>
+          { if (now == origin + PunchSixteenth * 4 + 2000)
+                punch.Press(PunchEffect.Roll1, now);
+            if (now == origin + PunchSixteenth * 12 + 400)
+                punch.Release(PunchEffect.Roll1); }, span, sampleRate);
+
+        Check(log, "letting a roll go gives the sequence back where it had got to",
+              released.Count == 40 && PunchNoteAt(released, 12) == 64 &&
+              PunchNoteAt(released, 13) == 73 && PunchNoteAt(released, 21) == 65,
+              PunchNoteAt(released, 12) + " " + PunchNoteAt(released, 13) + " " +
+              PunchNoteAt(released, 21));
+
+        // The three longer ones, which are also the other half of the mechanism: a
+        // window that reaches past what has already sounded lets the sequence play on
+        // and writes it down before anything stands in for it. One check each, on the
+        // step where the window closes and on the one after it, since that pair is
+        // where a length that was counted wrong would show.
+        PunchRoll(log, PunchEffect.Roll2, 2, span, sampleRate);
+        PunchRoll(log, PunchEffect.Roll3, 3, span, sampleRate);
+        PunchRoll(log, PunchEffect.Roll4, 4, span, sampleRate);
+
+        // Two at once is the one thing here that does not stack, since both answer
+        // what plays instead of the score. The longer one is pressed second and takes
+        // it; letting that go hands back to the sixteenth, which has been catching all
+        // along and is ready.
+        var over = PunchRun((punch, now) =>
+          { if (now == origin + PunchSixteenth * 4 + 2000)
+                punch.Press(PunchEffect.Roll1, now);
+            if (now == origin + PunchSixteenth * 8 + 400)
+                punch.Press(PunchEffect.Roll4, now);
+            if (now == origin + PunchSixteenth * 20 + 400)
+                punch.Release(PunchEffect.Roll4); }, span, sampleRate);
+
+        Check(log, "the roll pressed last is the one that plays, and hands back on release",
+              over.Count == 40 &&
+              PunchNoteAt(over, 7) == 64 && PunchNoteAt(over, 9) == 69 &&
+              PunchNoteAt(over, 13) == 69 && PunchNoteAt(over, 21) == 64,
+              over.Count + " notes: " + PunchNoteAt(over, 7) + " " +
+              PunchNoteAt(over, 9) + " " + PunchNoteAt(over, 13) + " " +
+              PunchNoteAt(over, 21));
+    }
+
+    // One roll of a given length, pressed on the eighth step so that its window sits
+    // clear of both ends of the run. What it stands in for from the far end of that
+    // window is the window itself, step for step.
+    static void PunchRoll(System.Text.StringBuilder log, PunchEffect fx, int steps,
+                          long span, int sampleRate)
+    {
+        const int from = 7;
+
+        var run = PunchRun((punch, now) =>
+          { if (now == PunchLookahead + PunchSixteenth * from + 800)
+                punch.Press(fx, now); }, span, sampleRate);
+
+        // Through the window the sequence is still the sequence, and past it every
+        // step is the one a whole number of windows back.
+        var ok = run.Count == 40;
+
+        for (var i = from; i < 40 && ok; i++)
+        {
+            var source = i < from + steps ? i : from + (i - from) % steps;
+            ok = PunchNoteAt(run, i) == 60 + source % 16;
+        }
+
+        Check(log, "a roll of " + steps + " records that many steps and then plays them",
+              ok, PunchNoteAt(run, from + steps) + " where " +
+                  (60 + (from + steps) % 16) + " was");
+    }
+
+    // 120bpm puts a sixteenth at exactly 6000 samples, so every boundary in the check
+    // above is a whole number and nothing there is measured against a rounding.
+    const long PunchSixteenth = 6000;
+
+    // The app's own two windows and its frame, at the scale of that tempo: an eighth
+    // of a second for the sequencer, a thirty-second for the handover, and sixty
+    // frames a second between them.
+    const long PunchLookahead = 6000;
+    const long PunchLead = 1500;
+    const long PunchFrame = 800;
+
+    // A lane with a different pitch on every step, so that a roll can be told from the
+    // sequence it stood in for simply by reading the notes back.
+    // release is the one patch value any of these checks cares about; zero leaves the
+    // channel at the default the rest of them are measured against.
+    static Project PunchScore(float release)
+    {
+        var project = new Project { Tempo = 120.0f };
+        var lane = project.Score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 16);
+
+        for (var i = 0; i < 16; i++)
+            lane.Steps[i].Tiles.Add(new NoteTile { Note = 60 + i });
+
+        if (release > 0.0f) project.Patches[1].carrierRelease = release;
+
+        return project;
+    }
+
+    static System.Collections.Generic.List<FmNoteEvent> PunchRun(
+      System.Action<PunchFx, long> hand, long span, int sampleRate,
+      float release = 0.0f)
+    {
+        var project = PunchScore(release);
+        var sequencer = new Sequencer { Project = project };
+        var punch = new PunchFx();
+
+        var pending = new System.Collections.Generic.List<FmNoteEvent>();
+        var output = new System.Collections.Generic.List<FmNoteEvent>();
+
+        sequencer.Play(0, PunchLookahead);
+        punch.Start(PunchLookahead);
+
+        for (var now = 0L; now < span; now += PunchFrame)
+        {
+            hand?.Invoke(punch, now);
+
+            pending.Clear();
+            sequencer.Schedule(now, PunchLookahead, sampleRate, pending);
+            punch.Enqueue(pending);
+            punch.HandOver(now + PunchLead, project.Tempo, sampleRate, output);
+        }
+
+        return output;
+    }
+
+    // By the sample a note starts on rather than by where it sits in the list, since
+    // what is being asked is what sounded at that moment and not what was handed over
+    // in what order.
+    static FmNoteEvent PunchEventAt(System.Collections.Generic.List<FmNoteEvent> notes,
+                                    long step)
+      => notes.Find(note => note.startSample == PunchLookahead + step * PunchSixteenth);
+
+    static int PunchNoteAt(System.Collections.Generic.List<FmNoteEvent> notes, long step)
+    {
+        var note = PunchEventAt(notes, step);
+        return note.frequency > 0.0f
+          ? Mathf.RoundToInt(69.0f + 12.0f * Mathf.Log(note.frequency / 440.0f, 2.0f))
+          : -1;
     }
 
     // The oscillator, which neither the round trip nor the note counts say

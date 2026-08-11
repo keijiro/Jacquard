@@ -235,6 +235,58 @@ static class Controls
         button.style.color = active ? Style.Background : Style.NoteText;
     }
 
+    // A button that is on while it is held and off the moment it is let go, which is
+    // the whole of what a punch-in effect is: there is no state to leave behind, so
+    // there is nothing to press a second time to undo.
+    //
+    // The stock Clickable is taken off rather than worked around. It reports on the
+    // release and captures the pointer to decide whether the release counts, so a
+    // press and a release read through it would arrive together at the end and the
+    // effect would never be on for any length of time. What is left is a box dressed
+    // as a button with the two events read directly.
+    //
+    // The capture is what makes a hand sliding off the button still end the effect,
+    // and it is per pointer, so two fingers on two of these are two independent
+    // holds rather than one that steals the other's release.
+    //
+    // onUp runs off the lost capture rather than off the release, which is also where
+    // a caller can hand the keyboard back to the plane: the focus controller settles a
+    // press after this element has seen it, so a Focus from the down handler would
+    // simply be undone.
+    public static Button Hold(string text, Action onDown, Action onUp,
+                              float width = 0.0f)
+    {
+        var button = Push(text, null, width);
+        button.clickable = null;
+
+        button.RegisterCallback<PointerDownEvent>(e =>
+        {
+            if (e.button != 0) return;
+            button.CapturePointer(e.pointerId);
+            SetActive(button, true);
+            onDown?.Invoke();
+            e.StopPropagation();
+        });
+
+        // Both endings, because a capture can be lost without a release ever reaching
+        // here — a window deactivated mid-press, a touch cancelled — and a punch left
+        // latched on is the one failure this control cannot have.
+        button.RegisterCallback<PointerUpEvent>(e =>
+        {
+            if (!button.HasPointerCapture(e.pointerId)) return;
+            button.ReleasePointer(e.pointerId);
+            e.StopPropagation();
+        });
+
+        button.RegisterCallback<PointerCaptureOutEvent>(_ =>
+        {
+            SetActive(button, false);
+            onUp?.Invoke();
+        });
+
+        return button;
+    }
+
     // One switch of a run that fills the panel's width, sized so that perRow of them
     // fit across it and square so that a run of them reads as a row of slots rather
     // than as a row of buttons.

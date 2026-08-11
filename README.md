@@ -33,6 +33,7 @@ Using it
 | Set a number | Drag its bar right or up, shift for fine; double click to type one |
 | Timbre | Select a `CHAN` cell, which brings up the Sound panel for its channel |
 | Reverb and delay | The Send FX button opens the panel they are set on; how much of a channel reaches each is the last two rows of its Sound panel |
+| Play the sequence by hand | The Punch-in FX button opens a row of buttons that act while they are held |
 | What a lock holds | Select it, then move a bar on the Lock panel; click a name to let go |
 | Play | Space, or the Play button |
 | Tempo | The bpm bar beside Play, which the delay is in time with |
@@ -52,6 +53,31 @@ up on the plane and does not happen.
 A lane holds its whole row from `CHAN` to `TERM` whether anything is written on
 it yet or not, so nothing else can grow across it and no lane can be dropped on
 one. Give a lane a clear row of its own and it will take tiles anywhere along it.
+
+Punch-in FX
+-----------
+
+Twelve buttons along the bottom of the screen that act only while they are held,
+on whatever the sequence is about to play. A note already sounding is never
+touched, and nothing here is written to the score or saved with it.
+
+| | |
+| --- | --- |
+| Reverb / Delay | Every note goes all the way into that effect |
+| Stab / Sustain | Gate and release cut short, or both doubled |
+| Oct - / Oct + | An octave down or up |
+| Fall / Rise | A semitone a step away from where the button was pressed, back to nothing after two bars |
+| Roll 1/16 … 1/4 | One, two, three or four steps of the sequence, caught from where the button was pressed and played in place of what follows |
+
+A roll of a sixteenth is playing from the moment it is asked for, since the step
+it caught has already been heard. The longer ones let the sequence through for the
+rest of their own length, recording it, before they stand in for anything.
+
+Anything held at once applies at once — an octave up under a stab, both sends, a
+rise through a reverb. The rolls are the exception, since all four stand in for
+the same sequence: the one pressed last is the one that plays, and letting it go
+hands back to whichever is still held. With a mouse only one button can be held at
+a time; a touch screen holds one per finger.
 
 Scores are saved under `Application.persistentDataPath/Scores` as plain text,
 one line per step; pick a slot with the File arrows. In a Web build that path is

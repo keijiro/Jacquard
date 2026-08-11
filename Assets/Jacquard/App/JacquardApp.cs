@@ -25,10 +25,30 @@ public sealed class JacquardApp : MonoBehaviour
     [field:SerializeField, Range(1, 64)]
     public int MaxVoices { get; set; } = 24;
 
-    // How far ahead of the audio clock notes are handed to the synth. It only has
-    // to cover the gap between two updates.
+    // How far ahead of the audio clock the sequencer runs. It only has to cover the
+    // gap between two updates.
     [field:SerializeField, Range(0.02f, 0.5f)]
     public float Lookahead { get; set; } = 0.12f;
+
+    // How far ahead of the audio clock a note is actually handed to the synth, which
+    // since the punch-in effects is a shorter window than the one above.
+    //
+    // What a punch reaches is what has not been handed over, so the two windows being
+    // the same one is what would make a press take a step to be heard: at 129bpm a
+    // sixteenth is 116ms against a lookahead of 120. So the sequencer still runs the
+    // full window ahead and PunchFx parks what it produces, and a note leaves the
+    // queue only once it is nearly due. Nothing moves but the moment of the handover
+    // — the sample a note starts on was decided by the runner and is never touched —
+    // so the sequence is as exact as it was and a press is heard on the next note.
+    //
+    // What it costs is the margin against a frame that takes too long, which was the
+    // whole window and is now this. A note handed over late is not played late: the
+    // pool triggers it against the clock, so what a hitch takes is the head of a note
+    // rather than its place in the bar. Underneath this the driver's own floor still
+    // applies, which on the Web is most of a tenth of a second and leaves the margin
+    // there where it was.
+    [field:SerializeField, Range(0.005f, 0.1f)]
+    public float PunchLead { get; set; } = 0.03f;
 
     // The score the app opens on, as a file rather than as code. What it holds is a
     // real piece of work — eight patches and a handful of lanes — and the one thing
@@ -76,6 +96,7 @@ public sealed class JacquardApp : MonoBehaviour
 
     public CoreProject Project { get; private set; }
     public Sequencer Sequencer { get; private set; }
+    public PunchFx Punch { get; private set; }
     public FmSynth Synth { get; private set; }
     public ScoreEditor Editor { get; private set; }
     public ScoreView View { get; private set; }
@@ -90,9 +111,18 @@ public sealed class JacquardApp : MonoBehaviour
     public void TogglePlay()
     {
         if (Sequencer.IsPlaying)
+        {
             Sequencer.Stop();
+            Punch.Stop();
+        }
         else
-            Sequencer.Play(Synth.CurrentSample, LookaheadSamples);
+        {
+            // Read once, so that the grid a punch counts its sixteenths from is the
+            // sample the first step actually lands on and not one beside it.
+            var now = Synth.CurrentSample;
+            Sequencer.Play(now, LookaheadSamples);
+            Punch.Start(now + LookaheadSamples);
+        }
 
         View.RefreshPlayheads();
     }
@@ -109,6 +139,7 @@ public sealed class JacquardApp : MonoBehaviour
         if (project == null) return;
 
         Sequencer.Stop();
+        Punch.Stop();
 
         Project = project;
         Sequencer.Project = project;
@@ -158,6 +189,7 @@ public sealed class JacquardApp : MonoBehaviour
 
         Synth = new FmSynth(MaxVoices);
         Sequencer = new Sequencer { Project = Project };
+        Punch = new PunchFx();
 
         View = new ScoreView { Score = Project.Score, Sequencer = Sequencer };
 
@@ -188,12 +220,20 @@ public sealed class JacquardApp : MonoBehaviour
         // audio thread of its own, and everything below reads that clock.
         Synth.Pump();
 
-        // Hand over every note that falls inside the lookahead window.
-        _pending.Clear();
-        Sequencer.Schedule(Synth.CurrentSample, LookaheadSamples,
-                           Synth.SampleRate, _pending);
+        // Run the sequence as far ahead as it has always run, but park what comes out
+        // rather than handing it straight over: a punch reaches what has not been
+        // handed over yet, so the handover waits until a note is nearly due.
+        var now = Synth.CurrentSample;
 
-        foreach (var note in _pending) Synth.Schedule(note);
+        _pending.Clear();
+        Sequencer.Schedule(now, LookaheadSamples, Synth.SampleRate, _pending);
+        Punch.Enqueue(_pending);
+
+        _released.Clear();
+        Punch.HandOver(now + PunchLeadSamples, Project.Tempo, Synth.SampleRate,
+                       _released);
+
+        foreach (var note in _released) Synth.Schedule(note);
 
         // Hand over the effect settings whenever they are not what was handed over
         // last. One comparison covers every way they can change — a bar on the Send
@@ -371,6 +411,7 @@ public sealed class JacquardApp : MonoBehaviour
 #endif
 
     readonly List<FmNoteEvent> _pending = new();
+    readonly List<FmNoteEvent> _released = new();
 
     // The last effect settings the synth was given, which is what makes sending them
     // again a comparison rather than a notification from everything that can move one.
@@ -380,6 +421,12 @@ public sealed class JacquardApp : MonoBehaviour
     // note lies. Under the pipeline that is nothing and this is just the window.
     long LookaheadSamples
       => (long)(Lookahead * Synth.SampleRate) + Synth.MinimumLead;
+
+    // The same floor under a much shorter window, since a note cannot be handed over
+    // closer to the clock than the driver will take one however late the punch is
+    // read.
+    long PunchLeadSamples
+      => (long)(PunchLead * Synth.SampleRate) + Synth.MinimumLead;
 }
 
 } // namespace Jacquard.App
