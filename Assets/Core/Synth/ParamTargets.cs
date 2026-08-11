@@ -18,14 +18,23 @@ namespace Jacquard {
 //
 // The order is the order the Sound and Lock panels read in, and it opens with the
 // two that place the note in the mix rather than shape it — how loud, and where.
+// The four FM parameters then run in the order a musician dials them: what the
+// modulator is tuned to, how much of it arrives, how much of itself it hears, and
+// how quickly all of that gets out of the way.
+//
+// The names are the musician's rather than the synthesis textbook's, and they do not
+// match the fields they address: an FM amount is a modulation index and an amp
+// envelope is the carrier's. The constants and the file keys keep the older
+// spellings, since renaming those would only be a way to make older files unopenable
+// for the sake of a caption.
 
 public static class ParamTargets
 {
     public const int Level = 0;
     public const int Pan = 1;
     public const int Gate = 2;
-    public const int ModIndex = 3;
-    public const int ModRatio = 4;
+    public const int ModRatio = 3;
+    public const int ModIndex = 4;
     public const int Feedback = 5;
     public const int ModDecay = 6;
     public const int CarAttack = 7;
@@ -38,16 +47,16 @@ public static class ParamTargets
     public const int Count = 13;
 
     public static readonly string[] Names =
-      { "Level", "Pan", "Gate ratio", "Mod index", "Mod ratio", "Feedback",
-        "Mod decay", "Car attack", "Car release", "Pitch sweep", "Pitch decay",
-        "Reverb", "Delay" };
+      { "Level", "Pan", "Gate ratio", "FM ratio", "FM amount", "Feedback",
+        "FM decay", "Amp attack", "Amp release", "Pitch sweep", "Pitch decay",
+        "Reverb send", "Delay send" };
 
     public static string Name(int target)
       => target >= 0 && target < Count ? Names[target] : "?";
 
     // Spelling used in a saved file, where a space would break the tokenizer.
     public static readonly string[] Keys =
-      { "level", "pan", "gate", "index", "ratio", "feedback",
+      { "level", "pan", "gate", "ratio", "index", "feedback",
         "moddecay", "carattack", "carrelease", "pitchsweep", "pitchdecay",
         "rsend", "dsend" };
 
@@ -58,14 +67,14 @@ public static class ParamTargets
 
     // Ranges. The gate ratio is a multiplier on the note's own length and the pitch
     // sweep is in octaves; the rest are the oscillator and envelope units. The two
-    // sends name themselves in neither switch: a fraction of the note is exactly the
-    // zero to one both defaults already give. Pan names itself in one, since it runs
-    // to the same one at the top and to its mirror image at the bottom.
+    // sends name themselves in neither switch, and neither does the FM decay: a
+    // fraction of the note and the slope of a decay are both exactly the zero to one
+    // the defaults already give. Pan names itself in one, since it runs to the same
+    // one at the top and to its mirror image at the bottom.
     public static float Min(int target) => target switch
     {
         ModRatio => 0.25f,
         Gate => 0.05f,
-        ModDecay => 0.005f,
         CarAttack => 0.001f,
         // Symmetric about the centre, which is also what tells the bar to draw itself
         // out from where the note is unpanned rather than from the left edge.
@@ -81,8 +90,10 @@ public static class ParamTargets
         ModIndex => 12.0f,
         ModRatio => 8.0f,
         Feedback => 8.0f,
-        ModDecay => 1.0f,
-        CarAttack => 0.5f,
+        // Two seconds, which is a pad's swell rather than an instrument's attack: the
+        // curved bar keeps the first few milliseconds where a percussive onset lives,
+        // and what the rest of the travel buys is a note that fades in as a gesture.
+        CarAttack => 2.0f,
         // Well past anything musical, because the release also decides how long a
         // note holds on to its voice.
         CarRelease => 4.0f,
@@ -92,13 +103,14 @@ public static class ParamTargets
         // useful part of a kick is still the first inch of travel, but it was never
         // the part that was hard to reach.
         PitchSweep => 8.0f,
-        // A second, which is far longer than a thump: the short end is where a drum
-        // lives and the rest of the travel is for a sweep meant to be heard as one.
-        // The bar is curved, so lengthening it does not cost the short end its
+        // Two seconds, which is far longer than a thump: the short end is where a drum
+        // lives and the rest of the travel is for a sweep meant to be heard as one —
+        // and heard for as long as the note is, which a second was not quite enough
+        // for. The bar is curved, so lengthening it does not cost the short end its
         // resolution. Zero is a meaningful setting at the other end, since it
         // switches the envelope off, which is why the range runs down to it rather
         // than to a shortest useful sweep.
-        PitchDecay => 1.0f,
+        PitchDecay => 2.0f,
         _ => 1.0f
     };
 

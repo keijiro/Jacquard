@@ -59,6 +59,11 @@ static class FmCurve
 // decay from full depth, which is what gives a two operator patch its bite. The
 // carrier always runs at the note frequency; only the modulator has a ratio.
 //
+// The modulator's decay is also the one envelope setting here that is not a time.
+// It is a slope, for the reason given at ModulatorLevel: what a player is choosing
+// is how hard the tone breaks, and the two ends of that choice — no modulation and
+// modulation that never leaves — are settings a time cannot name.
+//
 // A third envelope moves the pitch itself, which is what turns this patch into a
 // kick drum: a steep drop onto the note frequency is most of what a kick is. It
 // is kept to two numbers, how far the pitch moves and how long it takes to get
@@ -74,7 +79,8 @@ public struct FmPatch
     public float modulatorRatio;  // Modulator frequency as a ratio of frequency
     public float modulationIndex; // Peak modulation depth in radians
     public float feedback;        // Modulator self-feedback depth in radians
-    public float modulatorDecay;  // Time for the modulation to fall to zero
+    public float modulatorDecay;  // How steeply the modulation falls away [0,1]:
+                                  // 0 is gone at once, 1 never decays at all
 
     public float carrierAttack;   // Time to reach full level (seconds)
     public float carrierRelease;  // Time to fall to silence after the gate
@@ -99,7 +105,7 @@ public struct FmPatch
         modulatorRatio = 2.0f,
         modulationIndex = 3.0f,
         feedback = 0.0f,
-        modulatorDecay = 0.12f,
+        modulatorDecay = 0.2f,
         carrierAttack = 0.005f,
         carrierRelease = 0.12f,
         pitchSweep = 0.0f,
@@ -182,11 +188,42 @@ public struct FmNoteEvent
     float AttackLevel(float time)
       => time < carrierAttack ? time / carrierAttack : 1.0f;
 
-    // Modulation depth: full at the note start, decaying to nothing. It ignores
-    // the gate, so the tail of a long note settles into a plain sine, which is
-    // the classic two operator behaviour.
+    // Modulation depth: full at the note start, falling away at whatever slope the
+    // patch asks for. It ignores the gate, so the tail of a long note settles into a
+    // plain sine, which is the classic two operator behaviour.
+    //
+    // modulatorDecay is the slope rather than a length, which is what makes the whole
+    // range of it playable. A time has to be entered against the note it is under —
+    // 30ms is a bite on a stab and nothing at all on a pad — and its two ends are both
+    // unreachable: an FM patch with no modulation and one whose modulation never
+    // leaves are the settings either side of the useful range, and neither is a
+    // number of milliseconds. As a slope both are just the ends of the travel: 0
+    // stands the decay up vertically and the modulation is gone before the first
+    // sample, so the note is a plain sine; 1 lays it flat and the full depth holds
+    // for the life of the note. Everything between is an exponential with a time
+    // constant of DecayUnit * v / (1 - v), which is a hundredth of a second a tenth
+    // of the way along, a tenth of a second halfway, and most of a second at nine
+    // tenths — a click, a bite and an audible sweep, spread across the bar in that
+    // order.
+    //
+    // Nothing normalizes this the way FmCurve does. A level has to land exactly on
+    // zero so that a voice can end without a step in it, and a depth has no such
+    // debt: it is inaudible long before it is zero, and it is never cut off, so there
+    // is nothing for the tail subtraction to hide.
     public float ModulatorLevel(float time)
-      => time >= modulatorDecay ? 0.0f : FmCurve.Fade(time / modulatorDecay);
+    {
+        if (modulatorDecay >= 1.0f) return 1.0f;
+        if (modulatorDecay <= 0.0f) return 0.0f;
+
+        return FastMath.Exp(-time * (1.0f - modulatorDecay) /
+                            (modulatorDecay * DecayUnit));
+    }
+
+    // What half the FM decay's travel is worth, and so where the useful part of that
+    // travel sits. A tenth of a second in the middle is what puts a drum's bite in
+    // the first third of the bar and leaves the last third for a modulation meant to
+    // be heard moving.
+    const float DecayUnit = 0.1f;
 
     // Pitch envelope, as a multiplier on the note frequency. Measured in octaves
     // rather than in Hz, so one setting bends every note by the same interval:

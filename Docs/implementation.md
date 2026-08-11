@@ -61,6 +61,40 @@ Notes on the prototype
   on the note rather than being a length itself, which is why the note reads in
   steps and the channel in percent: the two are the same multiplication and only
   the unit tells them apart.
+- **The parameters are named and ordered for a player, not for the synthesis.** What is
+  on the panel is `FM ratio`, `FM amount`, `Feedback`, `FM decay` and then `Amp attack`
+  / `Amp release`, where the code says `modulationIndex`, `carrierAttack` and so on. A
+  modulation index is a term from a textbook about a technique, and a musician reaching
+  for a brighter sound is not thinking about which operator is the carrier; the four FM
+  rows are in the order one is dialled in — what the modulator is tuned to, how much of
+  it arrives, how much of itself it hears, how fast it gets out of the way. Only the
+  captions moved: `ParamTargets`' constants and the file's keys keep the older
+  spellings, since renaming those would be a way to make older files unopenable for the
+  sake of a word on screen.
+- **The FM decay is a slope rather than a length of time**, which is the one parameter
+  here that is not in the unit it obviously wants to be. As a time it was unplayable at
+  both ends and unplayable in the middle for a different reason: 30ms is a bite under a
+  stab and nothing at all under a pad, so the number had to be re-entered for every note
+  length it met, and the two settings either side of the useful range — an FM patch with
+  no modulation, and one whose modulation never leaves — are not quantities of
+  milliseconds at all. So `modulatorDecay` runs 0 to 1 and sets how steeply the depth
+  falls: 0 stands the decay up vertically and the note is a plain sine, 1 lays it flat
+  and the full depth holds for the life of the note, and in between it is an exponential
+  with a time constant of a tenth of a second times `v / (1 - v)`. That puts a click in
+  the first tenth of the travel, a drum's bite around a fifth, and a modulation meant to
+  be heard moving in the last third — so the bar over it is straight, since the mapping
+  is already the curve.
+
+  The cost is a file that means something else, and the *change of units* is a case the
+  reader had no machinery for: a retired target is skipped and a new one falls back to a
+  default, but a live target holding a stale number looks exactly like a current one.
+  Hence version 10 and `DecaySlope`, which converts an `md=` and an absolute lock on the
+  way in — to the same decay rate, not to something near it. A relative lock is left as
+  written, because a shift has no image under that curve and needs none: the old
+  parameter ran over the same span of numbers as the new one, so a shift reaches as far
+  across its bar as it ever did. Which is the second standing obligation on this reader,
+  next to `Retired`: **a target that changes what its number means belongs in a version
+  bump with a conversion, in the same change.**
 - **One lock reaches as many of them as it likes.** A lock carries a slot per
   target and holds whichever ones have been set, so a step that changes four
   parameters is one tile rather than four stacked cells between the gate and the

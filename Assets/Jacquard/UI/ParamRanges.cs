@@ -11,6 +11,14 @@ namespace Jacquard.App {
 // numbers, since a modulation depth in radians and a ratio against the carrier have
 // no unit worth printing.
 //
+// The FM decay is one of those bare numbers rather than one of the times, which is
+// the one entry here worth stating rather than reading off. It holds the slope of a
+// decay and not its length, and the slope is already curved against time by the synth
+// that reads it: the bottom tenth of the travel is a modulation gone inside fifty
+// milliseconds, and the top tenth one that outlasts the note. Curving the bar as well
+// would only bunch the whole useful range into one end of it, so the bar over it is
+// straight.
+//
 // The pitch sweep needs no case of its own: its range straddles zero, so the bar
 // draws itself from where zero sits and shows the direction of the offset along with
 // its size. Pan is drawn the same way and only reads out differently.
@@ -25,8 +33,8 @@ static class ParamRanges
 
         return target switch
         {
-            ParamTargets.ModDecay or ParamTargets.CarAttack or
-            ParamTargets.CarRelease or ParamTargets.PitchDecay
+            ParamTargets.CarAttack or ParamTargets.CarRelease or
+            ParamTargets.PitchDecay
               => ValueBar.Seconds(low, high),
 
             // A multiplier on the note's own length, curved so that unity — which is

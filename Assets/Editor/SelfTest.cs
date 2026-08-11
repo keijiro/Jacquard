@@ -290,6 +290,33 @@ static class SelfTest
                        (survivor == null ? "none"
                         : survivor[ParamTargets.Feedback].ToString())
                      : written);
+
+        // A target that changed units rather than leaving, which is the other way a
+        // file can hold a number the synth would now read as something else. Version
+        // 10 turned the FM decay from a time into a slope, so a version 9 patch line
+        // and the absolute lock over it both have to arrive converted — 120ms and
+        // 300ms as the slopes that decay at those rates — while the relative lock
+        // beside them keeps the shift it was written with.
+        var older = ProjectFormat.Read(
+          "jacquard 9\ntempo 120\npatch 1 md=0.12\n" +
+          "lane 1 1 CHAN:1 div=16\n" +
+          "  step PABS:moddecay,0.3 PREL:moddecay,0.25 C5\n");
+
+        var steps = older.Score.Lanes[0].Steps[0].Tiles;
+        var absolute = steps.Find(tile => tile is AbsoluteParamTile) as ParamTile;
+        var relative = steps.Find(tile => tile is RelativeParamTile) as ParamTile;
+
+        Check(log, "a version 9 FM decay comes back as the same slope",
+              Mathf.Abs(older.Patches[1].modulatorDecay - 0.19355f) < 0.001f &&
+              absolute != null &&
+              Mathf.Abs(absolute[ParamTargets.ModDecay] - 0.375f) < 0.001f &&
+              relative != null &&
+              Mathf.Abs(relative[ParamTargets.ModDecay] - 0.25f) < 0.001f,
+              "patch md=" + older.Patches[1].modulatorDecay +
+              " absolute=" + (absolute == null ? "none"
+                              : absolute[ParamTargets.ModDecay].ToString()) +
+              " relative=" + (relative == null ? "none"
+                              : relative[ParamTargets.ModDecay].ToString()));
     }
 
     // Two lanes on different channels, each with its own patch, playing the same
@@ -499,11 +526,12 @@ static class SelfTest
     {
         // A note that holds a flat level, so every measurement is taken on a
         // steady signal. Modulation is off, leaving a pure sine whose pitch the
-        // zero crossing estimate can read reliably, and the modulator's decay is
-        // far longer than any window so what depth there is stays constant.
+        // zero crossing estimate can read reliably, and its decay is at the top of
+        // its travel where there is no decay at all, so what depth there is stays
+        // constant.
         var plain = new FmNoteEvent
           { frequency = 440.0f, level = 1.0f, duration = 1.0f,
-            modulatorRatio = 2.0f, modulationIndex = 0.0f, modulatorDecay = 20.0f,
+            modulatorRatio = 2.0f, modulationIndex = 0.0f, modulatorDecay = 1.0f,
             carrierAttack = 0.005f, carrierRelease = 0.01f };
 
         // The carrier holds full level for the whole gate, so a long note must not
@@ -518,11 +546,11 @@ static class SelfTest
         // The modulation decays to nothing on its own, so the tail of a long note
         // ends up a plain sine whatever the index was. The curve is exponential and
         // front-loaded, so the onset is read just after the attack and the tail
-        // long after the decay is over.
+        // long after anything is left of the modulation.
         var voiced = plain;
         voiced.frequency = 220.0f;
         voiced.modulationIndex = 4.0f;
-        voiced.modulatorDecay = 0.3f;
+        voiced.modulatorDecay = 0.3f;  // A slope, not a time: 40ms of time constant
 
         var bite = Render(voiced, 1.0f);
         var onset = Brightness(bite, Seconds(0.008f), Seconds(0.04f));
@@ -530,6 +558,31 @@ static class SelfTest
 
         Check(log, "modulation decays away", onset > tail * 2.0f,
               "brightness " + onset + " -> " + tail);
+
+        // The two ends of that slope are the two ways a patch can have no modulation
+        // envelope at all, and they are the reason the parameter is a slope rather
+        // than a time: neither of them is a number of milliseconds. Read over the same
+        // two windows, so both are comparable with the pair above — and against each
+        // other, since a note with the modulation switched off has to measure the same
+        // as the tail of one that let it decay.
+        var muted = voiced;
+        muted.modulatorDecay = 0.0f;
+
+        var sustained = voiced;
+        sustained.modulatorDecay = 1.0f;
+
+        var silent = Brightness(Render(muted, 1.0f), Seconds(0.008f), Seconds(0.04f));
+        var flat = Render(sustained, 1.0f);
+        var flatOnset = Brightness(flat, Seconds(0.008f), Seconds(0.04f));
+        var flatTail = Brightness(flat, Seconds(0.6f), Seconds(0.9f));
+
+        Check(log, "a decay of zero leaves no modulation at all",
+              silent < tail * 1.1f,
+              "brightness " + silent + " against a decayed tail of " + tail);
+
+        Check(log, "a decay of one holds it for the whole note",
+              Mathf.Abs(flatTail / flatOnset - 1.0f) < 0.05f,
+              "brightness " + flatOnset + " -> " + flatTail);
 
         // The pitch envelope bends the onset and then arrives exactly on the note
         // frequency, in both directions. Measured with a sweep far slower than a

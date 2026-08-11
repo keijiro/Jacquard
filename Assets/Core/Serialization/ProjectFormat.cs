@@ -27,6 +27,15 @@ namespace Jacquard {
 
 public static class ProjectFormat
 {
+    // Version 10 makes the FM decay a slope rather than a length of time, so md= on a
+    // patch line and an absolute lock naming moddecay are converted on the way in by
+    // DecaySlope, and an older file keeps the modulation it had. A relative lock is
+    // left alone: it holds a shift rather than a value, there is no image of a shift
+    // under a curve, and it needs none — the old parameter ran over the same span of
+    // numbers as the new one, so a shift reaches exactly as far across its bar as it
+    // did. The bump is what makes any of this possible: nothing about the number
+    // itself says which of the two things it is.
+    //
     // Version 9 gives a cycle gate a switch per lap rather than one lap picked by
     // number, so its second argument is a run of digits as long as the period. An
     // older file needs no conversion and is not even a special case at the reading
@@ -74,7 +83,7 @@ public static class ProjectFormat
     // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
     // reads, since a token nothing answers to is skipped, but the parameters that
     // no longer exist fall back to the default patch rather than being converted.
-    public const int Version = 9;
+    public const int Version = 10;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -201,6 +210,12 @@ public static class ProjectFormat
 
         var lines = text.Split('\n');
 
+        // What the file was written at, which decides whether a value needs converting
+        // on the way in. The version line is the first one a file has, so it is settled
+        // before anything that reads it; a fragment without one is taken as current,
+        // since a file that old would have said so.
+        var version = Version;
+
         for (var number = 0; number < lines.Length; number++)
         {
             var tokens = lines[number].Split(new[] { ' ', '\t', '\r' },
@@ -210,7 +225,8 @@ public static class ProjectFormat
             switch (tokens[0])
             {
                 case "jacquard":
-                    if (tokens.Length > 1 && ReadInt(tokens[1]) > Version)
+                    if (tokens.Length > 1) version = ReadInt(tokens[1]);
+                    if (version > Version)
                         throw Fail(number, "file is from a newer version");
                     break;
 
@@ -228,7 +244,7 @@ public static class ProjectFormat
                     break;
 
                 case "patch":
-                    ReadPatchLine(project, tokens);
+                    ReadPatchLine(project, tokens, version);
                     break;
 
                 case "lane":
@@ -237,7 +253,7 @@ public static class ProjectFormat
 
                 case "step":
                     if (lane == null) throw Fail(number, "step outside a lane");
-                    ReadStep(lane.AddStep(), tokens, number);
+                    ReadStep(lane.AddStep(), tokens, number, version);
                     break;
 
                 default:
@@ -287,18 +303,21 @@ public static class ProjectFormat
         return lane;
     }
 
-    static void ReadStep(Step step, string[] tokens, int number)
+    static void ReadStep(Step step, string[] tokens, int number, int version)
     {
         for (var i = 1; i < tokens.Length; i++)
         {
             // A tile the synth has no answer for any more comes back as nothing, and
             // the step is simply one tile shorter than it was written with.
-            var tile = ReadTile(tokens[i], number);
+            var tile = ReadTile(tokens[i], number, version);
             if (tile != null) step.Tiles.Add(tile);
         }
     }
 
-    static Tile ReadTile(string token, int number)
+    // version reaches only as far as the locks: they are the one kind of tile that
+    // carries a synth parameter's own value, and so the one kind a change of units
+    // under the synth can leave holding the wrong number.
+    static Tile ReadTile(string token, int number, int version)
     {
         var colon = token.IndexOf(':');
         var head = colon < 0 ? token : token.Substring(0, colon);
@@ -306,12 +325,13 @@ public static class ProjectFormat
 
         switch (head)
         {
-            case "PABS": return ReadLock(new AbsoluteParamTile(), args, number);
+            case "PABS": return ReadLock(new AbsoluteParamTile(), args, number, version);
 
             // A version 3 PACC becomes the relative lock it was a running total
             // of, which is as close as a file from before the change can get.
             case "PREL":
-            case "PACC": return ReadLock(new RelativeParamTile(), args, number);
+            case "PACC":
+                return ReadLock(new RelativeParamTile(), args, number, version);
 
             case "GCYC":
             {
@@ -380,7 +400,7 @@ public static class ProjectFormat
     // A run of key,value pairs, or nothing at all for a lock that holds no
     // parameter. A version 5 token has exactly one pair, which reads here as the one
     // parameter it engaged.
-    static ParamTile ReadLock(ParamTile tile, string args, int number)
+    static ParamTile ReadLock(ParamTile tile, string args, int number, int version)
     {
         if (args.Length == 0) return tile;
 
@@ -398,7 +418,16 @@ public static class ProjectFormat
                 continue;
             }
 
-            tile.Engage(target, i + 1 < parts.Length ? ReadFloat(parts[i + 1]) : 0.0f);
+            var value = i + 1 < parts.Length ? ReadFloat(parts[i + 1]) : 0.0f;
+
+            // An absolute lock holds the parameter itself, so version 10's change of
+            // units reaches it exactly as it reaches the patch line. A relative one
+            // holds a shift and is left as written, for the reason given up at the
+            // version note.
+            if (version < 10 && target == ParamTargets.ModDecay &&
+                tile is AbsoluteParamTile) value = DecaySlope(value);
+
+            tile.Engage(target, value);
         }
 
         // A lock that named only retired parameters has nothing left to do, so it
@@ -410,20 +439,34 @@ public static class ProjectFormat
     // Which channel the line is for. A version 2 file has one patch line for the
     // whole project, so its first token is already a key=value pair; that line goes
     // into every channel, which is exactly what it used to mean.
-    static void ReadPatchLine(Project project, string[] tokens)
+    static void ReadPatchLine(Project project, string[] tokens, int version)
     {
         if (tokens.Length > 1 && tokens[1].IndexOf('=') < 0)
         {
             var channel = PatchBank.Clamp(ReadInt(tokens[1]));
-            ReadPatch(ref project.Patches[channel], tokens, 2);
+            ReadPatch(ref project.Patches[channel], tokens, 2, version);
             return;
         }
 
         for (var channel = 1; channel <= PatchBank.Channels; channel++)
-            ReadPatch(ref project.Patches[channel], tokens, 1);
+            ReadPatch(ref project.Patches[channel], tokens, 1, version);
     }
 
-    static void ReadPatch(ref FmPatch patch, string[] tokens, int from)
+    // A version 9 FM decay in seconds as the slope version 10 holds in its place.
+    //
+    // The old parameter was the time the modulation took to reach zero, along a curve
+    // that spent five e-foldings getting there, so its time constant was a fifth of it.
+    // The new one is a plain exponential whose time constant is a tenth of a second at
+    // the middle of its travel and v / (1 - v) tenths elsewhere. Equating the two gives
+    // this, so a converted patch decays at the rate it always did rather than near it —
+    // to within the hundredth the old curve's normalization moved it by.
+    //
+    // The two numbers are written out rather than read off the synth on purpose. This
+    // says what version 9 meant, and has to keep saying it however the slope is tuned
+    // afterwards.
+    static float DecaySlope(float seconds) => seconds / (5.0f * 0.1f + seconds);
+
+    static void ReadPatch(ref FmPatch patch, string[] tokens, int from, int version)
     {
         for (var i = from; i < tokens.Length; i++)
         {
@@ -438,7 +481,9 @@ public static class ProjectFormat
                 case "mratio": patch.modulatorRatio = value; break;
                 case "index": patch.modulationIndex = value; break;
                 case "fb": patch.feedback = value; break;
-                case "md": patch.modulatorDecay = value; break;
+                case "md":
+                    patch.modulatorDecay = version < 10 ? DecaySlope(value) : value;
+                    break;
                 case "ca": patch.carrierAttack = value; break;
                 case "cr": patch.carrierRelease = value; break;
                 case "ps": patch.pitchSweep = value; break;
