@@ -176,6 +176,50 @@ Notes on the prototype
   decided. The Sound panel's audition hangs off it, and so does the note the Tile
   panel's pitch bar plays. Sounding a note per event turned a drag down a bar into a
   burst of a hundred, none of which was the value being chosen.
+- **A lap of a cycle gate is a switch and not a number.** `CycleGateTile` held one
+  index into its period, so the only thing it could say was *one lap out of n*: a gate
+  that wanted the first and the third of four was two gates in two cells, and most
+  patterns could not be written at all. The whole cycle is one word of bits, so
+  carrying a switch per lap costs the tile nothing and costs the panel a block of
+  unlabelled boxes where a second bar used to be. A gate with nothing switched on
+  never fires, which is inert rather than wrong — the same standing a lock that holds
+  nothing has.
+
+  **The period reaches 32, and the bits above it are kept rather than cleared.** A
+  period pulled in and let back out finds its switches where it left them, since
+  nothing but a save reads past the period; a save writes the period's own laps and
+  forgets the rest, which is what keeps the file a round trip. Version 8 names one lap
+  by number where version 9 spells the whole pattern, and the two tell themselves
+  apart without the version reaching the tile at all: the shortest period is two and
+  the longest lap number is one digit, so a run of digits as long as the period can
+  only be the pattern.
+
+  **The switches are hidden and not rebuilt**, all thirty-two of them standing from
+  the moment the panel is built. The period is set on a bar directly over them, and a
+  run that tore itself down as that bar moved would take the drag that was moving it
+  with it — the same hazard `InspectorPanel.Refresh` exists to avoid.
+
+  **What the cell can show gives out before the tile does.** The boxes wrap at four to
+  a line, because a cell is thirty pixels across whatever the period is and
+  thirty-two in a row would be a box a pixel wide against a pixel of ground; past
+  eight it stops counting and draws six and an ellipsis, since nobody reads twelve
+  boxes off a cell and the exact laps are the panel's business. Six is also what
+  leaves the ellipsis somewhere to stand: a second line of two leaves two boxes' worth
+  of ground at the bottom right, so the dots take no width of their own and an elided
+  icon is the same block as a full one.
+
+  **What the boxes give up is width, and they give it up for the margin.** A row fitted
+  to the cell left the block a pixel and a half from the tile's own outline, which read
+  as an icon jammed against its frame; it is held five pixels clear on each side now,
+  which puts a box at three pixels where it used to be five. That is the right way
+  round for this icon, because the figure is a shape to recognise and not a count to
+  take off the cell — the panel is where a lap is read one at a time. Filled against
+  hollow survives the narrowing, which is the one thing that had to.
+
+  The panel grows by about a hundred points at the longest period, and it can afford
+  to: eight switches to a line is a bar of sixteenths and puts thirty-two laps in four
+  lines, and a gate cell is not a `CHAN` cell, so this panel is never the one standing
+  over a thirteen row Sound panel.
 - **A panel shows what the cursor is on**, and nothing is toggled. The tile panel
   keeps the corner and follows the cursor; beside it comes up either the Sound
   panel, while a `CHAN` cell is selected, or the Lock panel, while a `PABS` or

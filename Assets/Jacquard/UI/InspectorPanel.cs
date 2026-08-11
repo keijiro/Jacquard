@@ -48,8 +48,10 @@ sealed class InspectorPanel
         {
             // The same tile, but its values may have changed from elsewhere — a
             // transpose from the keys, a load — so the bars still have to be pulled
-            // back in line with it.
+            // back in line with it. The lap switches go the same way, and one of the
+            // things that moves them is the Period bar standing over them.
             ValueBar.SyncAll(_body);
+            _laps?.Sync();
             return;
         }
 
@@ -69,9 +71,14 @@ sealed class InspectorPanel
     Lane _lane;
     bool _place;
 
+    // The bars are found again by a query over the body; this one is held onto
+    // instead, and let go of whenever the body it stood in is cleared.
+    LapSwitches _laps;
+
     void Build(Tile tile, Lane lane)
     {
         _title.text = Title(tile);
+        _laps = null;
 
         // Free ground, whether that is a lane's own empty step or the terminator it
         // grows from. What such a cell is for is the tile that goes on it.
@@ -205,15 +212,29 @@ sealed class InspectorPanel
                                          Touch(); }));
     }
 
+    // The period, and then a switch per lap of it.
+    //
+    // Which lap a gate fires on used to be a second bar, which could only ever name
+    // one of them: a gate on the first and the third of four was two gates in two
+    // cells, and nothing about the tile required that. A switch per lap says any of
+    // the patterns the tile can hold, and it says it as the shape the cell then draws
+    // — the run under the bar and the boxes on the plane are the same row of laps
+    // read at two sizes.
+    //
+    // It stands under a heading rather than beside a caption because it is a block
+    // and not a row: the caption column would leave a hundred pixels for thirty-two
+    // switches, which is a target no fingertip could land on.
     void BuildCycle(VisualElement body, CycleGateTile cycle)
     {
         body.Add(Controls.Bar("Period", PeriodRange, () => cycle.Period,
                               value => { cycle.Period = Mathf.RoundToInt(value);
                                          Touch(); }));
 
-        body.Add(Controls.Bar("Fires on", FiresOnRange, () => cycle.Index,
-                              value => { cycle.Index = Mathf.RoundToInt(value);
-                                         Touch(); }));
+        body.Add(Controls.Heading("Fires on"));
+
+        _laps = new LapSwitches(cycle, lap => Act(() =>
+                  { cycle.SetFires(lap, !cycle.Fires(lap)); Touch(); }));
+        body.Add(_laps);
     }
 
     void BuildProb(VisualElement body, ProbGateTile prob)
@@ -304,14 +325,11 @@ sealed class InspectorPanel
 
     static readonly ValueBar.Range ChannelRange = ValueBar.Integer(1.0f, PatchBank.Channels);
 
+    // How many laps the cycle is long, which is also how many switches stand under
+    // it. Dragging it covers the whole range, since every value on the way is a
+    // pattern the run below can be read at.
     static readonly ValueBar.Range PeriodRange =
       ValueBar.Integer(CycleGateTile.MinPeriod, CycleGateTile.MaxPeriod);
-
-    // The lap the gate fires on. Its top end is the longest period there can be rather
-    // than the one this tile is on, since the tile clamps an index its own period
-    // cannot reach and the bar is pulled back to whatever it took.
-    static readonly ValueBar.Range FiresOnRange =
-      ValueBar.Integer(1.0f, CycleGateTile.MaxPeriod);
 
     // What can be put on a free cell, in the order the buttons read: the note first
     // because it is the tile a cell usually wants, then the pairs, then the jump.
@@ -333,6 +351,56 @@ sealed class InspectorPanel
     // once the margin between a pair is counted. A wider button would fall to one a
     // line and make a six tile palette six rows tall.
     const float PaletteButtonWidth = 82.0f;
+
+    // Eight laps to a line, which is a bar of sixteenths and puts the longest cycle
+    // there can be in four lines. Four to a line would read against the cell, whose
+    // boxes go four across, but it would also stand thirty-two switches eight lines
+    // deep in a column that has to reach the bottom of the shortest screen this runs
+    // on; eight is where a switch is still square and a line is still a phrase.
+    const int LapsPerRow = 8;
+
+    // The laps of a cycle gate, one switch each.
+    //
+    // Every lap the tile could have gets a switch, and the ones past the current
+    // period are hidden rather than built and torn down: the period is set on a bar
+    // standing directly over them, and a run that rebuilt itself as that bar moved
+    // would pull the bar out from under the drag that was moving it. Hiding is also
+    // what keeps a switch that goes out of reach and comes back — the tile keeps the
+    // bit, so the run shows it again exactly as it was left.
+    sealed class LapSwitches : VisualElement
+    {
+        public LapSwitches(CycleGateTile cycle, System.Action<int> toggle)
+        {
+            _cycle = cycle;
+
+            style.flexDirection = FlexDirection.Row;
+            style.flexWrap = Wrap.Wrap;
+
+            for (var lap = 1; lap <= CycleGateTile.MaxPeriod; lap++)
+            {
+                var which = lap;
+                _switches[lap - 1] = Controls.Switch(LapsPerRow, () => toggle(which));
+                Add(_switches[lap - 1]);
+            }
+
+            Sync();
+        }
+
+        // Pulls the run back in line with the tile, for a switch that was just
+        // clicked and for a period that has just moved under it.
+        public void Sync()
+        {
+            for (var lap = 1; lap <= CycleGateTile.MaxPeriod; lap++)
+            {
+                _switches[lap - 1].style.display =
+                  lap <= _cycle.Period ? DisplayStyle.Flex : DisplayStyle.None;
+                Controls.SetActive(_switches[lap - 1], _cycle.Fires(lap));
+            }
+        }
+
+        readonly CycleGateTile _cycle;
+        readonly Button[] _switches = new Button[CycleGateTile.MaxPeriod];
+    }
 }
 
 } // namespace Jacquard.App

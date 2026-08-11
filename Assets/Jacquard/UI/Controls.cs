@@ -235,6 +235,29 @@ static class Controls
         button.style.color = active ? Style.Background : Style.NoteText;
     }
 
+    // One switch of a run that fills the panel's width, sized so that perRow of them
+    // fit across it and square so that a run of them reads as a row of slots rather
+    // than as a row of buttons.
+    //
+    // Nothing is written on it. What a switch stands for is its position in the run —
+    // the third box is the third lap — so a caption on each would be a number
+    // repeated as many times as there are switches, in the one place there is no room
+    // for it. The run is what carries the meaning, and the panel captions the run.
+    public static Button Switch(int perRow, Action onClick)
+    {
+        var size = Mathf.Floor((PanelWidth - Inset * 2 + Gap) / perRow) - Gap;
+
+        var button = Push("", onClick);
+        button.style.width = size;
+        button.style.height = size;
+        // The padding a word needs is what a blank box does not: it is what would
+        // stop the box being square.
+        button.style.paddingLeft = 0;
+        button.style.paddingRight = 0;
+        button.style.marginBottom = Gap;
+        return button;
+    }
+
     // Value bars
 
     // A labelled number, set on the bar that shows it. The bar takes whatever the

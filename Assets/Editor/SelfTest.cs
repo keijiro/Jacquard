@@ -163,7 +163,7 @@ static class SelfTest
         var lane = project.Score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 4);
 
         lane.Steps[0].Tiles.Add(new NoteTile { Note = 64 });
-        lane.Steps[0].Tiles.Add(new CycleGateTile { Period = 4, Index = 1 });
+        lane.Steps[0].Tiles.Add(new CycleGateTile { Period = 4, Pattern = "1000" });
         lane.Steps[0].Tiles.Add(new NoteTile { Note = 60 });
 
         var sequencer = new Sequencer { Project = project };

@@ -21,12 +21,20 @@ namespace Jacquard {
 //   lane 1 1 CHAN:1 div=16
 //     step C4/4 E4 G4
 //     step
-//     step GCYC:4,4 JUMP
+//     step GCYC:4,0001 JUMP
 //   lane 6 8 JDST from=10,2
 //     step D#5 C5 G#4
 
 public static class ProjectFormat
 {
+    // Version 9 gives a cycle gate a switch per lap rather than one lap picked by
+    // number, so its second argument is a run of digits as long as the period. An
+    // older file needs no conversion and is not even a special case at the reading
+    // end: a lap number is one digit and a pattern is at least two, so the two
+    // spellings tell themselves apart and a version 8 GCYC:4,3 reads as the 0010 it
+    // always meant. The bump is for the other direction, and for the period, which
+    // now reaches 32 where an older build clamps it to 8.
+    //
     // Version 8 adds a pan to every patch: a pan= on the patch line, and a thirteenth
     // target a lock can name. An older file has neither and reads as a project whose
     // notes all sit in the centre, which is exactly where they were. The bump is for
@@ -66,7 +74,7 @@ public static class ProjectFormat
     // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
     // reads, since a token nothing answers to is skipped, but the parameters that
     // no longer exist fall back to the default patch rather than being converted.
-    public const int Version = 8;
+    public const int Version = 9;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -128,7 +136,7 @@ public static class ProjectFormat
           : Pitch.ToName(note.Note) + "/" + F(note.Length),
         AbsoluteParamTile p => "PABS" + WriteLock(p),
         RelativeParamTile p => "PREL" + WriteLock(p),
-        CycleGateTile g => "GCYC:" + g.Period + "," + g.Index,
+        CycleGateTile g => "GCYC:" + g.Period + "," + g.Pattern,
         ProbGateTile g => "GPRB:" + F(g.Percent),
         JumpTile => "JUMP",
         _ => tile.Token
@@ -310,7 +318,7 @@ public static class ProjectFormat
                 var parts = args.Split(',');
                 var gate = new CycleGateTile();
                 if (parts.Length > 0) gate.Period = ReadInt(parts[0]);
-                if (parts.Length > 1) gate.Index = ReadInt(parts[1]);
+                if (parts.Length > 1) ReadLaps(gate, parts[1]);
                 return gate;
             }
 
@@ -331,6 +339,29 @@ public static class ProjectFormat
         return new NoteTile
           { Note = note,
             Length = slash < 0 ? 1.0f : ReadFloat(token.Substring(slash + 1)) };
+    }
+
+    // The laps a cycle gate fires on, in either of the two spellings the format has
+    // had. A run of digits as long as the period is the pattern version 9 writes;
+    // anything else is the single lap a version 8 file names by number, which is the
+    // same gate with one switch on. Nothing has to know which version it came from,
+    // since the shortest period is two and the longest lap number is one digit.
+    static void ReadLaps(CycleGateTile gate, string text)
+    {
+        if (text.Length == gate.Period && IsPattern(text))
+        {
+            gate.Pattern = text;
+            return;
+        }
+
+        gate.Pattern = "";
+        gate.SetFires(ReadInt(text), true);
+    }
+
+    static bool IsPattern(string text)
+    {
+        foreach (var c in text) if (c != '0' && c != '1') return false;
+        return true;
     }
 
     // Targets a file may still name that the synth no longer has. The pair naming

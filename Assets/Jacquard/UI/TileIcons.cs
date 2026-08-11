@@ -8,7 +8,7 @@ namespace Jacquard.App {
 // Everything is drawn in a 15x15 box with 1px strokes on half-integer coordinates
 // so that a stroke centre lands on a pixel boundary and stays crisp. The two gate
 // icons have boxes of their own size, because their shape carries a value: the
-// cycle gate shows its period as a row of boxes and the probability gate shows its
+// cycle gate shows its laps as a block of boxes and the probability gate shows its
 // chance as a wedge, so the cell shows the rough figure and the dialog takes the
 // exact one.
 
@@ -50,7 +50,7 @@ static class TileIcons
                 break;
 
             case CycleGateTile cycle:
-                Cycle(painter, cycle.Period, cycle.Index);
+                Cycle(painter, cycle);
                 break;
 
             case ProbGateTile prob:
@@ -95,35 +95,104 @@ static class TileIcons
 
     // Gates
 
-    // One box per lap, the firing one filled. The boxes narrow as the period grows
-    // so that the row stays inside the cell; even at the tightest spacing the
-    // filled one still reads, because filled against hollow is a stronger contrast
-    // than wide against narrow.
-    static void Cycle(Painter2D painter, int period, int index)
+    // One box per lap, the laps it fires on filled. Four to a line and a second line
+    // under them once there are more than four, because the period now reaches
+    // thirty-two and a single row of that many would be a box a pixel wide against a
+    // pixel of ground: the cell is thirty pixels across whatever the period is, so
+    // what has to give is the number of them on a line.
+    //
+    // Past eight it stops counting and says so. Six boxes and an ellipsis is a figure
+    // rather than a count — nobody reads twelve boxes off a cell either way — and
+    // filled against hollow is what carries even the short periods, which is why the
+    // shown ones stay the size they were rather than shrinking to admit the rest.
+    //
+    // Six is also what leaves the ellipsis somewhere to stand: two boxes on the second
+    // line leave two boxes' worth of ground at the bottom right, so the dots cost the
+    // figure no width at all and an elided icon is the same block as a full one.
+    static void Cycle(Painter2D painter, CycleGateTile cycle)
     {
-        const float h = 8.0f;
+        var period = cycle.Period;
+        var elided = period > Shown;
+        var count = elided ? Elided : period;
 
-        // The row is fitted to the cell rather than to a number of its own, so that
-        // changing the cell pitch cannot push the widest period out past the edges.
-        var span = Style.CellWidth - 3.0f;
+        var columns = Mathf.Min(count, Columns);
+        var rows = (count + Columns - 1) / Columns;
 
-        var gap = period > 6 ? 1 : 2;
-        var w = Mathf.Min(5, Mathf.FloorToInt((span + gap) / period) - gap);
-        var total = period * (w + gap) - gap + 1;
+        // Fitted to the cell rather than to numbers of its own, so that changing the
+        // cell pitch cannot push the widest row out past the edges.
+        var span = Style.CellWidth - Margin * 2;
 
-        var o = new Vector2(Mathf.Floor((Style.CellWidth - total) / 2),
-                            Mathf.Floor((Style.CellHeight - (h + 1)) / 2));
+        var w = Mathf.Min(5.0f, Mathf.Floor((span + Space) / columns) - Space);
+        var h = rows > 1 ? 6.0f : 8.0f;
+
+        var width = columns * (w + Space) - Space + 1;
+        var height = rows * (h + Space) - Space + 1;
+
+        var o = new Vector2(Mathf.Floor((Style.CellWidth - width) / 2),
+                            Mathf.Floor((Style.CellHeight - height) / 2));
+
+        // Two passes over the same run, since one path cannot be both filled and
+        // stroked.
+        for (var pass = 0; pass < 2; pass++)
+        {
+            painter.BeginPath();
+
+            for (var i = 0; i < count; i++)
+                if (cycle.Fires(i + 1) == (pass == 0))
+                    Box(painter, o, i % Columns * (w + Space) + 0.5f,
+                        i / Columns * (h + Space) + 0.5f, w, h);
+
+            if (pass == 0) painter.Fill(FillRule.NonZero); else painter.Stroke();
+        }
+
+        if (!elided) return;
+
+        // In the ground the second line leaves, centred across the boxes that are
+        // missing from it and on the line those boxes would have sat on: the run reads
+        // to the end of the second line and the dots are where it would have carried
+        // on.
+        //
+        // Whole pixels rather than the half pixel centres the boxes are stroked on: a
+        // fill is crisp where its edges are, and a dot one pixel across has no centre
+        // to put anywhere.
+        var last = count - Columns;
+        var free = (Columns - last) * (w + Space) - Space + 1;
 
         painter.BeginPath();
-        for (var i = 0; i < period; i++)
-            if (i == index - 1) Box(painter, o, i * (w + gap) + 0.5f, 0.5f, w, h);
+        for (var i = 0; i < 3; i++)
+            Box(painter, o, last * (w + Space) + Mathf.Floor((free - DotSpan) / 2)
+                            + i * DotPitch,
+                (rows - 1) * (h + Space) + Mathf.Floor(h / 2), 1.0f, 1.0f);
         painter.Fill(FillRule.NonZero);
-
-        painter.BeginPath();
-        for (var i = 0; i < period; i++)
-            if (i != index - 1) Box(painter, o, i * (w + gap) + 0.5f, 0.5f, w, h);
-        painter.Stroke();
     }
+
+    // What the row of boxes is laid out to. Four is what a thirty pixel cell reads at
+    // once a box has to hold a fill; the run stops at eight, which is two full lines,
+    // and what is left standing past that is six and the ellipsis that says so.
+    const int Columns = 4, Shown = 8, Elided = 6;
+
+    // The ground the block keeps clear of the tile's border on either side.
+    //
+    // It used to be a pixel and a half, which is what a row of eight across a thirty
+    // pixel cell costs and what made the icon sit against its own outline. The boxes
+    // are what gives way for it: this is the one icon whose shape carries a value, and
+    // the value it carries is a shape to recognise rather than a count to take off the
+    // cell — the panel is where the laps are read one at a time. So the block is now
+    // held off the border about as far as it is held off the cell above and below it,
+    // and a box is three pixels where it used to be five.
+    const float Margin = 5.0f;
+
+    // The pitch between two boxes, which leaves one pixel of ground between their
+    // strokes.
+    const float Space = 2.0f;
+
+    // Three dots one pixel across, and two pixels of ground between them rather than
+    // the one the boxes get. A dot is the smallest mark on the cell and the only one
+    // with nothing drawn around it, so it is the first thing to go when the panel
+    // lands on a fractional scale — which it does on any screen the reference DPI does
+    // not divide. At a one pixel gap the smear closes and the ellipsis reads as a
+    // dash; at two it stays three dots, which is the whole of what it has to say.
+    const float DotPitch = 3.0f, DotSpan = DotPitch * 2 + 1;
 
     // The firing chance as a filled wedge inside a ring.
     static void Prob(Painter2D painter, float percent)

@@ -123,26 +123,67 @@ public abstract class GateTile : Tile
     public abstract bool Evaluate(int pass, Random random);
 }
 
-// Fires on one lap out of Period. Index is one based, matching the GCYC4:3
-// spelling, and the period stays within 2..8 because that is how many boxes fit
-// across a cell.
+// Fires on whichever laps of the cycle are switched on, a lap being one time round
+// the channel the gate stands on.
+//
+// A lap is a switch and not a number. One lap out of the period was all this could
+// say to begin with, so a gate that wanted the first and the third of four had to
+// be two gates in two cells, and a pattern of any interest could not be written at
+// all. Every lap having a switch of its own costs the tile nothing — the whole
+// cycle is one word — and it is what turns the period into a bar rather than a
+// pointer.
+//
+// The period reaches 32, which is two bars of sixteen steps and as far as a cycle
+// this is worth reading off a cell goes. The laps live in the bits of one mask, so
+// laps above the period are kept rather than cleared: a period pulled in and let
+// back out finds its switches where it left them, and only a save forgets them.
 
 public sealed class CycleGateTile : GateTile
 {
-    public const int MinPeriod = 2, MaxPeriod = 8;
+    public const int MinPeriod = 2, MaxPeriod = 32;
 
     public int Period { get => _period; set => _period = Clamp(value); }
-    public int Index { get => _index; set => _index = Math.Clamp(value, 1, _period); }
 
+    public bool Fires(int lap) => (_mask & Bit(lap)) != 0;
+
+    public void SetFires(int lap, bool fires)
+      => _mask = fires ? _mask | Bit(lap) : _mask & ~Bit(lap);
+
+    // The laps of the current period as one digit each, the first lap leftmost:
+    // the order the cell draws them in and the order a file writes them in.
+    public string Pattern
+    {
+        get
+        {
+            var digits = new char[_period];
+            for (var lap = 1; lap <= _period; lap++)
+                digits[lap - 1] = Fires(lap) ? '1' : '0';
+            return new string(digits);
+        }
+
+        set
+        {
+            _mask = 0;
+            for (var lap = 1; lap <= value.Length; lap++)
+                SetFires(lap, value[lap - 1] == '1');
+        }
+    }
+
+    // A gate switched on nowhere never fires, which is inert rather than wrong: it
+    // is what one switch off from a single lap looks like, and the panel is the
+    // only place it can be seen either way.
     public override bool Evaluate(int pass, Random random)
-      => ((pass % _period) + _period) % _period == _index - 1;
+      => Fires(((pass % _period) + _period) % _period + 1);
 
-    public override string Token => "GCYC" + _period + ":" + _index;
+    public override string Token => "GCYC" + _period + ":" + Pattern;
 
     int _period = 4;
-    int _index = 1;
+    uint _mask = 1;
 
     static int Clamp(int value) => Math.Clamp(value, MinPeriod, MaxPeriod);
+
+    static uint Bit(int lap)
+      => lap < 1 || lap > MaxPeriod ? 0u : 1u << (lap - 1);
 }
 
 // Fires with the given chance. Any percentage is allowed: the pie chart shows

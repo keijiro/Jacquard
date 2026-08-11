@@ -1,4 +1,4 @@
-jacquard 8
+jacquard 9
 tempo 129
 meter 4 4
 fx rsize=0.38564 rdamp=0.5 rwidth=1 dbeats=0.5 dfb=0.61901 dtone=0.32649 dspread=1
@@ -28,7 +28,7 @@ lane 9 1 CHAN:4 div=16
   step
   step GPRB:36 PREL:level,-0.07624,moddecay,0.01777 E3
   step
-  step GCYC:4,4 JUMP
+  step GCYC:4,0001 JUMP
   step E3
   step
   step
@@ -43,7 +43,7 @@ lane 9 8 CHAN:5 div=16
   step GPRB:50 PABS:dsend,1 A5
   step GPRB:50 D3
 lane 2 12 CHAN:6 div=16
-  step GCYC:8,1 A5
+  step GCYC:8,10000000 A5
   step
   step
   step
@@ -55,7 +55,7 @@ lane 2 12 CHAN:6 div=16
   step
   step
   step
-  step GCYC:8,8 PABS:level,0.10396,carattack,0.5,carrelease,0.00297 E6/4
+  step GCYC:8,00000001 PABS:level,0.10396,carattack,0.5,carrelease,0.00297 E6/4
   step
   step
   step

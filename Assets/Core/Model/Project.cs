@@ -61,14 +61,14 @@ public sealed class Project
         Fill(main, 5, new NoteTile { Note = N("G4") });
         // A lock partway down a chord, so the two notes under it are brighter than
         // the one above it: the stack is read downwards, so the split is legible.
-        Fill(main, 8, new CycleGateTile { Period = 4, Index = 3 },
+        Fill(main, 8, new CycleGateTile { Period = 4, Pattern = "0010" },
                       new NoteTile { Note = N("F4") },
                       Lock(new RelativeParamTile(), ParamTargets.ModIndex, 3.0f),
                       new NoteTile { Note = N("G#4"), Length = 1.5f },
                       new NoteTile { Note = N("C5") });
 
         var jump = new JumpTile();
-        Fill(main, 9, new CycleGateTile { Period = 4, Index = 4 }, jump);
+        Fill(main, 9, new CycleGateTile { Period = 4, Pattern = "0001" }, jump);
 
         Fill(main, 10, new NoteTile { Note = N("A#4") });
         Fill(main, 11, new ProbGateTile { Percent = 35 },

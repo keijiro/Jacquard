@@ -88,7 +88,7 @@ public sealed class ScoreEditor
             // would be a choice nobody made.
             TileKind.AbsoluteLock => new AbsoluteParamTile(),
             TileKind.RelativeLock => new RelativeParamTile(),
-            TileKind.CycleGate => new CycleGateTile { Period = 4, Index = 1 },
+            TileKind.CycleGate => new CycleGateTile { Period = 4, Pattern = "1000" },
             TileKind.ChanceGate => new ProbGateTile { Percent = 50 },
             TileKind.Jump => new JumpTile(),
             _ => new NoteTile { Note = _notePitch, Length = _noteLength }

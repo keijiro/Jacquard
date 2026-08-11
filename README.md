@@ -21,6 +21,7 @@ Using it
 | Write a note | Double click a free cell, or its `NOTE` button on the Tile panel |
 | Transpose | Shift+up/down for a semitone, add command for an octave |
 | Add a gate or a lock | The buttons the Tile panel offers on a free cell |
+| Which laps a cycle gate fires on | Its Period, and the switch per lap under it |
 | Remove a tile | Delete on the Tile panel, or the delete key |
 | Move a tile | Drag it; within its own step that reorders the stack |
 | Move a sub-stack | Drag a tile to another step, and what hangs below it comes too |
