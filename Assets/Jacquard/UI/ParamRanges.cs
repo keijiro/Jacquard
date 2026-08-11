@@ -5,9 +5,10 @@ namespace Jacquard.App {
 // What a synth parameter's bar looks like.
 //
 // Where a parameter is useful belongs to the synth, and comes from ParamTargets:
-// this only decides how one is read. A time reads out in milliseconds over a curved
-// bar, because the useful part of an envelope time is all inside the first tenth of
-// its range and a linear bar would resolve to nothing there. The rest are bare
+// this only decides how one is read. A time reads out in milliseconds over a bar whose
+// travel is geometric, because the useful part of an envelope time is spread over three
+// decades and a straight bar — or a curved one, which is a straight bar with its dead
+// end at the other side — resolves to nothing across most of them. The rest are bare
 // numbers, since a modulation depth in radians and a ratio against the carrier have
 // no unit worth printing.
 //
@@ -36,6 +37,27 @@ static class ParamRanges
             ParamTargets.CarAttack or ParamTargets.CarRelease or
             ParamTargets.PitchDecay
               => ValueBar.Seconds(low, high),
+
+            // A ratio against the note, curved for the same reason a time is: the
+            // bottom of the range is a different kind of sound rather than a smaller
+            // amount of the one above it, and a straight bar spends almost nothing on
+            // it. Where the modulator runs slower than the note it is heard as movement
+            // instead of as a timbre, and the whole of that — a twentieth of the note
+            // up to unity — is worth about a third of the travel; the harmonic ratios
+            // keep the other two thirds, with the two of a fresh patch at the middle.
+            //
+            // A pixel is worth about a hundredth of a ratio down there and a tenth at
+            // the top, where the ratio itself is in whole numbers.
+            //
+            // Feedback takes the same shape for the same reason, on a depth in radians
+            // rather than a ratio. What a player is choosing is inside the first two of
+            // its eight: half a radian is the edge on a bass, one is a reed, and past
+            // two or three every setting is a rasp that differs from the next only in
+            // how much of it there is. A straight bar gave those two radians a quarter
+            // of the travel and this gives them a half, with the noise above still
+            // holding the rest.
+            ParamTargets.ModRatio or ParamTargets.Feedback =>
+              new ValueBar.Range(low, high, curve: 2.0f),
 
             // A multiplier on the note's own length, curved so that unity — which is
             // what the length written on the cell means — sits near the middle of the
@@ -74,13 +96,19 @@ static class ParamRanges
     // The one thing deliberately dropped is a display of its own, which pan is the
     // only parameter to have. A shift is a distance and has no side to be on, so it
     // reads as the plain number the scale already puts it in.
+    //
+    // A geometric bar carries its floor across as well, which is what makes a shift on
+    // a time worth having: the ratios count out from the middle in both directions, so
+    // the small shifts sit around the centre where a lock is usually set and the whole
+    // range is still at the ends.
     public static ValueBar.Range Relative(int target)
     {
         var range = Of(target);
         var span = range.High - range.Low;
 
         return new ValueBar.Range(-span, span, range.Curve, range.Snap,
-                                  range.Scale, range.Unit, range.Digits);
+                                  range.Scale, range.Unit, range.Digits,
+                                  floor: range.Floor);
     }
 }
 

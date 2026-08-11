@@ -34,9 +34,21 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
     //
     // Curve is an exponent on the bar position, so a parameter whose interesting
     // values are all bunched up at the bottom of its range can still be dialled in:
-    // an envelope time spends most of its travel under a tenth of a second rather
-    // than resolving to nothing there. Scale and Unit are display only, which is how
-    // a value held in seconds reads out in milliseconds.
+    // a modulator ratio spends a third of its travel below unity rather than an
+    // eighth of it. Scale and Unit are display only, which is how a value held in
+    // seconds reads out in milliseconds.
+    //
+    // Floor makes the bar geometric instead of curved, which is what a range spanning
+    // decades needs and what no exponent can give it. An exponent has no slope at all
+    // at the bottom — pow(p, 3) leaves the first tenth of an envelope time's travel
+    // inside the first millisecond, which is under what the readout shows and under
+    // what the ear can hear, and reads as a bar with a dead end. A geometric bar
+    // multiplies where a curved one adds, so a step along it is the same *ratio*
+    // wherever it is taken: about a twentieth of the value per pixel, from one end to
+    // the other. Floor is where that run starts, since no number of ratios reaches
+    // zero from anywhere — and a Low beneath it is the one value the very bottom of the
+    // travel holds, which is how a decay that switches its envelope off keeps a place
+    // on a bar that could otherwise never land on it.
     public readonly struct Range
     {
         public readonly float Low, High;
@@ -45,6 +57,7 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
         public readonly float Scale; // Value to readout multiplier
         public readonly string Unit;
         public readonly int Digits;
+        public readonly float Floor; // Where a geometric run starts, 0 to use Curve
 
         // Replaces the numeric readout entirely, for a value that is better read as
         // something else: a note number reads "60 C4". Typing still goes through the
@@ -53,9 +66,15 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
 
         public Range(float low, float high, float curve = 1.0f, float snap = 0.0f,
                      float scale = 1.0f, string unit = null, int digits = 2,
-                     Func<float, string> display = null)
-          => (Low, High, Curve, Snap, Scale, Unit, Digits, Display) =
-             (low, high, curve, snap, scale, unit, digits, display);
+                     Func<float, string> display = null, float floor = 0.0f)
+          => (Low, High, Curve, Snap, Scale, Unit, Digits, Display, Floor) =
+             (low, high, curve, snap, scale, unit, digits, display, floor);
+
+        public bool Geometric => Floor > 0.0f;
+
+        // Where the ratios start counting from: the floor, unless the parameter's own
+        // range begins above it and there is nothing below to reach.
+        float Root => Low > Floor ? Low : Floor;
 
         // A range that straddles zero is drawn from where zero sits rather than from
         // the left edge, so the sign of the value is visible at a glance.
@@ -64,6 +83,27 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
         // Bar position [0,1] to value.
         public float ToValue(float position)
         {
+            if (Geometric)
+            {
+                // The bottom of the travel is Low itself, which is the only way an
+                // envelope that can be switched off is reachable by a drag: everything
+                // above it is a ratio away from the floor.
+                if (!Bipolar)
+                    return position <= 0.0f ? Low
+                           : Root * Mathf.Pow(High / Root, position);
+
+                // A shift, which reaches the same distance either way and holds no
+                // shift at all in the middle. Its smallest step off centre is the floor
+                // rather than nothing, since a shift of less than a millisecond is not
+                // a shift.
+                var offset = position * 2.0f - 1.0f;
+                var reach = offset < 0.0f ? -Low : High;
+
+                return offset == 0.0f ? 0.0f
+                       : Mathf.Sign(offset) * Floor *
+                         Mathf.Pow(reach / Floor, Mathf.Abs(offset));
+            }
+
             if (!Bipolar)
                 return Low + (High - Low) * Mathf.Pow(position, Curve);
 
@@ -76,6 +116,25 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
         // range simply fills or empties the bar.
         public float ToPosition(float value)
         {
+            if (Geometric)
+            {
+                // Anything at or under the floor sits at the bottom of the travel,
+                // which is where a Low beneath it lands as well: the two share the end
+                // pixel rather than one of them being unreachable.
+                if (!Bipolar)
+                    return value <= Root ? 0.0f
+                           : Mathf.Clamp01(Mathf.Log(value / Root) /
+                                           Mathf.Log(High / Root));
+
+                var size = Mathf.Abs(value);
+                var reach = value < 0.0f ? -Low : High;
+                var away = size <= Floor ? 0.0f
+                           : Mathf.Clamp01(Mathf.Log(size / Floor) /
+                                           Mathf.Log(reach / Floor));
+
+                return (Mathf.Sign(value) * away + 1.0f) * 0.5f;
+            }
+
             if (!Bipolar)
                 return High == Low ? 0.0f
                   : Mathf.Pow(Mathf.Clamp01((value - Low) / (High - Low)), 1.0f / Curve);
@@ -95,7 +154,31 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
         // The readout as it is typed: the same number without its unit, so an edit
         // starts from what was on screen.
         public string ToNumber(float value)
-          => (value * Scale).ToString("F" + Digits, CultureInfo.InvariantCulture);
+        {
+            var shown = value * Scale;
+            return shown.ToString("F" + Places(shown), CultureInfo.InvariantCulture);
+        }
+
+        // How many decimals to print, which on a geometric bar is a property of the
+        // number rather than of the parameter: three figures wherever the value stands,
+        // so the digits move whenever it does.
+        //
+        // A fixed count cannot manage that on a bar whose steps are ratios. It matches
+        // the travel at one point along it and is wrong on both sides — too coarse below,
+        // where a whole millisecond of readout hides a run of pixels that each moved the
+        // value by a twentieth, and too fine above, where one pixel steps the last digit
+        // by ninety. Three figures track the ratio the same way the bar does.
+        //
+        // Zero prints bare rather than as a row of decimals, because it is the one value
+        // on such a bar that is a setting instead of a quantity: an envelope switched
+        // off should say so and not 0.00.
+        int Places(float shown)
+        {
+            if (!Geometric) return Digits;
+
+            var size = Mathf.Abs(shown);
+            return size <= 0.0f ? 0 : size < 10.0f ? 2 : size < 100.0f ? 1 : 0;
+        }
 
         public bool TryParse(string text, out float value)
         {
@@ -114,10 +197,15 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
 
     // Range presets, one per shape of parameter this UI has.
 
-    // A time in seconds, read out in milliseconds. The low end is rarely zero: an
-    // attack or a decay of nothing is a different sound rather than a quieter one.
+    // A time in seconds, read out in milliseconds, over a geometric bar: an envelope
+    // time runs from a millisecond to seconds, which is three decades and the one shape
+    // of range an exponent cannot serve at both ends. A millisecond is the floor
+    // because it is the shortest time this synth has any use for — under it an attack
+    // is a click and a decay is a switch, and neither becomes anything else by being
+    // halved again. Where a parameter's own low end is zero, that end of the travel
+    // keeps it, since there the envelope is off rather than brief.
     public static Range Seconds(float low, float high)
-      => new Range(low, high, curve: 3.0f, scale: 1000.0f, unit: "ms", digits: 0);
+      => new Range(low, high, scale: 1000.0f, unit: "ms", floor: 0.001f);
 
     // A bare amount, whatever it happens to mean. Ends that straddle zero need nothing
     // said about them: the bar reads out from where zero sits on its own.

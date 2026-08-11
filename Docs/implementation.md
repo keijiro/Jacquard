@@ -210,6 +210,29 @@ Notes on the prototype
   decided. The Sound panel's audition hangs off it, and so does the note the Tile
   panel's pitch bar plays. Sounding a note per event turned a drag down a bar into a
   burst of a hundred, none of which was the value being chosen.
+
+  **Travel is a ratio wherever the range spans decades**, and an exponent is the wrong
+  shape for one. `Range.Curve` was the first answer, and on an envelope time it put
+  eleven pixels of travel inside the first millisecond: `pow(p, 3)` has no slope at all
+  at the bottom, so the number would not move, the sound would not move, and the bar
+  read as dead until the hand was a tenth of the way along it. `Range.Floor` makes the
+  travel geometric instead — a step multiplies where a curved one adds, so every pixel
+  is the same ratio, about a twentieth of the value, from one end to the other. A
+  millisecond is the floor because it is the shortest time this synth has any use for,
+  and where a parameter's own low end is zero — a release or a pitch sweep switched off
+  rather than made brief — the bottom pixel keeps it, since no number of ratios reaches
+  zero from anywhere. The exponent stays for the ranges it does suit: the gate ratio,
+  the modulator ratio and the feedback each cover a few octaves at most and their low
+  ends are audible.
+
+  **The readout follows the same rule**, because a fixed number of decimals can only
+  match a geometric travel at one point along it. Integer milliseconds hid a run of
+  pixels that had each moved the value by a twentieth, and past a second one pixel
+  stepped the last digit by ninety. So a geometric bar prints three figures wherever the
+  value stands — 1.05, 44.7, 299, 2000 — which move exactly when it does, and prints a
+  bare 0 at the bottom, where the number is a setting rather than a quantity. Neither
+  half of this touches a value or a file: a taper decides where a number sits on the
+  travel, not what it is.
 - **A lap of a cycle gate is a switch and not a number.** `CycleGateTile` held one
   index into its period, so the only thing it could say was *one lap out of n*: a gate
   that wanted the first and the third of four was two gates in two cells, and most

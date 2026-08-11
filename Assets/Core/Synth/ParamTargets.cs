@@ -73,7 +73,12 @@ public static class ParamTargets
     // one at the top and to its mirror image at the bottom.
     public static float Min(int target) => target switch
     {
-        ModRatio => 0.25f,
+        // A twentieth, which is barely a ratio any more: down here the modulator turns
+        // twenty times slower than the note and what it makes is a wobble rather than a
+        // timbre. It stops well above zero because a modulator that does not turn is
+        // not one — its output would be a constant, and a constant added to the
+        // carrier's phase is a phase offset nobody can hear.
+        ModRatio => 0.05f,
         Gate => 0.05f,
         CarAttack => 0.001f,
         // Symmetric about the centre, which is also what tells the bar to draw itself
@@ -156,10 +161,6 @@ public static class ParamTargets
 
     public static void Add(ref FmPatch patch, int target, float delta)
       => Set(ref patch, target, Get(in patch, target) + delta);
-
-    // A sensible nudge for an inspector field, roughly a hundredth of the range.
-    public static float Increment(int target)
-      => (Max(target) - Min(target)) / 100.0f;
 }
 
 } // namespace Jacquard
