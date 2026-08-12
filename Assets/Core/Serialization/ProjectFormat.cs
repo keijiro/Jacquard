@@ -17,7 +17,7 @@ namespace Jacquard {
 //   tempo 132
 //   meter 4 4
 //   fx rsize=0.5 rdamp=0.5 ...
-//   limiter drive=0 ceiling=0 attack=0.005 release=0.15
+//   limiter ceiling=0 attack=0.005 release=0.15
 //   mutes muted=01000000 soloed=00000000
 //   patch 1 level=0.8 index=3 ...
 //   lane 1 1 CHAN:1 div=16
@@ -29,6 +29,16 @@ namespace Jacquard {
 
 public static class ProjectFormat
 {
+    // Version 13 drops the limiter's drive and makes its ceiling automatic: the make-up
+    // gain is now whatever the ceiling took off, so there is no drive= on the limiter
+    // line any more. An older file is converted by LimiterSqueeze rather than having its
+    // drive skipped, because the two numbers together said what one of them now says: a
+    // drive of d into a ceiling c dB down squeezed the peaks by d - c, which is the
+    // ceiling this build would write. What that conversion cannot preserve is the level,
+    // and deliberately — the old pair left the output down at the ceiling and the make-up
+    // is exactly the decision to stop doing that, so a converted project comes back the
+    // same shape and |c| dB louder.
+    //
     // Version 12 saves the mutes: a mutes line carrying a digit per channel for what is
     // silenced and another for what is soloed. An older file has none and reads as a
     // project with nothing held back, which is where a load used to leave the switches
@@ -101,7 +111,7 @@ public static class ProjectFormat
     // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
     // reads, since a token nothing answers to is skipped, but the parameters that
     // no longer exist fall back to the default patch rather than being converted.
-    public const int Version = 12;
+    public const int Version = 13;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -204,8 +214,7 @@ public static class ProjectFormat
          " dsend=" + F(patch.delaySend);
 
     static string WriteLimiter(in Limiter limiter)
-      => "drive=" + F(limiter.drive) +
-         " ceiling=" + F(limiter.ceiling) +
+      => "ceiling=" + F(limiter.ceiling) +
          " attack=" + F(limiter.attack) +
          " release=" + F(limiter.release);
 
@@ -290,7 +299,7 @@ public static class ProjectFormat
                     break;
 
                 case "limiter":
-                    ReadLimiter(ref project.Limiter, tokens);
+                    ReadLimiter(ref project.Limiter, tokens, version);
                     break;
 
                 case "mutes":
@@ -574,8 +583,15 @@ public static class ProjectFormat
 
     // The one limiter line, read with the same tolerance the fx line gets: a missing
     // key keeps the default, which for a version 10 file is every one of them.
-    static void ReadLimiter(ref Limiter limiter, string[] tokens)
+    //
+    // The drive is the one retired key in this project that is read rather than skipped,
+    // because it is not a parameter that went away — it is half of a number that is still
+    // here. Held until the line is finished, since the keys arrive in whatever order they
+    // were written in and a conversion cannot be done on the first of the two to turn up.
+    static void ReadLimiter(ref Limiter limiter, string[] tokens, int version)
     {
+        var drive = 0.0f;
+
         for (var i = 1; i < tokens.Length; i++)
         {
             var (key, text) = Split(tokens[i]);
@@ -583,13 +599,31 @@ public static class ProjectFormat
 
             switch (key)
             {
-                case "drive": limiter.drive = value; break;
+                case "drive": drive = value; break;
                 case "ceiling": limiter.ceiling = value; break;
                 case "attack": limiter.attack = value; break;
                 case "release": limiter.release = value; break;
             }
         }
+
+        if (version < 13) limiter.ceiling = LimiterSqueeze(limiter.ceiling, drive);
     }
+
+    // A version 12 drive and ceiling as the one ceiling that now stands for both.
+    //
+    // The old pair pushed the mix d dB up into a ceiling c dB down and left the output
+    // sitting there, so what the peaks were squeezed by was d - c: everything the drive
+    // added, plus everything the ceiling was already below full scale by. That figure is
+    // what the ceiling holds on its own now, with the make-up gain putting the output
+    // back at full scale — so a converted file keeps its shape exactly and comes back
+    // |c| dB louder, which is the change rather than a side effect of it.
+    //
+    // A pair that reaches further than the bar now does comes back at the end of it. That
+    // is a real loss of squeeze and it takes a drive of more than 48dB over the ceiling
+    // to reach: past there the old limiter was flattening everything to a constant, and
+    // there is no number here that says so.
+    static float LimiterSqueeze(float ceiling, float drive)
+      => Math.Clamp(ceiling - drive, Limiter.MinCeiling, 0.0f);
 
     // The one mutes line, read with the tolerance the two lines above it get. A key
     // nothing answers to is skipped, a missing one leaves its whole set where the

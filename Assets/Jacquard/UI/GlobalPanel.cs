@@ -71,11 +71,16 @@ sealed class GlobalPanel
         _body.Add(Controls.Divider());
         _body.Add(Controls.Heading("Limiter"));
 
-        // Drive first, because it is the one that is played. The other three are the
-        // shape of what it runs into.
-        _body.Add(Controls.Bar("Drive", DriveRange,
-                               () => Limiter.drive, v => Limiter.drive = v));
-        _body.Add(Controls.Bar("Ceiling", CeilingRange,
+        // Threshold first, because it is the one that is played. The other two are the
+        // shape of what it does.
+        //
+        // The field behind it is called ceiling and the label is not, which is the one
+        // place in this project where the two disagree on purpose. A ceiling is where an
+        // output lands, and with the make-up automatic this output always lands at full
+        // scale; what the hand on this bar is choosing is where limiting begins. The model
+        // keeps the other name because down there it is still the level the gain holds the
+        // mix under, and renaming it would be a format bump for a word.
+        _body.Add(Controls.Bar("Threshold", ThresholdRange,
                                () => Limiter.ceiling, v => Limiter.ceiling = v));
         _body.Add(Controls.Bar("Attack", AttackRange,
                                () => Limiter.attack, v => Limiter.attack = v));
@@ -88,17 +93,22 @@ sealed class GlobalPanel
     // this holds, every frame.
     ref Limiter Limiter => ref _editor.Project.Limiter;
 
-    // Decibels, which nothing else on screen is in, for the reason the settings
-    // themselves are: what a drive does is double the signal a few times over, and a
-    // bar counting multipliers spends most of its travel on the first of them. A dB is
-    // already a logarithm, so the bar over one is straight and a pixel is worth the
-    // same amount of push wherever it is taken.
-    static readonly ValueBar.Range DriveRange =
-      new ValueBar.Range(0.0f, Jacquard.Limiter.MaxDrive, digits: 1, unit: "dB");
-
-    // Down from full scale, and no further than the drive reaches up: past that the
-    // two are simply fighting each other with the output quieter for it.
-    static readonly ValueBar.Range CeilingRange =
+    // Down from full scale, and read as how far the mix is squeezed rather than as where
+    // the output lands: the make-up gain gives back whatever this takes off, so pulling
+    // the bar down makes the thing harder without making it quieter. That is what leaves
+    // it as the one number here that is played, and why there is no second bar beside it
+    // — a make-up to be set by hand would only ever be set to this, negated.
+    //
+    // It runs to 48dB down, which is most of the bar spent somewhere no limiter is meant
+    // to be taken and is the point: this is an instrument, and the bottom of this bar is
+    // the soft clip playing the whole mix.
+    //
+    // Decibels, which nothing else on screen is in, for the reason the setting itself is:
+    // what a squeeze does is halve the signal a few times over, and a bar counting
+    // multipliers spends most of its travel on the first of them. A dB is already a
+    // logarithm, so the bar over one is straight and a pixel is worth the same amount
+    // wherever it is taken.
+    static readonly ValueBar.Range ThresholdRange =
       new ValueBar.Range(Jacquard.Limiter.MinCeiling, 0.0f, digits: 1, unit: "dB");
 
     // The same geometric bar an envelope time gets, and for the same reason — the

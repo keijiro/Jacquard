@@ -81,28 +81,39 @@ public struct SendFxRuntime
          delaySpread == other.delaySpread;
 }
 
-// The limiter, converted: the two decibel figures as the gains they stand for, and the
-// two times as the coefficients that smooth the gain by one sample.
+// The limiter, converted: the ceiling as the gain it stands for and the make-up that
+// answers it, and the two times as the coefficients that smooth the gain by one sample.
 //
-// Both conversions are a pow and a log's worth of work for something that changes when
-// a hand moves a bar, so neither belongs in the loop that runs them forty-eight
+// Every one of those is a pow or a log's worth of work for something that changes when a
+// hand moves a bar, so none of them belongs in the loop that runs them forty-eight
 // thousand times a second. What the audio thread is handed is four multiplications.
+//
+// The make-up is the reciprocal of the ceiling and is carried rather than divided out
+// down there, which is also why it is spelled as the gain of the negated decibels: the
+// two are the same number, and reading it off the bar's own figure is what says it is
+// exactly what the ceiling took off rather than approximately so.
 
 public struct LimiterRuntime
 {
-    public float drive;   // Linear, into the ceiling
-    public float ceiling; // Linear, what the output is held under
+    public float ceiling; // Linear, what the gain holds the mix under
+    public float makeUp;  // Linear, precisely what the ceiling took off
     public float attack;  // One pole coefficient, gain coming down
     public float release; // And going back up
 
     public static LimiterRuntime FromSettings(in Limiter limiter, float sampleRate)
-      => new LimiterRuntime
-        { drive = Limiter.Gain(Mathf.Clamp(limiter.drive, 0.0f, Limiter.MaxDrive)),
-          ceiling = Limiter.Gain(Mathf.Clamp(limiter.ceiling, Limiter.MinCeiling, 0.0f)),
-          attack = Coefficient(limiter.attack, sampleRate,
-                               Limiter.MinAttack, Limiter.MaxAttack),
-          release = Coefficient(limiter.release, sampleRate,
-                                Limiter.MinRelease, Limiter.MaxRelease) };
+    {
+        // Clamped once, so that the ceiling and the make-up cannot be read off two
+        // different numbers.
+        var ceiling = Mathf.Clamp(limiter.ceiling, Limiter.MinCeiling, 0.0f);
+
+        return new LimiterRuntime
+          { ceiling = Limiter.Gain(ceiling),
+            makeUp = Limiter.Gain(-ceiling),
+            attack = Coefficient(limiter.attack, sampleRate,
+                                 Limiter.MinAttack, Limiter.MaxAttack),
+            release = Coefficient(limiter.release, sampleRate,
+                                  Limiter.MinRelease, Limiter.MaxRelease) };
+    }
 
     // How much of the way to the target one sample covers. The time is a time
     // constant rather than a distance travelled, which is what makes an attack of a
@@ -111,7 +122,7 @@ public struct LimiterRuntime
       => 1.0f - Mathf.Exp(-1.0f / (Mathf.Clamp(seconds, low, high) * sampleRate));
 
     public bool Equals(in LimiterRuntime other)
-      => drive == other.drive && ceiling == other.ceiling &&
+      => ceiling == other.ceiling && makeUp == other.makeUp &&
          attack == other.attack && release == other.release;
 }
 

@@ -1090,8 +1090,8 @@ static class SelfTest
         var settings = Jacquard.Limiter.Default;
 
         // What a project opens with, against a signal already at full scale: this has
-        // to come back as it went in, since a default limiter is no drive under a
-        // ceiling at full scale.
+        // to come back as it went in, since a default limiter is a ceiling at full scale
+        // with nothing under it to hold down and a make-up of one.
         var open = RenderLimiter(Tone(Seconds(0.2f), 1.0f), settings);
         var passed = Rms(open, Seconds(0.1f), Seconds(0.2f));
         var plain = Rms(Tone(Seconds(0.2f), 1.0f), Seconds(0.1f), Seconds(0.2f));
@@ -1100,32 +1100,33 @@ static class SelfTest
               Mathf.Abs(passed / plain - 1.0f) < 0.01f,
               "out/in=" + passed / plain);
 
-        // Driven hard into a ceiling well below it. Once the gain has settled the
-        // output has to sit on the ceiling and not above it, whatever is thrown in.
-        settings.drive = 18.0f;
-        settings.ceiling = -6.0f;
+        // A full scale mix under a ceiling well below it. Once the gain has settled the
+        // peaks have to come back at full scale rather than down at the ceiling, which is
+        // the make-up giving back precisely what the ceiling took off: what the bar moves
+        // is how much of the mix is held down and not how loud the result is.
+        settings.ceiling = -12.0f;
 
-        var driven = RenderLimiter(Tone(Seconds(0.5f), 0.5f), settings);
-        var ceiling = Jacquard.Limiter.Gain(settings.ceiling);
+        var squeezed = RenderLimiter(Tone(Seconds(0.5f), 1.0f), settings);
         var held = 0.0f;
 
         for (var i = Seconds(0.2f); i < Seconds(0.5f); i++)
-            held = Mathf.Max(held, Mathf.Abs(driven[i]));
+            held = Mathf.Max(held, Mathf.Abs(squeezed[i]));
 
-        Check(log, "the ceiling holds under a hard drive",
-              held <= ceiling * 1.02f && held > ceiling * 0.9f,
-              "peak " + held + " against a ceiling of " + ceiling);
+        Check(log, "the make-up puts the peaks back at full scale",
+              held <= 1.02f && held > 0.9f,
+              "peak " + held + " against a ceiling " + settings.ceiling + "dB down");
 
-        // And a signal quiet enough to stay under the ceiling is simply driven: this
-        // is the half of the arrangement that makes a mix louder rather than flatter.
+        // And a signal quiet enough never to reach the ceiling is lifted by the whole
+        // make-up and nothing else: this is the half of the arrangement that makes a mix
+        // louder rather than flatter, and it is what the drive used to do.
         var quiet = RenderLimiter(Tone(Seconds(0.2f), 0.02f), settings);
         var lifted = Rms(quiet, Seconds(0.1f), Seconds(0.2f)) /
                      Rms(Tone(Seconds(0.2f), 0.02f), Seconds(0.1f), Seconds(0.2f));
+        var makeUp = Jacquard.Limiter.Gain(-settings.ceiling);
 
-        Check(log, "a quiet mix is driven rather than limited",
-              Mathf.Abs(lifted - Jacquard.Limiter.Gain(settings.drive)) < 0.1f,
-              "lifted by " + lifted + " against a drive of " +
-              Jacquard.Limiter.Gain(settings.drive));
+        Check(log, "a mix under the ceiling is lifted by the whole make-up",
+              Mathf.Abs(lifted - makeUp) < 0.1f,
+              "lifted by " + lifted + " against a make-up of " + makeUp);
 
         // The attack is a hole in the limiting for as long as it lasts, which is what
         // a kick is heard through. The same burst under the slowest attack the panel
@@ -1151,11 +1152,28 @@ static class SelfTest
         var recovered = RenderLimiter(LoudThenQuiet(Seconds(0.5f), Seconds(0.1f),
                                                    0.5f, 0.02f), settings);
         var after = Rms(recovered, Seconds(0.3f), Seconds(0.5f));
-        var target = 0.02f * Jacquard.Limiter.Gain(settings.drive) / Mathf.Sqrt(2.0f);
+        var target = 0.02f * makeUp / Mathf.Sqrt(2.0f);
 
         Check(log, "the gain comes back after a loud passage",
               after > target * 0.9f,
               "tail RMS " + after + " against " + target + " at full gain");
+
+        // A version 12 file said the same squeeze with two numbers, a drive pushing up
+        // into a ceiling that held the output down, so it has to arrive as the one that
+        // carries it now: 12dB of push into a ceiling 6dB down is 18dB of squeeze. The
+        // second pair reaches past the bar and comes back at the end of it.
+        var folded = ProjectFormat.Read(
+          "jacquard 12\nlimiter drive=12 ceiling=-6 attack=0.01 release=0.2\n").Limiter;
+
+        var beyond = ProjectFormat.Read(
+          "jacquard 12\nlimiter drive=48 ceiling=-6\n").Limiter;
+
+        Check(log, "a version 12 drive folds into the ceiling",
+              Mathf.Abs(folded.ceiling + 18.0f) < 0.001f &&
+              Mathf.Abs(folded.attack - 0.01f) < 0.0001f &&
+              Mathf.Abs(beyond.ceiling - Jacquard.Limiter.MinCeiling) < 0.001f,
+              "ceiling=" + folded.ceiling + " attack=" + folded.attack +
+              ", and 48dB over 6 clamps to " + beyond.ceiling);
     }
 
     // Rendering helpers

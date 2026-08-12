@@ -36,7 +36,7 @@ Using it
 | Go to a channel | Select on its row, which puts the cursor on the `CHAN` tile that names it |
 | Reverb and delay | The Send FX button opens the panel they are set on; how much of a channel reaches each is the last two rows of its Sound panel |
 | Play the sequence by hand | The Live FX button opens a row of buttons that act while they are held |
-| Loudness and punch | The Global button opens the panel the limiter is set on; Drive is the one that is played |
+| Loudness and punch | The Global button opens the panel the limiter is set on; Threshold is the one that is played, and the make-up gain follows it so the mix gets louder as it gets harder; the bottom of that bar is the whole mix through the soft clip |
 | What a lock holds | Select it, then move a bar on the Lock panel; click a name to let go |
 | Play | Space, or the Play button |
 | Tempo | The bpm bar beside Play, which the delay is in time with |

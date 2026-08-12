@@ -22,7 +22,15 @@ namespace Jacquard.App {
 //
 // There is no ratio and no knee. Above the ceiling the gain is exactly what holds the
 // output at it, which is an infinite ratio and a hard knee, and everything a knee would
-// have softened is softened by the attack instead. What is played is the drive.
+// have softened is softened by the attack instead.
+//
+// The make-up is a second gain, fixed, and it is applied after the first rather than
+// before: the detector has to go on reading the mix as it arrives, or the ceiling would
+// be measured against a signal that has already been given back what the ceiling took
+// off, and nothing would ever settle. In that order the two multiply out to something
+// simple — under the ceiling the mix is lifted by the make-up and nothing else, and at
+// the peaks the output lands on full scale however far down the ceiling is. What the bar
+// moves is therefore how much of the mix is held down, not how loud the result is.
 //
 // State is one float in a NativeArray for the reason the other two buses keep theirs
 // there: this struct is copied into the render job, so anything written to a field of
@@ -42,7 +50,7 @@ public struct LimiterBus
         if (state.IsCreated) state.Dispose();
     }
 
-    // Drives the mix into the ceiling and holds it there, in place.
+    // Holds the mix under the ceiling and gives back what that cost, in place.
     public void Process(NativeArray<float> left, NativeArray<float> right,
                         int frameCount, in LimiterRuntime settings)
     {
@@ -55,8 +63,8 @@ public struct LimiterBus
 
         for (var frame = 0; frame < frameCount; frame++)
         {
-            var l = left[frame] * settings.drive;
-            var r = right[frame] * settings.drive;
+            var l = left[frame];
+            var r = right[frame];
 
             // The loudest of the two sides, so the two are held down together — and
             // held rather than followed: a peak is taken the instant it arrives and
@@ -83,8 +91,12 @@ public struct LimiterBus
             gain += (target - gain) *
                     (target < gain ? settings.attack : settings.release);
 
-            left[frame] = l * gain;
-            right[frame] = r * gain;
+            // The two gains as one multiplication per side. The moving one is what the
+            // state carries, so the make-up is folded in here rather than into it.
+            var applied = gain * settings.makeUp;
+
+            left[frame] = l * applied;
+            right[frame] = r * applied;
         }
 
         state[Peak] = held;

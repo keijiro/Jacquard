@@ -377,13 +377,42 @@ Notes on the prototype
   an effect.
 - **The limiter is not there to stop the mix clipping**; a soft clip was already doing
   that, and doing it without a control. It is there for the thing a limiter is actually
-  reached for on a drum machine — pushing the mix into a ceiling hard enough that the
-  loud parts hold still and the quiet ones come up behind them. So the control that is
-  played is the **drive**, and there is no threshold and no ratio: the ratio is infinite,
-  which is what makes it a limiter rather than something to be dialled in, and the
-  threshold and the drive are the same knob read from opposite ends. Pushing up into a
-  fixed ceiling is the end a player thinks in, and it leaves the output where it was put
-  instead of moving it every time the squeeze changes.
+  reached for on a drum machine — squeezing the mix hard enough that the loud parts hold
+  still and the quiet ones come up behind them. So there is one control, the
+  **threshold**, and it says how far the mix is squeezed rather than where the output
+  lands: **the make-up gain is derived from it and gives back exactly what it took off**,
+  so pulling the bar down makes the thing louder and harder together. There is no ratio
+  either — it is infinite, which is what makes this a limiter rather than something to be
+  dialled in.
+
+  The label is Threshold and the field is `ceiling`, which is the one deliberate
+  disagreement of that kind here: with the make-up automatic the output always lands at
+  full scale, so what the hand is choosing is where limiting begins, while down in the
+  bus it is still the level the gain holds the mix under. Renaming the field would be a
+  format bump for a word.
+
+  **The bar reaches 48dB down**, which is a make-up of 251 and most of its travel spent
+  somewhere no limiter is meant to be taken. That is the point: past a certain depth
+  everything in the mix is above the threshold, the gain stops articulating anything and
+  what is heard is the soft clip on the whole mix. It is an instrument, so the far end of
+  a bar is a sound rather than a warning.
+
+  **It used to be a pair, and the make-up is what collapsed them.** A drive pushed the
+  mix up into a ceiling that held the output down where it was put, which is the same
+  knob read from opposite ends: every setting worth having had one of them parked while
+  the other did the work, a ceiling below the drive was the two of them fighting with the
+  output quieter for it, and the only thing the drive was really for was getting the level
+  back. Deriving that instead of offering it removes a bar, removes the way of setting the
+  two against each other, and leaves the one number a hand reaches for. What it costs is
+  that the output is no longer somewhere a project can put it — full scale is where every
+  mix now lands, and the soft clip is what stands behind that.
+
+  The make-up is applied **after** the moving gain rather than before it, which is not a
+  detail: the detector has to go on reading the mix as it arrives, or the ceiling would be
+  measured against a signal that has already been given back what the ceiling took off and
+  nothing would ever settle. In that order the two multiply out to something simple —
+  under the ceiling the mix is lifted by the make-up and nothing else, at the peaks the
+  output lands on full scale however far down the ceiling is.
 
   **The attack is a hole in the limiting for as long as it lasts, and that hole is the
   punch.** The gain carries the attack and the release rather than a follower ahead of
@@ -413,13 +442,21 @@ Notes on the prototype
   send effects there — a send is at least a thing a note can be given more or less of,
   and there is no per note share of a limiter to put in a patch.
 
-  Two of its four numbers are in **decibels, which nothing else in this project is.** A
-  drive and a ceiling are ratios of amplitude and the useful span of one is a few
-  doublings, so a linear bar spends most of its travel on the first of them and every
-  number on it reads as a multiplier nobody thinks in. A dB is already a logarithm, so
-  the bar over one is straight and a pixel is worth the same amount of push wherever it
-  is taken. The conversion to a gain, and the two times to one pole coefficients, happen
-  once on the way to the audio thread.
+  One of its three numbers is in **decibels, which nothing else in this project is.** A
+  ceiling is a ratio of amplitude and the useful span of one is a few doublings, so a
+  linear bar spends most of its travel on the first of them and every number on it reads
+  as a multiplier nobody thinks in. A dB is already a logarithm, so the bar over one is
+  straight and a pixel is worth the same amount wherever it is taken. The conversion to a
+  gain, to the make-up that answers it, and of the two times to one pole coefficients all
+  happen once on the way to the audio thread.
+
+  An older file is **converted rather than having its drive skipped**, which is what every
+  other retired key here gets: the two numbers together said what one of them says now, so
+  `ProjectFormat` folds a drive of d dB into a ceiling c dB down as a ceiling of c − d and
+  version 13 is what makes that possible. The shape survives exactly; the level does not,
+  and cannot — the old pair left the output down at the ceiling and the make-up is
+  precisely the decision to stop doing that, so a converted project comes back |c| dB
+  louder.
 
   **The panel is Global rather than Limiter**, which is a name for what will be on it
   rather than for what is on it now. A Limiter panel would be the right name for exactly
