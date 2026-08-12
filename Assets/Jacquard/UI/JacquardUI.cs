@@ -76,6 +76,11 @@ sealed class JacquardUI
                                               _lock.Root)));
         ShowSend(false);
 
+        // The other edge, and the only panel with no switch and no cursor behind it.
+        // A mute is played, so it is up whenever the app is.
+        _channels = new ChannelsPanel(_editor, app.Mutes);
+        body.Add(PanelEdge(true, PanelColumn(_channels.Root)));
+
         // Neither column, because this one is not read: it is played. The columns are
         // where the eye goes and the bottom edge is where the hands already are.
         _live = new LivePanel(app.Live, () => _app.Synth.CurrentSample, Refocus);
@@ -304,6 +309,9 @@ sealed class JacquardUI
         // effect settings of its own.
         _reverb.Refresh();
         _delay.Refresh();
+        // And here for the one that reaches the channels: a lane arriving or leaving
+        // is a channel becoming reachable or not.
+        _channels.Refresh();
     }
 
     // Every panel on the right shows whatever the cursor is on: the inspector the
@@ -410,6 +418,7 @@ sealed class JacquardUI
     readonly LockPanel _lock;
     readonly SendPanel _reverb;
     readonly SendPanel _delay;
+    readonly ChannelsPanel _channels;
     readonly LivePanel _live;
     readonly StringBuilder _text = new();
 

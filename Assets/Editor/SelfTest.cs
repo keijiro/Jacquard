@@ -25,6 +25,7 @@ static class SelfTest
         Stack(log);
         Locks(log);
         Channels(log);
+        Mutes(log);
         Sends(log);
         Pan(log);
         Live(log);
@@ -380,6 +381,81 @@ static class SelfTest
               "ch1=" + legacy.Patches[1].level +
               " ch" + PatchBank.Channels + "=" +
               legacy.Patches[PatchBank.Channels].level);
+    }
+
+    // A mute drops notes and nothing else. The promise is that the run is unchanged —
+    // the laps go on counting, so a channel let back in is heard from where the
+    // sequence has got to — and that a solo overrules a mute rather than clearing it.
+    static void Mutes(System.Text.StringBuilder log)
+    {
+        const int sampleRate = 48000;
+
+        var mutes = new ChannelMutes();
+        var project = new Project();
+        var score = project.Score;
+
+        // Two lanes of one step, told apart by their patch level the way the channel
+        // check tells its two apart.
+        score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 1);
+        score.AddLane(1, 3, new ChannelTile { Channel = 2 }, 1);
+
+        foreach (var lane in score.Lanes)
+            lane.Steps[0].Tiles.Add(new NoteTile { Note = 60 });
+
+        project.Patches[1].level = 0.25f;
+        project.Patches[2].level = 0.75f;
+
+        var sequencer = new Sequencer { Project = project, Mutes = mutes };
+
+        mutes.SetMuted(1, true);
+
+        var muted = Play(sequencer, sampleRate);
+
+        Check(log, "a muted channel is silent and the other one is not",
+              muted.Count == 1 && Mathf.Abs(muted[0].level - 0.75f) < 0.001f,
+              muted.Count + " notes");
+
+        // The lap the muted lane was on has to have turned over anyway, which is what
+        // says the runner was never stopped.
+        var laps = 0;
+        foreach (var runner in sequencer.Runners)
+            if (runner.Channel == 1) laps = runner.Pass;
+
+        Check(log, "a muted channel goes on running", laps > 0,
+              "channel 1 is on lap " + (laps + 1));
+
+        // Soloing the channel that is muted is the case that says which of the two
+        // wins: it sounds, and the other one does not, without the mute being touched.
+        mutes.SetSoloed(1, true);
+
+        var soloed = Play(sequencer, sampleRate);
+
+        Check(log, "a solo overrules a mute rather than clearing it",
+              soloed.Count == 1 && Mathf.Abs(soloed[0].level - 0.25f) < 0.001f &&
+              mutes.IsMuted(1),
+              soloed.Count + " notes, and the mute is " +
+              (mutes.IsMuted(1) ? "kept" : "GONE"));
+
+        // And dropping the last solo gives back the mix that was underneath it.
+        mutes.SetSoloed(1, false);
+
+        var restored = Play(sequencer, sampleRate);
+
+        Check(log, "dropping the last solo gives the mutes back",
+              restored.Count == 1 && Mathf.Abs(restored[0].level - 0.75f) < 0.001f,
+              restored.Count + " notes");
+    }
+
+    // One lap of a sequence, from a standing start.
+    static System.Collections.Generic.List<FmNoteEvent> Play(Sequencer sequencer,
+                                                             int sampleRate)
+    {
+        var notes = new System.Collections.Generic.List<FmNoteEvent>();
+
+        sequencer.Play(0, 0);
+        sequencer.Schedule(0, sampleRate / 10, sampleRate, notes);
+
+        return notes;
     }
 
     // A send amount is a field of the patch, so a lock reaches it the way it reaches

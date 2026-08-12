@@ -24,6 +24,10 @@ public sealed class Sequencer
 
     public Project Project { get; set; }
 
+    // Which channels are heard. Nothing about the run depends on it — see the note on
+    // the note tile in Descend — and a sequencer without one hears everything.
+    public ChannelMutes Mutes { get; set; }
+
     public bool IsPlaying => _playing;
 
     public IReadOnlyList<Runner> Runners => _runners;
@@ -186,6 +190,15 @@ public sealed class Sequencer
                     break;
 
                 case NoteTile note:
+                    // A muted channel is read exactly as an unmuted one and drops its
+                    // notes on the way out, which is the last thing that happens to
+                    // one. Nothing above this line asks: the gates have already turned
+                    // over, the locks have already coloured the working patch and the
+                    // jump below is still taken, so a channel let back in is heard
+                    // from where the sequence has got to rather than from a lap that
+                    // was never run.
+                    if (Mutes != null && !Mutes.Sounds(channel)) break;
+
                     // Every note of a chord takes the channel as it stands where it
                     // sits, so a lock between two of them separates the two.
                     output.Add(FmNoteEvent.FromPatch(_working[channel], note.Note,

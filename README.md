@@ -32,6 +32,8 @@ Using it
 | Details of a tile | The panel on the right follows the cursor |
 | Set a number | Drag its bar right or up, shift for fine; double click to type one |
 | Timbre | Select a `CHAN` cell, which brings up the Sound panel for its channel |
+| Silence a channel, or hear one alone | Its Mute or Solo switch on the Channels panel; a solo overrules every mute |
+| Go to a channel | Select on its row, which puts the cursor on the `CHAN` tile that names it |
 | Reverb and delay | The Send FX button opens the panel they are set on; how much of a channel reaches each is the last two rows of its Sound panel |
 | Play the sequence by hand | The Live FX button opens a row of buttons that act while they are held |
 | What a lock holds | Select it, then move a bar on the Lock panel; click a name to let go |

@@ -97,6 +97,10 @@ public sealed class JacquardApp : MonoBehaviour
     public CoreProject Project { get; private set; }
     public Sequencer Sequencer { get; private set; }
     public LiveFx Live { get; private set; }
+
+    // Not part of the project, and so not replaced by a load: a hand over one channel
+    // of the mix belongs to whoever is at the machine rather than to the file.
+    public ChannelMutes Mutes { get; private set; }
     public FmSynth Synth { get; private set; }
     public ScoreEditor Editor { get; private set; }
     public ScoreView View { get; private set; }
@@ -188,7 +192,8 @@ public sealed class JacquardApp : MonoBehaviour
         Project = ReadStartupScore();
 
         Synth = new FmSynth(MaxVoices);
-        Sequencer = new Sequencer { Project = Project };
+        Mutes = new ChannelMutes();
+        Sequencer = new Sequencer { Project = Project, Mutes = Mutes };
         Live = new LiveFx();
 
         View = new ScoreView { Score = Project.Score, Sequencer = Sequencer };

@@ -429,9 +429,39 @@ Notes on the prototype
   the past, with their heads already cut off. So the mark it resumes from is never
   behind the handover.
 
+- **A mute is not an edit**, which is what makes the Channels panel worth having next to
+  a delete key. `ChannelMutes` holds a mute and a solo per channel and the sequencer asks
+  it one question, at the last moment it can: a note tile on a silent channel is dropped
+  on the way out and nothing above that line is skipped. The gates have already turned
+  over, the locks have already coloured the working patch, the jump under it is still
+  taken and the lap still counts — so letting a channel back in is hearing it from where
+  the sequence has got to, and that is precisely what deleting the lane and undoing it
+  could not do.
+
+  **A solo is a mute of everything else**, so the two live in one object rather than two:
+  with anything soloed the question is whether a channel is one of them and the mutes are
+  not consulted at all. They are kept rather than cleared, which is why the switches grey
+  out instead of clearing themselves — dropping the last solo gives back the mix that was
+  underneath it.
+
+  **None of it is saved.** A file holds the piece; a hand held over one channel of it is a
+  performance, which is the argument the live effects are kept out of the format by. So
+  there is no key on any line, no version bump, and a load leaves the mutes where the
+  hands left them.
+
+  The panel is the one with no switch and no cursor behind it, up in the top left
+  whenever the app is. Everything else on screen is either the cursor's or has a button
+  on the transport row, and both of those exist to keep the plane clear — but a mute is
+  played, and reaching for a switch to reach for a mute is a beat too late. It shows all
+  eight channels at once because that is what it is for: a mute is only pressed against
+  what the rest of the mix is doing. *Select* is the row's way onto the plane rather than
+  a second way of opening a panel — it moves the cursor to the `CHAN` tile that names the
+  channel, and the Sound panel comes up because the cursor is on it, the same rule as
+  ever. A channel with no lane has nowhere to go and greys out, which is also the only
+  place on screen that says which of the eight are in use.
 - **The Live FX panel is the one that is played rather than read**, so it is the one in
-  neither column. The columns are where the eye goes — the cursor's panels on
-  the right saying what the score holds, the project's on the left — and reading is done
+  neither column. The columns are where the eye goes — the cursor's panels and the send
+  effects on the right, the channels on the left — and reading is done
   at arm's length from what is being said. A column would also put this under one hand
   and out of reach of the other, and take a corner of the plane for something that is up
   only while it is being used. Across the bottom, centred, it is as wide as its own
