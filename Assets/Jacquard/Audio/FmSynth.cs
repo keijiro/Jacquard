@@ -59,8 +59,9 @@ public sealed class FmSynth : System.IDisposable
     // where the lack of any handshake between the two is argued.
     public FmSynthScope Scope => _backend.Scope;
 
-    // Called once a frame. Nothing under the pipeline, where the audio thread asks
-    // for what it needs; on the Web it is the entire engine.
+    // Called once a frame. On the Web it is the entire engine; under the pipeline the
+    // audio thread asks for what it needs and this is left watching the clock for a
+    // deadline that thread missed, which is the one thing it cannot report itself.
     public void Pump() => _backend.Pump();
 
     public void Dispose() => _backend.Dispose();

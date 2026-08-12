@@ -170,6 +170,37 @@ Notes on the prototype
   how much of what was pushed is still unplayed, so the position cannot drift from what
   is being heard and a late frame is an audible gap rather than a synth that has
   quietly stopped agreeing with the sequencer.
+- **The pipeline driver watches the clock for a deadline nothing else reports.** The
+  audio thread has one buffer's worth of time to answer in — 5.3ms at the 256 frames
+  this project asks for — and a miss is silent. What happens then is that those samples
+  are never mixed at all: the device is handed whatever was already in front of it, and
+  the music has a hole in it with a hard edge at either end, which is heard as a bang
+  and has nothing to do with what was played. So `FmSynthPipeline.Pump`, which under
+  this driver had nothing else to do, measures it. The DSP clock counts samples the
+  audio system has processed and the device consumes them on a crystal of its own, so a
+  stretch that was never mixed leaves the two permanently that much further apart; what
+  is watched for is the step, not the offset.
+
+  A single reading of it is useless — the clock stands still between one mix cycle and
+  the next, so it carries a whole buffer of quantisation against an event worth a
+  buffer — but the highest reading over half a second is not, since some frame does
+  land just after a cycle begins. Measured on a healthy stream that peak moved by at
+  most 0.44ms from one window to the next, against a threshold of half a buffer.
+
+  **What the warning tells you to do is lengthen the buffer, and that rests on a
+  measurement.** The mix costs 0.24ms of the 5.3ms typically and 1.29ms with all
+  twenty-four voices sounding, so a miss is the thread being taken away rather than the
+  synth asking for more than it may have — in the editor, by whatever is importing
+  assets or compiling Burst beside it. Scheduling the render as a job and waiting on it
+  in `EndProcessing` was tried as the culprit and was not; running it inline changed
+  nothing and was reverted. The threshold is read from the buffer size rather than
+  written down, so raising the buffer raises what it takes to trip the warning by the
+  same amount.
+
+  It lives in the driver rather than in the app because it is only true of this driver.
+  `AudioSettings.dspTime` is Unity's audio system, and on the Web the synth does not go
+  through Unity's audio system at all, so the same reading there would be about a mixer
+  nobody is listening to.
 - **The Web page is the project's own, because the canvas has to be the window.** Both
   built-in templates ship the canvas at the size Player Settings names and leave it
   there, which for a plane that is panned around means the work area is whatever was
