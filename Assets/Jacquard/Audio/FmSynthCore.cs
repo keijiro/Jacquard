@@ -218,9 +218,22 @@ struct FmSynthCore
             scope.Write(outL, outR, frameCount);
         }
 
-        // A Pade approximant of tanh. The library function would read better, but
-        // it is an extern that Burst declines to resolve, and that quietly drops the
-        // whole job back to managed execution on the audio thread.
+        // A Pade approximant of tanh — x(27 + x²) / (27 + 9x²), with the square held at
+        // nine so that |x| >= 3 lands on exactly one and the clamp carries on from there.
+        //
+        // The note that used to stand here said the library function was an extern Burst
+        // declines to resolve. That is true of System.MathF, which is why Jacquard.Core
+        // has FastMath, and it is not true of math.tanh: measured with a [BurstDiscard]
+        // probe in this assembly, a job calling math.tanh stays compiled and costs 0.77ns
+        // a call against 0.56ns for this, which over the 512 calls a buffer makes is a
+        // fifth of a microsecond. So the reason to keep this is the shape and not the
+        // speed — it saturates at a finite input where a real tanh only approaches one,
+        // and that corner at ±3 is a decision about the sound rather than an accident.
+        //
+        // Worth knowing if MathF is ever reached for again: one extern Burst cannot
+        // resolve disables the compiled library for the whole assembly, so a single
+        // MathF call in one job silently drops unrelated jobs beside it to managed
+        // execution as well.
         static float SoftClip(float x)
         {
             var s = math.min(x * x, 9.0f);

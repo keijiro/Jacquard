@@ -817,6 +817,17 @@ Notes on the prototype
 - **`MathF` is not used in the DSP.** Burst cannot resolve the externs behind
   it, and a job that calls `MathF.Sin` silently drops to managed execution on
   the audio thread, so `FastMath` spells out the sine and the exponential.
+
+  Two things measured with a `[BurstDiscard]` probe on 2026-08-12, both worth knowing
+  before believing a comment about this. **The fallout is per assembly, not per job**: the
+  error is `Unable to find internal function System.MathF::Tanh` raised while the compiled
+  library initialises, so one MathF call in one job takes unrelated jobs beside it down to
+  managed execution too — a bare job in the same class reported managed until the offending
+  one was deleted. And **`Unity.Mathematics` is not affected**: `math.sin` and `math.tanh`
+  both stay compiled, at 0.7 to 0.8ns a call against 8ns managed. `FastMath` exists because
+  `Jacquard.Core` is built with `noEngineReferences` and `Unity.Mathematics` is not, not
+  because `math` is a problem for Burst — and it holds its own there anyway, timing the
+  same as `math.sin` to within the noise.
 - **The chrome has two metric profiles rather than a UI scale**, and what separates
   them is not the screen but the pointer: a mouse lands on whatever it is over, and a
   fingertip covers about nine millimetres of glass whatever is under it. `Controls`
