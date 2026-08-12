@@ -33,7 +33,7 @@ Using it
 | Set a number | Drag its bar right or up, shift for fine; double click to type one |
 | Timbre | Select a `CHAN` cell, which brings up the Sound panel for its channel |
 | Reverb and delay | The Send FX button opens the panel they are set on; how much of a channel reaches each is the last two rows of its Sound panel |
-| Play the sequence by hand | The Punch-in FX button opens a row of buttons that act while they are held |
+| Play the sequence by hand | The Live FX button opens a row of buttons that act while they are held |
 | What a lock holds | Select it, then move a bar on the Lock panel; click a name to let go |
 | Play | Space, or the Play button |
 | Tempo | The bpm bar beside Play, which the delay is in time with |
@@ -54,7 +54,7 @@ A lane holds its whole row from `CHAN` to `TERM` whether anything is written on
 it yet or not, so nothing else can grow across it and no lane can be dropped on
 one. Give a lane a clear row of its own and it will take tiles anywhere along it.
 
-Punch-in FX
+Live FX
 -----------
 
 Twelve buttons along the bottom of the screen that act only while they are held,

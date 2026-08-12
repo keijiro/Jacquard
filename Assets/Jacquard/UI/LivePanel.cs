@@ -3,7 +3,7 @@ using UnityEngine.UIElements;
 
 namespace Jacquard.App {
 
-// The twelve punch-in effects, on twelve buttons that are on only while they are held.
+// The twelve live effects, on twelve buttons that are on only while held.
 //
 // The other four panels set something and leave it set. This one sets nothing: what a
 // button here does lasts exactly as long as a finger is on it, which is why they are
@@ -34,18 +34,18 @@ namespace Jacquard.App {
 // loops at its terminator and that is a different thing entirely; a roll is the one
 // that is held.
 
-sealed class PunchPanel
+sealed class LivePanel
 {
     public VisualElement Root { get; }
 
     // released is what hands the keyboard back to the plane. It is the panel's caller
     // that knows where focus belongs, and the lift is the only moment it can be given
     // back — a press is settled by the focus controller after this sees it.
-    public PunchPanel(PunchFx punch, Func<long> clock, Action released)
+    public LivePanel(LiveFx live, Func<long> clock, Action released)
     {
-        (_punch, _clock, _released) = (punch, clock, released);
+        (_live, _clock, _released) = (live, clock, released);
 
-        Root = Controls.Panel("Punch-in FX");
+        Root = Controls.Panel("Live FX");
 
         // As wide as the two rows it holds and no wider. Every other panel is one
         // column of rows, so PanelWidth is the answer for all of them; this one is
@@ -55,30 +55,30 @@ sealed class PunchPanel
 
         Root.Add(Controls.Divider());
 
-        Root.Add(Buttons(PunchEffect.Reverb, PunchEffect.Stab, PunchEffect.OctaveDown,
-                         PunchEffect.Fall, PunchEffect.Roll1, PunchEffect.Roll3));
+        Root.Add(Buttons(LiveEffect.Reverb, LiveEffect.Stab, LiveEffect.OctaveDown,
+                         LiveEffect.Fall, LiveEffect.Roll1, LiveEffect.Roll3));
 
-        Root.Add(Buttons(PunchEffect.Delay, PunchEffect.Sustain, PunchEffect.OctaveUp,
-                         PunchEffect.Rise, PunchEffect.Roll2, PunchEffect.Roll4));
+        Root.Add(Buttons(LiveEffect.Delay, LiveEffect.Sustain, LiveEffect.OctaveUp,
+                         LiveEffect.Rise, LiveEffect.Roll2, LiveEffect.Roll4));
     }
 
     // Private members
 
-    readonly PunchFx _punch;
+    readonly LiveFx _live;
     readonly Func<long> _clock;
     readonly Action _released;
 
     // Wide enough for Roll 3/16, which is the longest label here.
     const float ButtonWidth = 70.0f;
 
-    VisualElement Buttons(params PunchEffect[] effects)
+    VisualElement Buttons(params LiveEffect[] effects)
     {
         var row = Controls.Row();
 
         foreach (var fx in effects)
             row.Add(Controls.Hold(Name(fx),
-                                  () => _punch.Press(fx, _clock()),
-                                  () => { _punch.Release(fx); _released(); },
+                                  () => _live.Press(fx, _clock()),
+                                  () => { _live.Release(fx); _released(); },
                                   ButtonWidth));
 
         // The last button in a row carries a gap to its right that has nothing on the
@@ -89,24 +89,24 @@ sealed class PunchPanel
         return row;
     }
 
-    static string Name(PunchEffect fx)
+    static string Name(LiveEffect fx)
       => fx switch
-        { PunchEffect.Reverb => "Reverb",
-          PunchEffect.Delay => "Delay",
-          PunchEffect.Stab => "Stab",
-          PunchEffect.Sustain => "Sustain",
+        { LiveEffect.Reverb => "Reverb",
+          LiveEffect.Delay => "Delay",
+          LiveEffect.Stab => "Stab",
+          LiveEffect.Sustain => "Sustain",
           // A plain hyphen and plus, which is what the steppers already use: the
           // typographic pair would be the only two glyphs on the chrome that are not
           // on a keyboard.
-          PunchEffect.OctaveDown => "Oct -",
-          PunchEffect.OctaveUp => "Oct +",
-          PunchEffect.Fall => "Fall",
-          PunchEffect.Rise => "Rise",
+          LiveEffect.OctaveDown => "Oct -",
+          LiveEffect.OctaveUp => "Oct +",
+          LiveEffect.Fall => "Fall",
+          LiveEffect.Rise => "Rise",
           // Reduced, since that is how a note value is written everywhere else and
           // 2/16 is not one. Three sixteenths has no shorter spelling of its own.
-          PunchEffect.Roll1 => "Roll 1/16",
-          PunchEffect.Roll2 => "Roll 1/8",
-          PunchEffect.Roll3 => "Roll 3/16",
+          LiveEffect.Roll1 => "Roll 1/16",
+          LiveEffect.Roll2 => "Roll 1/8",
+          LiveEffect.Roll3 => "Roll 3/16",
           _ => "Roll 1/4" };
 }
 

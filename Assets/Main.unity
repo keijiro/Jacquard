@@ -243,7 +243,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Jacquard::Jacquard.App.JacquardApp
   <MaxVoices>k__BackingField: 24
   <Lookahead>k__BackingField: 0.12
-  <PunchLead>k__BackingField: 0.03
+  <LiveLead>k__BackingField: 0.03
   <StartupScore>k__BackingField: {fileID: 4900000, guid: 4f72478497783404a84b74201ce6eae8, type: 3}
   <FrameRate>k__BackingField: 60
   <Pointer>k__BackingField: 0

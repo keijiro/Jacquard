@@ -13,9 +13,9 @@ namespace Jacquard.App {
 // that applies to a cell is on the panel that follows the cursor, which is where the
 // cell already is, and the plane keeps the screen that a palette and a paragraph of
 // keys used to take. The two switches on the row are the two panels a cell cannot ask
-// for: the send effects, which belong to the project rather than to anything written
-// on the plane, and the punch-in effects, which belong to nothing at all — they are
-// held rather than set, and what they colour is gone as soon as the hand is off.
+// for: the send effects, which belong to the project rather than to anything written on
+// the plane, and the live effects, which belong to nothing at all — they are held rather
+// than set, and what they colour is gone as soon as the hand is off.
 //
 // prototype.md leaves the application level UI to be designed here, so it is kept
 // to what a prototype has to prove: that every kind of tile can be put down, tuned
@@ -78,9 +78,9 @@ sealed class JacquardUI
 
         // Neither column, because this one is not read: it is played. The columns are
         // where the eye goes and the bottom edge is where the hands already are.
-        _punch = new PunchPanel(app.Punch, () => _app.Synth.CurrentSample, Refocus);
-        body.Add(PanelDock(_punch.Root));
-        ShowPunch(false);
+        _live = new LivePanel(app.Live, () => _app.Synth.CurrentSample, Refocus);
+        body.Add(PanelDock(_live.Root));
+        ShowLive(false);
 
         _editor.Changed += OnChanged;
 
@@ -120,10 +120,9 @@ sealed class JacquardUI
 
         row.Add(Separator());
 
-        // The one panel with a switch, because it is the one panel no cell can ask
-        // for. It sits with the tempo rather than with the file controls: the delay is
-        // locked to the tempo, so the two things that decide how the sequence moves in
-        // time are next to each other.
+        // A switch, because no cell can ask for what it raises. It sits with the tempo
+        // rather than with the file controls: the delay is locked to the tempo, so the
+        // two things that decide how the sequence moves in time are next to each other.
         //
         // "Send FX" and not "Send", which would name the half of the arrangement that
         // is not here: what a channel sends is set on the Sound panel, and this is
@@ -136,9 +135,12 @@ sealed class JacquardUI
         // for, raised by the only switch it has. What separates them is that the send
         // effects are a setting of the project and these are not a setting at all, so
         // this one raises the buttons and the buttons are the whole of the effect.
-        _punchButton = Controls.Push("Punch-in FX",
-                                     () => { ShowPunch(!_punchShown); Refocus(); }, 78);
-        row.Add(_punchButton);
+        //
+        // The same width as Send FX, which is the same word long. Two buttons standing
+        // next to each other saying as much as each other should measure the same.
+        _liveButton = Controls.Push("Live FX",
+                                    () => { ShowLive(!_liveShown); Refocus(); }, 62);
+        row.Add(_liveButton);
 
         row.Add(Separator());
 
@@ -207,7 +209,7 @@ sealed class JacquardUI
     // corner it took would be a corner of the plane covered by something up only while
     // it is being used. Across the bottom it is the width of its own contents and no
     // more, it sits where both thumbs already are on a tablet held in two hands, and
-    // the score it is punching stays where it was.
+    // the score it is played over stays where it was.
     //
     // The panel's own bottom margin is what holds it off the edge, which is the same
     // gap the columns are inset by and the same rule everything else here follows: a
@@ -301,13 +303,13 @@ sealed class JacquardUI
     // whatever is held on it, because a button cannot be held once it is not on screen:
     // losing the panel loses the pointer capture, and losing the capture is already
     // what ends an effect.
-    void ShowPunch(bool shown)
+    void ShowLive(bool shown)
     {
-        _punchShown = shown;
+        _liveShown = shown;
 
-        _punch.Root.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+        _live.Root.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
 
-        Controls.SetActive(_punchButton, shown);
+        Controls.SetActive(_liveButton, shown);
     }
 
     void OnKey(KeyDownEvent evt)
@@ -377,14 +379,14 @@ sealed class JacquardUI
     readonly LockPanel _lock;
     readonly SendPanel _reverb;
     readonly SendPanel _delay;
-    readonly PunchPanel _punch;
+    readonly LivePanel _live;
     readonly StringBuilder _text = new();
 
     Button _play;
     Button _sendButton;
     bool _sendShown;
-    Button _punchButton;
-    bool _punchShown;
+    Button _liveButton;
+    bool _liveShown;
     ValueBar _tempo;
     Label _status;
     List<string> _slots;

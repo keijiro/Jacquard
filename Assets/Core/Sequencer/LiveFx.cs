@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Jacquard {
 
-// The twelve punch-in effects, in the order the panel stands them in: each pair is a
+// The twelve live effects, in the order the panel stands them in: each pair is a
 // column, and the columns read as sends, gate, octave, ramp, and then two columns of
 // roll.
 //
@@ -11,7 +11,7 @@ namespace Jacquard {
 // that separates the four of them — one class with one number different — so it is
 // the name as well.
 
-public enum PunchEffect
+public enum LiveEffect
 {
     Reverb, Delay,
     Stab, Sustain,
@@ -33,7 +33,7 @@ public enum PunchEffect
 // It reaches only what has not been handed over yet, which is also the whole of the
 // promise it makes: a voice reads its event once and never again, so a note already
 // sounding is not retuned, not shortened and not thrown into the reverb by anything
-// pressed after it began. What a punch changes is the next note.
+// pressed after it began. What a live effect changes is the next note.
 //
 // Nothing here is saved. A press is a gesture rather than a setting, so there is no
 // file key, no version bump and no lock target — which is what keeps a feature this
@@ -44,16 +44,16 @@ public enum PunchEffect
 // faster under a lane running in eighths would be two answers to how far up the
 // ramp is, and a roll is a length of time rather than a lane's idea of one.
 
-public sealed class PunchFx
+public sealed class LiveFx
 {
     // Held effects
 
-    public bool IsHeld(PunchEffect fx) => _held[(int)fx];
+    public bool IsHeld(LiveEffect fx) => _held[(int)fx];
 
     // The sample is only the moment the hand arrived: what it means depends on the
     // tempo and the grid, neither of which this is told until the next handover, so
     // it is kept and resolved there.
-    public void Press(PunchEffect fx, long sample)
+    public void Press(LiveEffect fx, long sample)
     {
         _held[(int)fx] = true;
         _pressed[(int)fx] = sample;
@@ -64,7 +64,7 @@ public sealed class PunchFx
         _sequence[(int)fx] = ++_presses;
     }
 
-    public void Release(PunchEffect fx)
+    public void Release(LiveEffect fx)
     {
         _held[(int)fx] = false;
         _rolls[(int)fx] = null;
@@ -98,7 +98,7 @@ public sealed class PunchFx
     // Handover
 
     // Takes what the sequencer produced. Nothing is decided here: an event parked now
-    // may be handed over under a punch that has not been pressed yet.
+    // may be handed over under a live effect that has not been pressed yet.
     public void Enqueue(IReadOnlyList<FmNoteEvent> notes)
     {
         for (var i = 0; i < notes.Count; i++) _queue.Add(notes[i]);
@@ -222,11 +222,11 @@ public sealed class PunchFx
     }
 
     // How many sixteenths a roll is long, and zero for everything that is not one.
-    static int RollSteps(PunchEffect fx)
-      => fx switch { PunchEffect.Roll1 => 1,
-                     PunchEffect.Roll2 => 2,
-                     PunchEffect.Roll3 => 3,
-                     PunchEffect.Roll4 => 4,
+    static int RollSteps(LiveEffect fx)
+      => fx switch { LiveEffect.Roll1 => 1,
+                     LiveEffect.Roll2 => 2,
+                     LiveEffect.Roll3 => 3,
+                     LiveEffect.Roll4 => 4,
                      _ => 0 };
 
     static double Sixteenth(float tempo, int sampleRate)
@@ -263,12 +263,12 @@ public sealed class PunchFx
     {
         for (var i = 0; i < Count; i++)
         {
-            var steps = RollSteps((PunchEffect)i);
-            if (steps > 0) Arm((PunchEffect)i, steps, sixteenth);
+            var steps = RollSteps((LiveEffect)i);
+            if (steps > 0) Arm((LiveEffect)i, steps, sixteenth);
         }
     }
 
-    void Arm(PunchEffect fx, int steps, double sixteenth)
+    void Arm(LiveEffect fx, int steps, double sixteenth)
     {
         var slot = (int)fx;
         if (!_held[slot] || _rolls[slot] != null) return;
@@ -365,17 +365,17 @@ public sealed class PunchFx
     // a different length, which is a change of envelope rather than of length.
     FmNoteEvent Colour(FmNoteEvent note, double sixteenth, int sampleRate)
     {
-        if (_held[(int)PunchEffect.Reverb]) note.reverbSend = 1.0f;
-        if (_held[(int)PunchEffect.Delay]) note.delaySend = 1.0f;
+        if (_held[(int)LiveEffect.Reverb]) note.reverbSend = 1.0f;
+        if (_held[(int)LiveEffect.Delay]) note.delaySend = 1.0f;
 
-        if (_held[(int)PunchEffect.Stab])
+        if (_held[(int)LiveEffect.Stab])
         {
             note.duration = MathF.Max((float)(sixteenth / sampleRate) * StabGate,
                                       MinimumGate);
             note.carrierRelease = MathF.Min(note.carrierRelease, StabRelease);
         }
 
-        if (_held[(int)PunchEffect.Sustain])
+        if (_held[(int)LiveEffect.Sustain])
         {
             note.duration *= 2.0f;
             note.carrierRelease *= 2.0f;
@@ -383,11 +383,11 @@ public sealed class PunchFx
 
         var semitones = 0;
 
-        if (_held[(int)PunchEffect.OctaveUp]) semitones += 12;
-        if (_held[(int)PunchEffect.OctaveDown]) semitones -= 12;
+        if (_held[(int)LiveEffect.OctaveUp]) semitones += 12;
+        if (_held[(int)LiveEffect.OctaveDown]) semitones -= 12;
 
-        semitones += Ramp(PunchEffect.Rise, note.startSample, sixteenth);
-        semitones -= Ramp(PunchEffect.Fall, note.startSample, sixteenth);
+        semitones += Ramp(LiveEffect.Rise, note.startSample, sixteenth);
+        semitones -= Ramp(LiveEffect.Fall, note.startSample, sixteenth);
 
         // Once, from the total, so that an octave up against an octave down is silence
         // about the pitch rather than two multiplications that nearly cancel.
@@ -401,7 +401,7 @@ public sealed class PunchFx
     // two bars. Counted from the press rather than from the bar line: what a ramp is
     // for is the shape of the rise, and a rise that started halfway up because the
     // hand was late is not one.
-    int Ramp(PunchEffect fx, long sample, double sixteenth)
+    int Ramp(LiveEffect fx, long sample, double sixteenth)
     {
         if (!_held[(int)fx]) return 0;
 

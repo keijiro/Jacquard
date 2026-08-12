@@ -21,7 +21,7 @@ the compiler rather than by discipline:
 | --- | --- |
 | `Model` | `Project`, `Score`, `Lane`, `Step`, the tile hierarchy, pitch names |
 | `Serialization` | The text format, written and read by hand |
-| `Sequencer` | `Runner`, the scheduler that turns tiles into note events, and the punch-in layer that colours them on the way out |
+| `Sequencer` | `Runner`, the scheduler that turns tiles into note events, and the live effects that colour them on the way out |
 | `Synth` | The two operator FM voice, the per channel patch bank, the lock targets, the send effect settings |
 
 `Assets/Jacquard` is the part that cannot help but know about Unity:
@@ -339,10 +339,10 @@ Notes on the prototype
   button called Send would be named after the sending and raise none of it. What comes
   up is the receiving end — which is why the button names the pair and each panel names
   an effect.
-- **The punch-in effects are the one thing that colours a note without being written
+- **The live effects are the one thing that colours a note without being written
   anywhere**, and that is what they are for. Everything else here is score: a lock is a
   tile, a gate is a tile, a timbre is a patch the file carries. None of it can be held
-  for two beats and let go, so none of it can be *played* — and `PunchFx` is the layer
+  for two beats and let go, so none of it can be *played* — and `LiveFx` is the layer
   that can. Twelve buttons, on while they are held, sitting between the sequencer and
   the synth: two throw every note into the reverb or the delay, two shorten or lengthen
   it, two move it an octave, two ramp it a semitone a step and turn over after two bars,
@@ -371,31 +371,31 @@ Notes on the prototype
   faster under a lane running in eighths would be two answers to how far up the ramp is,
   and a roll is a length of time rather than a lane's idea of one.
 
-- **What the punch cost is the margin against a slow frame**, and it is the one place
-  this project has given a stated property back. The sequencer runs a lookahead ahead
-  because a dropped frame should delay the handover and never the note — but a punch
-  reaches only what has not been handed over, and at 129bpm a sixteenth is 116ms against
-  a window of 120, so the two being the same window is what would make a press take a
-  step to be heard. So the sequencer still runs the full window ahead and `PunchFx`
-  parks what it produces; `PunchLead` is the much shorter window a note actually leaves
-  the queue on. Nothing moves but the moment of the handover — the sample a note starts
-  on was decided by the runner and is never touched — so the sequence is as exact as it
-  was.
+- **What the live effects cost is the margin against a slow frame**, and it is the one
+  place this project has given a stated property back. The sequencer runs a lookahead
+  ahead because a dropped frame should delay the handover and never the note — but a
+  live effect reaches only what has not been handed over, and at 129bpm a sixteenth is
+  116ms against a window of 120, so the two being the same window is what would make a
+  press take a step to be heard. So the sequencer still runs the full window ahead and
+  `LiveFx` parks what it produces; `LiveLead` is the much shorter window a note actually
+  leaves the queue on. Nothing moves but the moment of the handover — the sample a note
+  starts on was decided by the runner and is never touched — so the sequence is as exact
+  as it was.
 
   What is paid for that is 120ms of slack becoming 30. It is affordable because a note
   handed over late is not played late: `FmVoicePool.Render` triggers it against the
   clock and computes a positive elapsed time, so what a hitch takes is the head of a
   note rather than its place in the bar. On the Web the driver's own floor is most of a
   tenth of a second and sits under both windows, so the margin there is where it was and
-  the punch is as late as everything else on that platform already is.
+  the live effects are as late as everything else on that platform already is.
 
 - **A roll records what sounded rather than re-running the step it came from.** Holding
   the step index and reading the tiles again would put the probability gates and the
   cycle gates through a fresh judgement on every pass, so a roll would be a different
   roll each time — which is a generator, and what is wanted is the thing that was just
   heard, said again. So the window is a list of note events with a sample to start on,
-  laid down again from its far end with only that sample changed. Every other punch
-  still applies on top, since they are applied after: a roll caught plain and then
+  laid down again from its far end with only that sample changed. Every other live
+  effect still applies on top, since they are applied after: a roll caught plain and then
   thrown into the reverb goes into the reverb, and one caught under an octave comes back
   down when the hand comes off the octave.
 
@@ -425,8 +425,8 @@ Notes on the prototype
   the past, with their heads already cut off. So the mark it resumes from is never
   behind the handover.
 
-- **The punch panel is the one panel that is played rather than read**, so it is the one
-  that is in neither column. The columns are where the eye goes — the cursor's panels on
+- **The Live FX panel is the one that is played rather than read**, so it is the one in
+  neither column. The columns are where the eye goes — the cursor's panels on
   the right saying what the score holds, the project's on the left — and reading is done
   at arm's length from what is being said. A column would also put this under one hand
   and out of reach of the other, and take a corner of the plane for something that is up
@@ -453,7 +453,7 @@ Notes on the prototype
   release counts, so a press and a release read through it arrive together at the end
   and the effect is never on for any length of time. What is left is a box dressed as a
   button with `PointerDownEvent` and the lost capture read directly — the lost capture
-  and not the release, because a capture can go without one, and a punch latched on is
+  and not the release, because a capture can go without one, and an effect latched on is
   the one failure this control cannot have. The capture is per pointer id, which is what
   makes two fingers two independent holds; a mouse has one id, so with a mouse the
   second press takes the first one's capture and only one effect is ever held, which is
@@ -674,7 +674,7 @@ Notes on the prototype
 - Editor menu items: *Jacquard > Rebuild Main Scene* regenerates the scene, and
   *Jacquard > Run Self Test* checks the file format round trip, plays four laps of
   the sample score without a device, reads a stack whose gate sits between two
-  notes to prove the descent only ever reaches downwards, drives the punch-in layer
+  notes to prove the descent only ever reaches downwards, drives the live effects
   the way the app drives it — the sequencer a window ahead and the handover a shorter
   one, which is most of what there is to get wrong about it — and renders the two
   effect buses to measure that a repeat lands on the beat, that moving the delay time

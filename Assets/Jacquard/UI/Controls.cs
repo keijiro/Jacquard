@@ -236,7 +236,7 @@ static class Controls
     }
 
     // A button that is on while it is held and off the moment it is let go, which is
-    // the whole of what a punch-in effect is: there is no state to leave behind, so
+    // the whole of what a live effect is: there is no state to leave behind, so
     // there is nothing to press a second time to undo.
     //
     // The stock Clickable is taken off rather than worked around. It reports on the
@@ -269,7 +269,7 @@ static class Controls
         });
 
         // Both endings, because a capture can be lost without a release ever reaching
-        // here — a window deactivated mid-press, a touch cancelled — and a punch left
+        // here — a window deactivated mid-press, a touch cancelled — and an effect
         // latched on is the one failure this control cannot have.
         button.RegisterCallback<PointerUpEvent>(e =>
         {
