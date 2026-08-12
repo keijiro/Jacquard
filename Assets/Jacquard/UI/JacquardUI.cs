@@ -33,7 +33,10 @@ sealed class JacquardUI
         _editor = app.Editor;
 
         root.style.flexGrow = 1;
-        root.style.backgroundColor = Style.Background;
+        // Not painted here any more. The camera clears to this exact colour and draws
+        // the visualizer over it, so the panel is the layer above that and leaves the
+        // ground to whoever is under it — which used to be nothing at all.
+        root.style.backgroundColor = Color.clear;
 
         root.Add(BuildTransportRow());
 
@@ -316,6 +319,10 @@ sealed class JacquardUI
         row.style.alignItems = Align.Center;
         row.style.flexShrink = 0;
         row.style.height = Controls.ToolbarHeight;
+        // The one part of the chrome that paints its own ground. It took it from the
+        // root until the root gave up painting, and a row of controls with a waveform
+        // running behind them is a row that has to be read through something.
+        row.style.backgroundColor = Style.Background;
         row.style.paddingLeft = Controls.Inset;
         row.style.paddingRight = Controls.Inset;
         row.style.borderBottomWidth = 1;

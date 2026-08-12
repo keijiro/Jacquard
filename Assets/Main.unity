@@ -184,7 +184,7 @@ Camera:
   m_Depth: 0
   m_CullingMask:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 1
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 0
@@ -222,6 +222,7 @@ GameObject:
   - component: {fileID: 1530807786}
   - component: {fileID: 1530807785}
   - component: {fileID: 1530807784}
+  - component: {fileID: 1530807787}
   m_Layer: 0
   m_Name: Jacquard
   m_TagString: Untagged
@@ -270,6 +271,20 @@ MonoBehaviour:
   m_PivotReferenceSize: 0
   m_Pivot: 0
   m_WorldSpaceCollider: {fileID: 0}
+--- !u!114 &1530807787
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1530807783}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: caea0ad4267f4eafa6d7758fa2a202dd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Jacquard::Jacquard.App.Visualizer
+  <Shader>k__BackingField: {fileID: 4800000, guid: daf44b5b89db499cb4edeb6f8d6ddf26, type: 3}
+  <Window>k__BackingField: 0.03
 --- !u!4 &1530807786
 Transform:
   m_ObjectHideFlags: 0

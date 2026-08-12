@@ -37,6 +37,10 @@ sealed class FmSynthWeb : IFmSynthBackend
     // 1024 frames is a little over 20ms at the rates browsers hand out.
     const int BlockFrames = 1024;
 
+    // As long as the pipeline driver's, for the same reason: what a frame draws is
+    // the last few milliseconds and nothing before them.
+    const int ScopeFrames = 4096;
+
     const int WriteAheadBlocks = 4;
     const int WriteAheadFrames = WriteAheadBlocks * BlockFrames;
 
@@ -49,6 +53,8 @@ sealed class FmSynthWeb : IFmSynthBackend
     // moved on and the queue has been topped up from where it then stands — so the
     // block boundary is the margin, not the frame time.
     public long MinimumLead => WriteAheadFrames + BlockFrames;
+
+    public FmSynthScope Scope => _core.scope;
 
     public FmSynthWeb(int maxVoices, float masterGain, int queueCapacity)
     {
@@ -64,6 +70,7 @@ sealed class FmSynthWeb : IFmSynthBackend
 
         _core.masterGain = masterGain;
         _core.Allocate(SampleRate, BlockFrames, maxVoices, queueCapacity);
+        _core.scope = FmSynthScope.Create(ScopeFrames, maxVoices);
 
         // A managed array crosses to JavaScript as an offset into the WebAssembly
         // heap, which is why the mix is copied out of its NativeArrays rather than
@@ -128,6 +135,7 @@ sealed class FmSynthWeb : IFmSynthBackend
 
     public void Dispose()
     {
+        _core.scope.Dispose();
         _core.Release();
         if (_open) WebAudioOut.Close();
     }

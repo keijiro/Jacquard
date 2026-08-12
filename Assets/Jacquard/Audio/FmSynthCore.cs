@@ -35,6 +35,11 @@ struct FmSynthCore
     public DelayBus delay;
     public LimiterBus limiter;
 
+    // Where the finished mix and the state of the pool are left for anything drawing
+    // them. Owned by the driver rather than by this: it is allocated on the main thread,
+    // which is the side that reads it, and Release below leaves it alone.
+    public FmSynthScope scope;
+
     public NativeArray<float> dryL;     // Every voice, placed by its own pan
     public NativeArray<float> dryR;
     public NativeArray<float> reverbIn; // What the notes sent to the reverb
@@ -112,6 +117,7 @@ struct FmSynthCore
           reverb = reverb,
           delay = delay,
           limiter = limiter,
+          scope = scope,
           dryL = dryL,
           dryR = dryR,
           reverbIn = reverbIn,
@@ -142,6 +148,7 @@ struct FmSynthCore
         public ReverbBus reverb;
         public DelayBus delay;
         public LimiterBus limiter;
+        public FmSynthScope scope;
 
         public NativeArray<float> dryL;
         public NativeArray<float> dryR;
@@ -168,8 +175,8 @@ struct FmSynthCore
                 outR[frame] = 0.0f;
             }
 
-            pool.Render(dryL, dryR, reverbIn, delayIn, frameCount, bufferStart,
-                        sampleRate);
+            pool.Render(dryL, dryR, reverbIn, delayIn, scope.levels, frameCount,
+                        bufferStart, sampleRate);
 
             // In parallel rather than in series. Feeding the delay's repeats into the
             // reverb is a good sound and would be one line, but it is also a decision
@@ -204,6 +211,11 @@ struct FmSynthCore
                 outL[frame] = SoftClip(outL[frame]);
                 outR[frame] = SoftClip(outR[frame]);
             }
+
+            // Last, so that what is drawn is what leaves here rather than a stage of
+            // it: the scope shows the limiter working, which is most of what a scope on
+            // this mix is for.
+            scope.Write(outL, outR, frameCount);
         }
 
         // A Pade approximant of tanh. The library function would read better, but

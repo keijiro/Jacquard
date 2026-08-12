@@ -21,6 +21,8 @@ static class SceneBuilder
     // worth having in one place, where the self test can read the same one.
     public const string StartupScorePath = "Assets/Jacquard/Scores/Startup.jacquard.txt";
 
+    const string VisualizerShaderPath = "Assets/Jacquard/Visual/Visualizer.shader";
+
     [MenuItem("Jacquard/Rebuild Main Scene")]
     public static void Build()
     {
@@ -32,9 +34,14 @@ static class SceneBuilder
 
         var camera = cameraObject.AddComponent<Camera>();
         camera.clearFlags = CameraClearFlags.SolidColor;
+        // What the panel used to paint for itself. The interface is transparent over
+        // this now, so this is the background of the whole app rather than the colour
+        // behind a panel that covered it.
         camera.backgroundColor = new Color(0.086f, 0.086f, 0.102f);
         camera.orthographic = true;
-        camera.cullingMask = 0;
+        // The default layer, which is where the visualizer's mesh is drawn and the only
+        // thing there is to see: this was zero for as long as there was nothing at all.
+        camera.cullingMask = 1;
         cameraObject.AddComponent<AudioListener>();
 
         var appObject = new GameObject("Jacquard");
@@ -47,6 +54,12 @@ static class SceneBuilder
 
         var app = appObject.AddComponent<JacquardApp>();
         app.StartupScore = AssetDatabase.LoadAssetAtPath<TextAsset>(StartupScorePath);
+
+        // Beside the app rather than on the camera: what it draws it reads off the
+        // synth, and the shader is a reference because a shader nothing in a scene
+        // points at is a shader that is not in the build.
+        var visualizer = appObject.AddComponent<Visualizer>();
+        visualizer.Shader = AssetDatabase.LoadAssetAtPath<Shader>(VisualizerShaderPath);
 
         EditorSceneManager.SaveScene(scene, ScenePath);
 

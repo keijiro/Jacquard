@@ -54,6 +54,11 @@ public sealed class FmSynth : System.IDisposable
 
     public FmSynthStatus GetStatus() => _backend.GetStatus();
 
+    // What the mix looked like, for anything drawing it. Written by the render job as
+    // it goes and read whenever a frame happens to want it — see FmSynthScope, which is
+    // where the lack of any handshake between the two is argued.
+    public FmSynthScope Scope => _backend.Scope;
+
     // Called once a frame. Nothing under the pipeline, where the audio thread asks
     // for what it needs; on the Web it is the entire engine.
     public void Pump() => _backend.Pump();
@@ -72,6 +77,8 @@ interface IFmSynthBackend : System.IDisposable
     int SampleRate { get; }
     long CurrentSample { get; }
     long MinimumLead { get; }
+
+    FmSynthScope Scope { get; }
 
     bool Schedule(in FmNoteEvent note);
     bool SetFx(in MixFxRuntime fx);

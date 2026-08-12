@@ -15,6 +15,7 @@ struct FmSynthControl : RootOutputInstance.IControl<FmSynthRealtime>
     internal int maxVoices;
     internal int queueCapacity;
     internal float masterGain;
+    internal FmSynthScope scope;
 
     FmSynthStatus _status; // Latest report received from the realtime part
 
@@ -26,6 +27,9 @@ struct FmSynthControl : RootOutputInstance.IControl<FmSynthRealtime>
         realtime.core.masterGain = masterGain;
         realtime.core.Allocate(format.sampleRate, format.bufferFrameCount,
                                maxVoices, queueCapacity);
+        // After Allocate, which releases what it is about to replace: the scope is the
+        // driver's and outlives a format change.
+        realtime.core.scope = scope;
         return default;
     }
 

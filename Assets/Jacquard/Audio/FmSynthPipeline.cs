@@ -24,17 +24,26 @@ sealed class FmSynthPipeline : IFmSynthBackend
     // The pipeline renders when asked, so the next buffer is always available.
     public long MinimumLead => 0;
 
+    public FmSynthScope Scope => _scope;
+
     public FmSynthPipeline(int maxVoices, float masterGain, int queueCapacity)
     {
         SampleRate = AudioSettings.outputSampleRate;
         _context = ControlContext.builtIn;
+
+        // Here rather than in the core's Allocate, which runs on the other side of the
+        // pipeline: this is memory the main thread reads, so the main thread is what
+        // owns it. A NativeArray is a handle, so the copy the audio side is given is
+        // the same memory.
+        _scope = FmSynthScope.Create(ScopeFrames, maxVoices);
 
         _rootOutput = _context.AllocateRootOutput(
           new FmSynthRealtime(),
           new FmSynthControl
             { maxVoices = maxVoices,
               queueCapacity = queueCapacity,
-              masterGain = masterGain },
+              masterGain = masterGain,
+              scope = _scope },
           new CreationParameters
             { controlUpdateSetting = UpdateSetting.UpdateIfDataIsAvailable,
               // Always, rather than only when notes arrive: voices are stolen and
@@ -67,12 +76,19 @@ sealed class FmSynthPipeline : IFmSynthBackend
     public void Dispose()
     {
         if (_context.Exists(_rootOutput)) _context.Destroy(_rootOutput);
+        _scope.Dispose();
     }
 
     // Private members
 
+    // A fifteenth of a second at the rates a device hands out, which is longer than
+    // any one frame will draw and short enough that what is on screen is what was
+    // just heard.
+    const int ScopeFrames = 4096;
+
     ControlContext _context;
     RootOutputInstance _rootOutput;
+    FmSynthScope _scope;
 }
 
 } // namespace Jacquard.App

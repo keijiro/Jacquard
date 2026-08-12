@@ -42,6 +42,10 @@ Using it
 | Tempo | The bpm bar beside Play, which the delay is in time with |
 | Pan the plane | Drag from an empty cell, two finger swipe, or command+drag |
 
+Behind the score, in a wash the eye can ignore, is the synth: the output as a trace
+across the middle and the twenty-four voice slots as a row along the bottom. It is
+drawn by the camera rather than by the interface, which is transparent over it.
+
 A tile goes on free ground only: a lane's empty step, the cell under a stack, or
 the `TERM` cell, which grows the lane by a step. A stack is therefore built from
 the top down, the gate first and the note it governs in the cell underneath it,

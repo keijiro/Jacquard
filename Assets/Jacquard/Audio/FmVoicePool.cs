@@ -1,4 +1,5 @@
 using Unity.Collections;
+using Unity.Mathematics;
 
 namespace Jacquard.App {
 
@@ -56,9 +57,16 @@ struct FmVoicePool
     // The sends take the voice unpanned. Each of those buses is a mono feed into an
     // effect that builds a stereo image of its own, so a tail that also leaned to the
     // side its note came from would be two answers to one question.
+    //
+    // levels is the one thing written here that nothing downstream reads: how loud each
+    // slot was over this buffer, for whoever is drawing the pool. It is a level and not
+    // a flag because a voice is not on or off — it is somewhere in its envelope — and
+    // it is taken from the samples themselves rather than from the envelope, so what is
+    // drawn is what came out.
     public void Render(NativeArray<float> dryL, NativeArray<float> dryR,
                        NativeArray<float> reverbIn, NativeArray<float> delayIn,
-                       int frameCount, long bufferStart, float sampleRate)
+                       NativeArray<float> levels, int frameCount, long bufferStart,
+                       float sampleRate)
     {
         var bufferEnd = bufferStart + frameCount;
 
@@ -85,9 +93,17 @@ struct FmVoicePool
 
         var dt = 1.0f / sampleRate;
 
+        var watched = levels.IsCreated;
+
         for (var i = 0; i < voices.Length; i++)
         {
-            if (!voices[i].Active) continue;
+            if (!voices[i].Active)
+            {
+                // A slot that has finished has to say so, or the last level it was
+                // seen at would stand there for good.
+                if (watched) levels[i] = 0.0f;
+                continue;
+            }
 
             // NativeArray hands out copies, so read, render and write back.
             var voice = voices[i];
@@ -97,6 +113,8 @@ struct FmVoicePool
             // Once per voice per buffer, not per sample: the note holds still, so
             // the pair of gains it renders at does too.
             note.PanGains(out var left, out var right);
+
+            var loudest = 0.0f;
 
             for (var frame = 0; frame < frameCount; frame++)
             {
@@ -109,6 +127,8 @@ struct FmVoicePool
 
                 var sample = voice.Next(time);
 
+                if (watched) loudest = math.max(loudest, math.abs(sample));
+
                 dryL[frame] += sample * left;
                 dryR[frame] += sample * right;
                 reverbIn[frame] += sample * note.reverbSend;
@@ -116,6 +136,8 @@ struct FmVoicePool
             }
 
             voices[i] = voice;
+
+            if (watched) levels[i] = loudest;
         }
     }
 
