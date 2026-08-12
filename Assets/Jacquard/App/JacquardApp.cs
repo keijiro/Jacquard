@@ -240,11 +240,12 @@ public sealed class JacquardApp : MonoBehaviour
 
         foreach (var note in _released) Synth.Schedule(note);
 
-        // Hand over the effect settings whenever they are not what was handed over
-        // last. One comparison covers every way they can change — a bar on the Send
-        // panel, the tempo the delay is locked to, a project loaded over the top of
-        // this one — so none of those has to know that anything downstream cares.
-        var fx = SendFxRuntime.FromSettings(Project.Fx, Project.Tempo, Synth.SampleRate);
+        // Hand over the mix settings whenever they are not what was handed over last.
+        // One comparison covers every way they can change — a bar on the Send panel or
+        // the Global one, the tempo the delay is locked to, a project loaded over the
+        // top of this one — so none of those has to know that anything downstream cares.
+        var fx = MixFxRuntime.FromSettings(Project.Fx, Project.Limiter, Project.Tempo,
+                                           Synth.SampleRate);
 
         if (!fx.Equals(_fx))
         {
@@ -418,9 +419,9 @@ public sealed class JacquardApp : MonoBehaviour
     readonly List<FmNoteEvent> _pending = new();
     readonly List<FmNoteEvent> _released = new();
 
-    // The last effect settings the synth was given, which is what makes sending them
+    // The last mix settings the synth was given, which is what makes sending them
     // again a comparison rather than a notification from everything that can move one.
-    SendFxRuntime _fx;
+    MixFxRuntime _fx;
 
     // The window, plus however far past the clock the driver's earliest schedulable
     // note lies. Under the pipeline that is nothing and this is just the window.

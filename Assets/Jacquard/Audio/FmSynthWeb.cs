@@ -82,7 +82,7 @@ sealed class FmSynthWeb : IFmSynthBackend
         return accepted;
     }
 
-    public bool SetFx(in SendFxRuntime fx)
+    public bool SetFx(in MixFxRuntime fx)
     {
         _fx = fx;
         return true;
@@ -135,7 +135,7 @@ sealed class FmSynthWeb : IFmSynthBackend
     // Private members
 
     FmSynthCore _core;
-    SendFxRuntime _fx;
+    MixFxRuntime _fx;
 
     readonly bool _open;
     readonly float[] _stageL;

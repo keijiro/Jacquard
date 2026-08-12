@@ -49,9 +49,9 @@ struct FmSynthControl : RootOutputInstance.IControl<FmSynthRealtime>
         // on. Unlike a note there is no queue behind this: the audio thread keeps the
         // latest one it was given and nothing is lost by a message that never lands,
         // since the next change sends the whole struct again.
-        if (message.Is<SendFxRuntime>())
+        if (message.Is<MixFxRuntime>())
         {
-            ref var fx = ref message.Get<SendFxRuntime>();
+            ref var fx = ref message.Get<MixFxRuntime>();
             return pipe.SendData(context, in fx) ? Response.Handled : Response.Unhandled;
         }
 

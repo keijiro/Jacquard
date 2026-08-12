@@ -33,6 +33,7 @@ struct FmSynthCore
     public FmVoicePool pool;
     public ReverbBus reverb;
     public DelayBus delay;
+    public LimiterBus limiter;
 
     public NativeArray<float> dryL;     // Every voice, placed by its own pan
     public NativeArray<float> dryR;
@@ -74,6 +75,7 @@ struct FmSynthCore
 
         reverb = ReverbBus.Create(rate);
         delay = DelayBus.Create(rate);
+        limiter = LimiterBus.Create();
     }
 
     public void Release()
@@ -91,23 +93,25 @@ struct FmSynthCore
 
         reverb.Dispose();
         delay.Dispose();
+        limiter.Dispose();
     }
 
     // Fills outL and outR with the frames beginning at bufferStart. The two ways in
     // differ only in who runs the job: the pipeline wants a handle to hang off its
     // own, and the Web build has no worker thread to hand it to and so runs it where
     // it stands.
-    public JobHandle Schedule(long bufferStart, in SendFxRuntime fx, JobHandle input)
+    public JobHandle Schedule(long bufferStart, in MixFxRuntime fx, JobHandle input)
       => MakeJob(bufferStart, fx).Schedule(input);
 
-    public void Run(long bufferStart, in SendFxRuntime fx)
+    public void Run(long bufferStart, in MixFxRuntime fx)
       => MakeJob(bufferStart, fx).Run();
 
-    RenderJob MakeJob(long bufferStart, in SendFxRuntime fx)
+    RenderJob MakeJob(long bufferStart, in MixFxRuntime fx)
       => new RenderJob
         { pool = pool,
           reverb = reverb,
           delay = delay,
+          limiter = limiter,
           dryL = dryL,
           dryR = dryR,
           reverbIn = reverbIn,
@@ -137,6 +141,7 @@ struct FmSynthCore
         public FmVoicePool pool;
         public ReverbBus reverb;
         public DelayBus delay;
+        public LimiterBus limiter;
 
         public NativeArray<float> dryL;
         public NativeArray<float> dryR;
@@ -149,7 +154,7 @@ struct FmSynthCore
         public int frameCount;
         public float sampleRate;
         public float masterGain;
-        public SendFxRuntime fx;
+        public MixFxRuntime fx;
 
         public void Execute()
         {
@@ -170,18 +175,34 @@ struct FmSynthCore
             // reverb is a good sound and would be one line, but it is also a decision
             // about how the two are wired that the panel would then have to offer a
             // number for, and the brief was the fewest controls that carry.
-            delay.Process(delayIn, outL, outR, frameCount, fx.delaySamples,
-                          fx.delayFeedback, fx.delayTone, fx.delaySpread);
+            delay.Process(delayIn, outL, outR, frameCount, fx.sends.delaySamples,
+                          fx.sends.delayFeedback, fx.sends.delayTone,
+                          fx.sends.delaySpread);
 
             reverb.Process(reverbIn, outL, outR, frameCount, sampleRate,
-                           fx.reverbSize, fx.reverbDamp, fx.reverbWidth);
+                           fx.sends.reverbSize, fx.sends.reverbDamp,
+                           fx.sends.reverbWidth);
 
-            // Soft clip, so that a dense chord cannot blow past 0dBFS. The dry mix
-            // joins here, which is also where the two sides stop being wet only.
+            // The dry mix joins here, which is also where the two sides stop being wet
+            // only, and the whole of it is what the limiter is across.
             for (var frame = 0; frame < frameCount; frame++)
             {
-                outL[frame] = SoftClip((dryL[frame] + outL[frame]) * masterGain);
-                outR[frame] = SoftClip((dryR[frame] + outR[frame]) * masterGain);
+                outL[frame] = (dryL[frame] + outL[frame]) * masterGain;
+                outR[frame] = (dryR[frame] + outR[frame]) * masterGain;
+            }
+
+            limiter.Process(outL, outR, frameCount, fx.limiter);
+
+            // Soft clip last, so that a dense chord cannot blow past 0dBFS however the
+            // limiter is set. It used to be the only thing here, doing that job without
+            // a control; what it is now is the limiter's backstop — the few samples a
+            // slow attack lets over the ceiling are rounded off rather than squared,
+            // which is what makes a lookahead unnecessary and is a sound in its own
+            // right.
+            for (var frame = 0; frame < frameCount; frame++)
+            {
+                outL[frame] = SoftClip(outL[frame]);
+                outR[frame] = SoftClip(outR[frame]);
             }
         }
 

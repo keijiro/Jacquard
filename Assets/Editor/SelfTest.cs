@@ -32,6 +32,7 @@ static class SelfTest
         Synth(log);
         Delay(log);
         Reverb(log);
+        Limiter(log);
 
         Debug.Log(log.ToString());
     }
@@ -1058,6 +1059,83 @@ static class SelfTest
               "late RMS " + late + " at size 1 against " + tight + " at size 0.2");
     }
 
+    // The limiter, which has one promise per control: that the ceiling holds, that the
+    // drive is what pushes the mix into it, that the attack is a hole in the limiting
+    // for as long as it lasts, and that a project which never opens the panel is
+    // untouched.
+    static void Limiter(System.Text.StringBuilder log)
+    {
+        var settings = Jacquard.Limiter.Default;
+
+        // What a project opens with, against a signal already at full scale: this has
+        // to come back as it went in, since a default limiter is no drive under a
+        // ceiling at full scale.
+        var open = RenderLimiter(Tone(Seconds(0.2f), 1.0f), settings);
+        var passed = Rms(open, Seconds(0.1f), Seconds(0.2f));
+        var plain = Rms(Tone(Seconds(0.2f), 1.0f), Seconds(0.1f), Seconds(0.2f));
+
+        Check(log, "a default limiter leaves the mix alone",
+              Mathf.Abs(passed / plain - 1.0f) < 0.01f,
+              "out/in=" + passed / plain);
+
+        // Driven hard into a ceiling well below it. Once the gain has settled the
+        // output has to sit on the ceiling and not above it, whatever is thrown in.
+        settings.drive = 18.0f;
+        settings.ceiling = -6.0f;
+
+        var driven = RenderLimiter(Tone(Seconds(0.5f), 0.5f), settings);
+        var ceiling = Jacquard.Limiter.Gain(settings.ceiling);
+        var held = 0.0f;
+
+        for (var i = Seconds(0.2f); i < Seconds(0.5f); i++)
+            held = Mathf.Max(held, Mathf.Abs(driven[i]));
+
+        Check(log, "the ceiling holds under a hard drive",
+              held <= ceiling * 1.02f && held > ceiling * 0.9f,
+              "peak " + held + " against a ceiling of " + ceiling);
+
+        // And a signal quiet enough to stay under the ceiling is simply driven: this
+        // is the half of the arrangement that makes a mix louder rather than flatter.
+        var quiet = RenderLimiter(Tone(Seconds(0.2f), 0.02f), settings);
+        var lifted = Rms(quiet, Seconds(0.1f), Seconds(0.2f)) /
+                     Rms(Tone(Seconds(0.2f), 0.02f), Seconds(0.1f), Seconds(0.2f));
+
+        Check(log, "a quiet mix is driven rather than limited",
+              Mathf.Abs(lifted - Jacquard.Limiter.Gain(settings.drive)) < 0.1f,
+              "lifted by " + lifted + " against a drive of " +
+              Jacquard.Limiter.Gain(settings.drive));
+
+        // The attack is a hole in the limiting for as long as it lasts, which is what
+        // a kick is heard through. The same burst under the slowest attack the panel
+        // offers has to arrive louder than under the fastest.
+        settings.attack = Jacquard.Limiter.MinAttack;
+        var clamped = RenderLimiter(Tone(Seconds(0.05f), 0.5f), settings);
+
+        settings.attack = Jacquard.Limiter.MaxAttack;
+        var punched = RenderLimiter(Tone(Seconds(0.05f), 0.5f), settings);
+
+        var front = Seconds(0.002f);
+
+        Check(log, "a slow attack lets the front of a transient through",
+              Rms(punched, 0, front) > Rms(clamped, 0, front) * 1.5f,
+              "first 2ms " + Rms(punched, 0, front) + " slow against " +
+              Rms(clamped, 0, front) + " fast");
+
+        // And the release has to give the gain back, or every loud note would leave
+        // the mix quiet behind it for good.
+        settings.attack = 0.005f;
+        settings.release = 0.05f;
+
+        var recovered = RenderLimiter(LoudThenQuiet(Seconds(0.5f), Seconds(0.1f),
+                                                   0.5f, 0.02f), settings);
+        var after = Rms(recovered, Seconds(0.3f), Seconds(0.5f));
+        var target = 0.02f * Jacquard.Limiter.Gain(settings.drive) / Mathf.Sqrt(2.0f);
+
+        Check(log, "the gain comes back after a loud passage",
+              after > target * 0.9f,
+              "tail RMS " + after + " against " + target + " at full gain");
+    }
+
     // Rendering helpers
     //
     // Both buses hold their state in NativeArrays, so a check has to allocate one the
@@ -1080,6 +1158,63 @@ static class SelfTest
             buffer[i] = Mathf.Sin(2.0f * Mathf.PI * 440.0f * i / SampleRate) * 0.5f;
 
         return buffer;
+    }
+
+    // A steady tone at an amplitude, which is what the limiter is measured against:
+    // its two times are in the shape of the signal rather than in its spectrum, so
+    // there is nothing to be gained from anything more complicated.
+    static float[] Tone(int frames, float amplitude)
+    {
+        var buffer = new float[frames];
+
+        for (var i = 0; i < frames; i++)
+            buffer[i] = Mathf.Sin(2.0f * Mathf.PI * 220.0f * i / SampleRate) * amplitude;
+
+        return buffer;
+    }
+
+    // The same tone, loud for a while and then quiet, which is what a release is read
+    // off: what the gain does after the loud part is over is the whole question.
+    static float[] LoudThenQuiet(int frames, int loudFrames, float loud, float quiet)
+    {
+        var buffer = Tone(frames, 1.0f);
+
+        for (var i = 0; i < frames; i++)
+            buffer[i] *= i < loudFrames ? loud : quiet;
+
+        return buffer;
+    }
+
+    // The limiter works in place on the two sides of a finished mix rather than adding
+    // to them, so it renders through a pass of its own rather than through Render.
+    static float[] RenderLimiter(float[] input, in Jacquard.Limiter settings)
+    {
+        const int block = 256;
+
+        var bus = LimiterBus.Create();
+        var runtime = LimiterRuntime.FromSettings(settings, SampleRate);
+
+        var left = new NativeArray<float>(block, Allocator.Persistent);
+        var right = new NativeArray<float>(block, Allocator.Persistent);
+        var trace = new float[input.Length];
+
+        for (var position = 0; position < input.Length; position += block)
+        {
+            var frames = Mathf.Min(block, input.Length - position);
+
+            for (var i = 0; i < block; i++)
+                left[i] = right[i] = i < frames ? input[position + i] : 0.0f;
+
+            bus.Process(left, right, frames, runtime);
+
+            for (var i = 0; i < frames; i++) trace[position + i] = left[i];
+        }
+
+        left.Dispose();
+        right.Dispose();
+        bus.Dispose();
+
+        return trace;
     }
 
     static float[] RenderDelay(float[] input, float tap, float feedback, float tone,

@@ -11,10 +11,14 @@ namespace Jacquard.App {
 // The row carries what belongs to the project as a whole and nothing else. Anything
 // that applies to a cell is on the panel that follows the cursor, which is where the
 // cell already is, and the plane keeps the screen that a palette and a paragraph of
-// keys used to take. The two switches on the row are the two panels a cell cannot ask
-// for: the send effects, which belong to the project rather than to anything written on
-// the plane, and the live effects, which belong to nothing at all — they are held rather
-// than set, and what they colour is gone as soon as the hand is off.
+// keys used to take. The three switches on the row are the three panels a cell cannot
+// ask for: the send effects, which belong to the project rather than to anything
+// written on the plane; the live effects, which belong to nothing at all — they are
+// held rather than set, and what they colour is gone as soon as the hand is off; and
+// what is set for the whole mix, which is across everything and so under nothing.
+//
+// The one panel with no switch is the channels, which is up whenever the app is: a mute
+// is played, and a switch in front of one is a beat too late.
 //
 // prototype.md leaves the application level UI to be designed here, so it is kept
 // to what a prototype has to prove: that every kind of tile can be put down, tuned
@@ -81,6 +85,12 @@ sealed class JacquardUI
         _channels = new ChannelsPanel(_editor, app.Mutes);
         body.Add(PanelEdge(true, PanelColumn(_channels.Root)));
 
+        // In neither edge and not on the dock: what is set for the whole thing is read
+        // against nothing on screen, so it comes up in the middle.
+        _global = new GlobalPanel(_editor);
+        body.Add(PanelCentre(_global.Root));
+        ShowGlobal(false);
+
         // Neither column, because this one is not read: it is played. The columns are
         // where the eye goes and the bottom edge is where the hands already are.
         _live = new LivePanel(app.Live, () => _app.Synth.CurrentSample, Refocus);
@@ -146,6 +156,15 @@ sealed class JacquardUI
         _liveButton = Controls.Push("Live FX",
                                     () => { ShowLive(!_liveShown); Refocus(); }, 62);
         row.Add(_liveButton);
+
+        // The third of the same kind, and the last one that will need a switch of its
+        // own: what it raises is the panel for everything that is set for the whole
+        // project and answers to no cell, so anything else of that sort arrives as a
+        // group of rows on a panel that is already here rather than as a fourth button.
+        _globalButton = Controls.Push("Global",
+                                      () => { ShowGlobal(!_globalShown); Refocus(); },
+                                      62);
+        row.Add(_globalButton);
 
         row.Add(Separator());
 
@@ -238,6 +257,33 @@ sealed class JacquardUI
         return edge;
     }
 
+    // A panel in the middle of the screen, for the one that is read against nothing
+    // around it.
+    //
+    // The columns are all read against the plane — what a cell holds, what a channel's
+    // sends feed, which channel is silent — and the dock is played over it. A limiter is
+    // set while listening to the whole mix, with the eye nowhere in particular, so there
+    // is no edge it wants to be near; the middle is also the one position on this screen
+    // that says a panel is not part of the arrangement around the plane, which is what a
+    // setting nobody visits twice a session should say.
+    //
+    // It covers the score while it is up, which is the price of the middle and is paid
+    // by the same switch that raised it.
+    static VisualElement PanelCentre(VisualElement panel)
+    {
+        var centre = new VisualElement();
+        centre.style.position = Position.Absolute;
+        centre.style.left = 0;
+        centre.style.right = 0;
+        centre.style.top = 0;
+        centre.style.bottom = 0;
+        centre.style.alignItems = Align.Center;
+        centre.style.justifyContent = Justify.Center;
+        centre.pickingMode = PickingMode.Ignore;
+        centre.Add(panel);
+        return centre;
+    }
+
     // One panel along the bottom edge, centred, for the one panel that is played
     // rather than read.
     //
@@ -312,6 +358,9 @@ sealed class JacquardUI
         // And here for the one that reaches the channels: a lane arriving or leaving
         // is a channel becoming reachable or not.
         _channels.Refresh();
+        // The Global panel takes a load the same way the send panels do, and for the
+        // same reason: what is on it belongs to the project that was just replaced.
+        _global.Refresh();
     }
 
     // Every panel on the right shows whatever the cursor is on: the inspector the
@@ -336,6 +385,18 @@ sealed class JacquardUI
         _delay.Root.style.display = display;
 
         Controls.SetActive(_sendButton, shown);
+    }
+
+    // And the same again for the panel in the middle. A panel that covers the score is
+    // one there has to be an obvious way out of, and pressing the button that raised it
+    // is that way — the same one every other panel with a switch offers.
+    void ShowGlobal(bool shown)
+    {
+        _globalShown = shown;
+
+        _global.Root.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+
+        Controls.SetActive(_globalButton, shown);
     }
 
     // The same switch for the one panel that holds nothing. Lowering it does not lift
@@ -419,6 +480,7 @@ sealed class JacquardUI
     readonly SendPanel _reverb;
     readonly SendPanel _delay;
     readonly ChannelsPanel _channels;
+    readonly GlobalPanel _global;
     readonly LivePanel _live;
     readonly StringBuilder _text = new();
 
@@ -427,6 +489,8 @@ sealed class JacquardUI
     bool _sendShown;
     Button _liveButton;
     bool _liveShown;
+    Button _globalButton;
+    bool _globalShown;
     ValueBar _tempo;
     Label _status;
     List<string> _slots;

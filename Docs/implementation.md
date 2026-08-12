@@ -343,6 +343,67 @@ Notes on the prototype
   button called Send would be named after the sending and raise none of it. What comes
   up is the receiving end — which is why the button names the pair and each panel names
   an effect.
+- **The limiter is not there to stop the mix clipping**; a soft clip was already doing
+  that, and doing it without a control. It is there for the thing a limiter is actually
+  reached for on a drum machine — pushing the mix into a ceiling hard enough that the
+  loud parts hold still and the quiet ones come up behind them. So the control that is
+  played is the **drive**, and there is no threshold and no ratio: the ratio is infinite,
+  which is what makes it a limiter rather than something to be dialled in, and the
+  threshold and the drive are the same knob read from opposite ends. Pushing up into a
+  fixed ceiling is the end a player thinks in, and it leaves the output where it was put
+  instead of moving it every time the squeeze changes.
+
+  **The attack is a hole in the limiting for as long as it lasts, and that hole is the
+  punch.** The gain carries the attack and the release rather than a follower ahead of
+  it: a detector smoothed on the way in reaches the ceiling late and then holds the whole
+  note down, where a gain smoothed on the way out is wide open when the transient arrives
+  and takes exactly as long as the attack says to arrive at where it should have been. A
+  slow attack is therefore a kick with its front intact and everything under it ducking;
+  a release short enough to recover inside a step is a tail that swells.
+
+  The peak feeding it is **held rather than followed**, which is the one thing here that
+  had to be found by measuring. Read sample by sample the loudness of a tone goes to
+  nothing twice a cycle, so the gain climbed back between the peaks and met each one too
+  high — at 220Hz a cycle is 4.5ms against an attack of 5, and the output sat a fifth
+  over the ceiling however long it was given to settle. Holding the peak and letting it
+  go at the release leaves the gain a constant to converge on, so the only thing over the
+  ceiling is what the attack deliberately let past.
+
+  What is over the ceiling is what the **soft clip is now for**. It used to be the whole
+  of the output stage; it is now the limiter's backstop, rounding off the few samples a
+  slow attack lets through — which is what makes a lookahead unnecessary, and a lookahead
+  is the one thing here that would have cost latency.
+
+  One limiter, across the sum of everything. Per channel limiting and a side chain are
+  both a working answer to a real problem and both are more machinery than this asks for:
+  what is wanted is a switch that makes the thing louder and harder, not a mixing desk.
+  It sits on `Project` beside the tempo on a stronger reading of the rule that put the
+  send effects there — a send is at least a thing a note can be given more or less of,
+  and there is no per note share of a limiter to put in a patch.
+
+  Two of its four numbers are in **decibels, which nothing else in this project is.** A
+  drive and a ceiling are ratios of amplitude and the useful span of one is a few
+  doublings, so a linear bar spends most of its travel on the first of them and every
+  number on it reads as a multiplier nobody thinks in. A dB is already a logarithm, so
+  the bar over one is straight and a pixel is worth the same amount of push wherever it
+  is taken. The conversion to a gain, and the two times to one pole coefficients, happen
+  once on the way to the audio thread.
+
+  **The panel is Global rather than Limiter**, which is a name for what will be on it
+  rather than for what is on it now. A Limiter panel would be the right name for exactly
+  as long as the limiter is the only setting of its kind, and a panel per setting is a
+  row of switches on the transport for what is really one question — *what is set for the
+  whole thing?* So the panel answers that and the group inside it is headed `Limiter`,
+  which makes it the one panel here that needs a heading; every other one holds a single
+  kind of thing, which is the argument that split the send effects into two panels in the
+  first place.
+
+  It comes up **in the middle of the screen**. The columns are all read against the plane
+  and the dock is played over it, but a limiter is set while listening to the whole mix
+  with the eye nowhere in particular — and the middle is the one position on this screen
+  that says a panel is not part of the arrangement around the plane, which is what a
+  setting nobody visits twice a session should say. It covers the score while it is up,
+  and the switch that raised it is the way back.
 - **The live effects are the one thing that colours a note without being written
   anywhere**, and that is what they are for. Everything else here is score: a lock is a
   tile, a gate is a tile, a timbre is a patch the file carries. None of it can be held

@@ -11,6 +11,10 @@ namespace Jacquard {
 // The send effects are here on the plainest reading of the same rule: there is one
 // reverb and one delay for the whole thing, so what they are set to applies to
 // everything. How much of a note reaches them does not, and lives in the patch.
+//
+// The limiter is here on a stronger reading of it still. A send is at least a thing a
+// note can be given more or less of; the limiter is across the sum of everything, so
+// there is no per note share of it to put anywhere else.
 
 public sealed class Project
 {
@@ -22,6 +26,11 @@ public sealed class Project
     // single field of a mutable struct, and a property would only ever hand it a
     // copy to write into.
     public ref SendFx Fx => ref _fx;
+
+    // The one thing that is across everything rather than sent to from anywhere, which
+    // is why it sits here beside the tempo and not in a patch: there is no amount of a
+    // channel that reaches the limiter, since what reaches it is the finished mix.
+    public ref Limiter Limiter => ref _limiter;
 
     public Score Score { get; set; } = new Score();
     public PatchBank Patches { get; } = new PatchBank();
@@ -107,6 +116,7 @@ public sealed class Project
     }
 
     SendFx _fx = SendFx.Default;
+    Limiter _limiter = Limiter.Default;
 
     static int N(string name)
     {

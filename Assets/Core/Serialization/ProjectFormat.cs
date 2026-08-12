@@ -17,6 +17,7 @@ namespace Jacquard {
 //   tempo 132
 //   meter 4 4
 //   fx rsize=0.5 rdamp=0.5 ...
+//   limiter drive=0 ceiling=0 attack=0.005 release=0.15
 //   patch 1 level=0.8 index=3 ...
 //   lane 1 1 CHAN:1 div=16
 //     step C4/4 E4 G4
@@ -27,6 +28,14 @@ namespace Jacquard {
 
 public static class ProjectFormat
 {
+    // Version 11 adds the limiter across the finished mix: a limiter line for the four
+    // numbers it holds. An older file has none, and reads as a project whose limiter has
+    // never been touched — which is a limiter with no drive under a ceiling at full
+    // scale, so the file sounds exactly as it did. The bump is for the other direction,
+    // as it has been for every line added here: an older build would refuse the keyword
+    // outright, and this is what turns that into the message about a file from a newer
+    // version.
+    //
     // Version 10 makes the FM decay a slope rather than a length of time, so md= on a
     // patch line and an absolute lock naming moddecay are converted on the way in by
     // DecaySlope, and an older file keeps the modulation it had. A relative lock is
@@ -83,7 +92,7 @@ public static class ProjectFormat
     // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
     // reads, since a token nothing answers to is skipped, but the parameters that
     // no longer exist fall back to the default patch rather than being converted.
-    public const int Version = 10;
+    public const int Version = 11;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -97,6 +106,7 @@ public static class ProjectFormat
         text.Append("meter ").Append(project.BeatsPerBar).Append(' ')
             .Append(project.BeatUnit).Append('\n');
         text.Append("fx ").Append(WriteFx(project.Fx)).Append('\n');
+        text.Append("limiter ").Append(WriteLimiter(project.Limiter)).Append('\n');
         // Every channel gets a line, whether anything plays on it or not: a regular
         // file is worth more here than a short one, and a bank of eight is small.
         for (var channel = 1; channel <= PatchBank.Channels; channel++)
@@ -183,6 +193,12 @@ public static class ProjectFormat
          " rsend=" + F(patch.reverbSend) +
          " dsend=" + F(patch.delaySend);
 
+    static string WriteLimiter(in Limiter limiter)
+      => "drive=" + F(limiter.drive) +
+         " ceiling=" + F(limiter.ceiling) +
+         " attack=" + F(limiter.attack) +
+         " release=" + F(limiter.release);
+
     static string WriteFx(in SendFx fx)
       => "rsize=" + F(fx.reverbSize) +
          " rdamp=" + F(fx.reverbDamp) +
@@ -241,6 +257,10 @@ public static class ProjectFormat
 
                 case "fx":
                     ReadFx(ref project.Fx, tokens);
+                    break;
+
+                case "limiter":
+                    ReadLimiter(ref project.Limiter, tokens);
                     break;
 
                 case "patch":
@@ -514,6 +534,25 @@ public static class ProjectFormat
                 case "dfb": fx.delayFeedback = value; break;
                 case "dtone": fx.delayTone = value; break;
                 case "dspread": fx.delaySpread = value; break;
+            }
+        }
+    }
+
+    // The one limiter line, read with the same tolerance the fx line gets: a missing
+    // key keeps the default, which for a version 10 file is every one of them.
+    static void ReadLimiter(ref Limiter limiter, string[] tokens)
+    {
+        for (var i = 1; i < tokens.Length; i++)
+        {
+            var (key, text) = Split(tokens[i]);
+            var value = ReadFloat(text);
+
+            switch (key)
+            {
+                case "drive": limiter.drive = value; break;
+                case "ceiling": limiter.ceiling = value; break;
+                case "attack": limiter.attack = value; break;
+                case "release": limiter.release = value; break;
             }
         }
     }

@@ -49,7 +49,7 @@ sealed class FmSynthPipeline : IFmSynthBackend
         return _context.SendMessage(_rootOutput, ref message) == Response.Handled;
     }
 
-    public bool SetFx(in SendFxRuntime fx)
+    public bool SetFx(in MixFxRuntime fx)
     {
         var message = fx;
         return _context.SendMessage(_rootOutput, ref message) == Response.Handled;

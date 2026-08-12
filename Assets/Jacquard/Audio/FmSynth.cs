@@ -50,7 +50,7 @@ public sealed class FmSynth : System.IDisposable
 
     // Hands over the send effect settings. Not scheduled and not queued: it replaces
     // whatever the audio thread was using, from the next mix cycle.
-    public bool SetFx(in SendFxRuntime fx) => _backend.SetFx(fx);
+    public bool SetFx(in MixFxRuntime fx) => _backend.SetFx(fx);
 
     public FmSynthStatus GetStatus() => _backend.GetStatus();
 
@@ -74,7 +74,7 @@ interface IFmSynthBackend : System.IDisposable
     long MinimumLead { get; }
 
     bool Schedule(in FmNoteEvent note);
-    bool SetFx(in SendFxRuntime fx);
+    bool SetFx(in MixFxRuntime fx);
     FmSynthStatus GetStatus();
     void Pump();
 }

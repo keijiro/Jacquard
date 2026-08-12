@@ -1,6 +1,7 @@
 using Unity.Burst;
 using Unity.Jobs;
 using Unity.Mathematics;
+using UnityEngine;
 using UnityEngine.Audio;
 
 using Pipe = UnityEngine.Audio.ProcessorInstance.Pipe;
@@ -21,14 +22,32 @@ public struct FmSynthStatus
     public int cancelledNotes; // Rejected because every voice outranked it
 }
 
-// The send effects as the audio thread wants them, travelling the same pipe in the
-// opposite direction to the status.
+// Everything on the mix that is not carried by a note, as the audio thread wants it,
+// travelling the same pipe in the opposite direction to the status.
 //
-// This is the only mutable state the audio thread reads, and the first: everything
-// about a note reaches it stamped into the note itself, but one reverb serving every
-// channel cannot be carried by a note. So the settings are pushed whenever they
-// change, which the main thread notices by comparing this struct against the last
-// one it sent.
+// This is the only mutable state the audio thread reads: everything about a note
+// reaches it stamped into the note itself, but one reverb serving every channel and one
+// limiter across the finished mix cannot be carried by a note. So the settings are
+// pushed whenever they change, which the main thread notices by comparing this struct
+// against the last one it sent — one comparison for both halves, since there is one
+// message and nothing is lost by sending a little more of it than moved.
+
+public struct MixFxRuntime
+{
+    public SendFxRuntime sends;
+    public LimiterRuntime limiter;
+
+    public static MixFxRuntime FromSettings(in SendFx fx, in Limiter limiter,
+                                            float tempo, float sampleRate)
+      => new MixFxRuntime
+        { sends = SendFxRuntime.FromSettings(fx, tempo, sampleRate),
+          limiter = LimiterRuntime.FromSettings(limiter, sampleRate) };
+
+    public bool Equals(in MixFxRuntime other)
+      => sends.Equals(other.sends) && limiter.Equals(other.limiter);
+}
+
+// The send effects, converted.
 //
 // The delay time arrives already converted into a distance in samples. The audio
 // thread has no business knowing what a tempo or a note value is, and the conversion
@@ -62,6 +81,40 @@ public struct SendFxRuntime
          delaySpread == other.delaySpread;
 }
 
+// The limiter, converted: the two decibel figures as the gains they stand for, and the
+// two times as the coefficients that smooth the gain by one sample.
+//
+// Both conversions are a pow and a log's worth of work for something that changes when
+// a hand moves a bar, so neither belongs in the loop that runs them forty-eight
+// thousand times a second. What the audio thread is handed is four multiplications.
+
+public struct LimiterRuntime
+{
+    public float drive;   // Linear, into the ceiling
+    public float ceiling; // Linear, what the output is held under
+    public float attack;  // One pole coefficient, gain coming down
+    public float release; // And going back up
+
+    public static LimiterRuntime FromSettings(in Limiter limiter, float sampleRate)
+      => new LimiterRuntime
+        { drive = Limiter.Gain(Mathf.Clamp(limiter.drive, 0.0f, Limiter.MaxDrive)),
+          ceiling = Limiter.Gain(Mathf.Clamp(limiter.ceiling, Limiter.MinCeiling, 0.0f)),
+          attack = Coefficient(limiter.attack, sampleRate,
+                               Limiter.MinAttack, Limiter.MaxAttack),
+          release = Coefficient(limiter.release, sampleRate,
+                                Limiter.MinRelease, Limiter.MaxRelease) };
+
+    // How much of the way to the target one sample covers. The time is a time
+    // constant rather than a distance travelled, which is what makes an attack of a
+    // millisecond mean the same thing here as an envelope's does in the voice.
+    static float Coefficient(float seconds, float sampleRate, float low, float high)
+      => 1.0f - Mathf.Exp(-1.0f / (Mathf.Clamp(seconds, low, high) * sampleRate));
+
+    public bool Equals(in LimiterRuntime other)
+      => drive == other.drive && ceiling == other.ceiling &&
+         attack == other.attack && release == other.release;
+}
+
 // Realtime part: runs the voices on the audio thread.
 //
 // It owns no timbre state. Notes arrive through the pipe carrying their own patch
@@ -78,7 +131,7 @@ struct FmSynthRealtime : RootOutputInstance.IRealtime
     JobHandle _job;
     ulong _dspSample;
     FmSynthStatus _lastReported;
-    SendFxRuntime _fx;
+    MixFxRuntime _fx;
 
     // Receives scheduled notes and effect settings from the control part, and reports
     // diagnostics back.
@@ -87,7 +140,7 @@ struct FmSynthRealtime : RootOutputInstance.IRealtime
         foreach (var element in pipe.GetAvailableData(context))
         {
             if (element.TryGetData(out FmNoteEvent note)) { core.pool.Enqueue(note); continue; }
-            if (element.TryGetData(out SendFxRuntime fx)) _fx = fx;
+            if (element.TryGetData(out MixFxRuntime fx)) _fx = fx;
         }
 
         var status = core.Status(_dspSample);
