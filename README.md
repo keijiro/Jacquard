@@ -32,7 +32,7 @@ Using it
 | Details of a tile | The panel on the right follows the cursor |
 | Set a number | Drag its bar right or up, shift for fine; double click to type one |
 | Timbre | Select a `CHAN` cell, which brings up the Sound panel for its channel |
-| Silence a channel, or hear one alone | Its Mute or Solo switch on the Channels panel; a solo overrules every mute |
+| Silence a channel, or hear one alone | The Channels button opens a row per channel, with a Mute and a Solo switch on each; a solo overrules every mute |
 | Go to a channel | Select on its row, which puts the cursor on the `CHAN` tile that names it |
 | Reverb and delay | The Send FX button opens the panel they are set on; how much of a channel reaches each is the last two rows of its Sound panel |
 | Play the sequence by hand | The Live FX button opens a row of buttons that act while they are held |
@@ -42,9 +42,10 @@ Using it
 | Tempo | The bpm bar beside Play, which the delay is in time with |
 | Pan the plane | Drag from an empty cell, two finger swipe, or command+drag |
 
-Behind the score, in a wash the eye can ignore, is the synth: the output as a trace
-across the middle and the twenty-four voice slots as a row along the bottom. It is
-drawn by the camera rather than by the interface, which is transparent over it.
+The Visualizer button puts the synth behind the score, in a wash the eye can ignore:
+the output as a trace across the middle and the twenty-four voice slots as a row along
+the bottom. It is drawn by the camera rather than by the interface, which is transparent
+over it.
 
 A tile goes on free ground only: a lane's empty step, the cell under a stack, or
 the `TERM` cell, which grows the lane by a step. A stack is therefore built from

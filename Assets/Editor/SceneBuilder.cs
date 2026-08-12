@@ -60,6 +60,9 @@ static class SceneBuilder
         // points at is a shader that is not in the build.
         var visualizer = appObject.AddComponent<Visualizer>();
         visualizer.Shader = AssetDatabase.LoadAssetAtPath<Shader>(VisualizerShaderPath);
+        // Down until the switch on the transport row raises it, which is the state
+        // every other thing that switch row raises starts in.
+        visualizer.enabled = false;
 
         EditorSceneManager.SaveScene(scene, ScenePath);
 

@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Text;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -11,14 +10,16 @@ namespace Jacquard.App {
 // The row carries what belongs to the project as a whole and nothing else. Anything
 // that applies to a cell is on the panel that follows the cursor, which is where the
 // cell already is, and the plane keeps the screen that a palette and a paragraph of
-// keys used to take. The three switches on the row are the three panels a cell cannot
+// keys used to take. What is left on the row is a switch for each thing a cell cannot
 // ask for: the send effects, which belong to the project rather than to anything
 // written on the plane; the live effects, which belong to nothing at all — they are
-// held rather than set, and what they colour is gone as soon as the hand is off; and
-// what is set for the whole mix, which is across everything and so under nothing.
+// held rather than set, and what they colour is gone as soon as the hand is off; what
+// is set for the whole mix, which is across everything and so under nothing; the
+// channels, which are the mix rather than the score; and the visualizer, which is not a
+// panel at all but the one thing drawn behind the plane.
 //
-// The one panel with no switch is the channels, which is up whenever the app is: a mute
-// is played, and a switch in front of one is a beat too late.
+// Every one of them is down until it is asked for. The plane is what the screen is for,
+// and a switch that starts on is a decision nobody made.
 //
 // prototype.md leaves the application level UI to be designed here, so it is kept
 // to what a prototype has to prove: that every kind of tile can be put down, tuned
@@ -83,10 +84,11 @@ sealed class JacquardUI
                                               _lock.Root)));
         ShowSend(false);
 
-        // The other edge, and the only panel with no switch and no cursor behind it.
-        // A mute is played, so it is up whenever the app is.
+        // The other edge, which is the one place a column is never covered by the
+        // cursor's.
         _channels = new ChannelsPanel(_editor, app.Mutes);
         body.Add(PanelEdge(true, PanelColumn(_channels.Root)));
+        ShowChannels(false);
 
         // In neither edge and not on the dock: what is set for the whole thing is read
         // against nothing on screen, so it comes up in the middle.
@@ -116,7 +118,7 @@ sealed class JacquardUI
         // A loaded project brings a tempo of its own, which the bar has to follow.
         _tempo.Sync();
 
-        _status.text = Status();
+        Report();
     }
 
     // Construction
@@ -160,14 +162,29 @@ sealed class JacquardUI
                                     () => { ShowLive(!_liveShown); Refocus(); }, 62);
         row.Add(_liveButton);
 
-        // The third of the same kind, and the last one that will need a switch of its
-        // own: what it raises is the panel for everything that is set for the whole
-        // project and answers to no cell, so anything else of that sort arrives as a
-        // group of rows on a panel that is already here rather than as a fourth button.
+        // The third of the same kind. What it raises is the panel for everything that
+        // is set for the whole project and answers to no cell, so anything else of that
+        // sort arrives as a group of rows on a panel that is already here rather than as
+        // a switch of its own.
         _globalButton = Controls.Push("Global",
                                       () => { ShowGlobal(!_globalShown); Refocus(); },
                                       62);
         row.Add(_globalButton);
+
+        // The mix rather than the score, and the same kind of switch for the same
+        // reason: no cell names a channel's mute, so nothing on the plane can raise it.
+        _channelsButton =
+          Controls.Push("Channels",
+                        () => { ShowChannels(!_channelsShown); Refocus(); }, 62);
+        row.Add(_channelsButton);
+
+        // The odd one out, since what it raises is not a panel: it is what the camera
+        // draws behind everything. It sits with the others anyway, because from the row
+        // they are all the same question — is this thing on screen or not.
+        _visualizerButton =
+          Controls.Push("Visualizer",
+                        () => { ShowVisualizer(!_visualizerShown); Refocus(); }, 74);
+        row.Add(_visualizerButton);
 
         row.Add(Separator());
 
@@ -176,17 +193,18 @@ sealed class JacquardUI
         var chooser = Controls.Chooser("File", _slots,
                                        () => Mathf.Max(0, _slots.IndexOf(_app.Store.Name)),
                                        index => _app.Store.Name = _slots[index]);
-        chooser.style.width = Controls.Width(190);
+        // The widest thing on the row, and the first place to look when the row runs
+        // out of screen. What it has to hold is a slot name between two arrows, and a
+        // name longer than the box draws past it rather than being clipped — where a
+        // switch that does not fit is a switch that cannot be pressed. Cut from 190 when
+        // the row grew its fourth and fifth switch, which is what put the touch profile
+        // back inside an iPad mini's 917 units.
+        chooser.style.width = Controls.Width(170);
         chooser.style.marginBottom = 0;
         row.Add(chooser);
 
         row.Add(Controls.Push("Save", () => { _app.Save(); Refocus(); }, 46));
         row.Add(Controls.Push("Load", () => { _app.Load(); Refocus(); }, 46));
-
-        row.Add(Separator());
-
-        _status = Controls.Value("");
-        row.Add(_status);
 
         return row;
     }
@@ -406,6 +424,29 @@ sealed class JacquardUI
         Controls.SetActive(_globalButton, shown);
     }
 
+    // And for the channels, which is the same switch again on the other edge.
+    void ShowChannels(bool shown)
+    {
+        _channelsShown = shown;
+
+        _channels.Root.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+
+        Controls.SetActive(_channelsButton, shown);
+    }
+
+    // The one switch here that puts nothing on the panel. What it moves is the
+    // component's own enabled flag, which is where a MonoBehaviour's on and off already
+    // live: disabled, its LateUpdate does not run and nothing is handed to the renderer,
+    // so a visualizer nobody asked for costs a frame nothing at all.
+    void ShowVisualizer(bool shown)
+    {
+        _visualizerShown = shown;
+
+        if (_app.Visualizer != null) _app.Visualizer.enabled = shown;
+
+        Controls.SetActive(_visualizerButton, shown);
+    }
+
     // The same switch for the one panel that holds nothing. Lowering it does not lift
     // whatever is held on it, because a button cannot be held once it is not on screen:
     // losing the panel loses the pointer capture, and losing the capture is already
@@ -451,28 +492,20 @@ sealed class JacquardUI
         _scroll.Offset = offset;
     }
 
-    string Status()
+    // What the file controls have to say, which is the one thing the status line
+    // carried that was not a running count.
+    //
+    // The line is gone: it was a paragraph of diagnostics — the cursor, the voice count,
+    // a runner's step and lap — written across the widest part of the transport row and
+    // read by nobody, and the row has since grown five switches that do have to be
+    // reachable. What is left of it goes to the console, once each time it changes,
+    // because a save that failed has to say so somewhere.
+    void Report()
     {
-        var status = _app.Status;
+        if (_app.Message == null || _app.Message == _reported) return;
 
-        _text.Clear();
-        _text.Append("cursor ").Append(_view.Cursor);
-        _text.Append("   voices ").Append(status.activeVoices)
-             .Append('/').Append(_app.MaxVoices);
-
-        if (_app.Sequencer.IsPlaying)
-        {
-            _text.Append("   runners ").Append(_app.Sequencer.Runners.Count);
-
-            foreach (var runner in _app.Sequencer.Runners)
-                _text.Append("  ch").Append(runner.Channel)
-                     .Append(':').Append(runner.PlayingStep + 1)
-                     .Append(" lap ").Append(runner.Pass + 1);
-        }
-
-        if (_app.Message != null) _text.Append("   ").Append(_app.Message);
-
-        return _text.ToString();
+        _reported = _app.Message;
+        Debug.Log(_reported);
     }
 
     // Private members
@@ -489,17 +522,22 @@ sealed class JacquardUI
     readonly ChannelsPanel _channels;
     readonly GlobalPanel _global;
     readonly LivePanel _live;
-    readonly StringBuilder _text = new();
 
     Button _play;
+    // The last thing the file controls said, so that a message is logged when it
+    // arrives rather than on every frame it is still true.
+    string _reported;
     Button _sendButton;
     bool _sendShown;
     Button _liveButton;
     bool _liveShown;
     Button _globalButton;
     bool _globalShown;
+    Button _channelsButton;
+    bool _channelsShown;
+    Button _visualizerButton;
+    bool _visualizerShown;
     ValueBar _tempo;
-    Label _status;
     List<string> _slots;
 
     const float SeparatorAir = 8.0f;

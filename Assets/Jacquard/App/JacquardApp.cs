@@ -101,6 +101,10 @@ public sealed class JacquardApp : MonoBehaviour
     // Not part of the project, and so not replaced by a load: a hand over one channel
     // of the mix belongs to whoever is at the machine rather than to the file.
     public ChannelMutes Mutes { get; private set; }
+
+    // The background drawing, or nothing in a scene without one. It is a component
+    // rather than something this owns, so what the UI switches is its enabled flag.
+    public Visualizer Visualizer { get; private set; }
     public FmSynth Synth { get; private set; }
     public ScoreEditor Editor { get; private set; }
     public ScoreView View { get; private set; }
@@ -203,6 +207,8 @@ public sealed class JacquardApp : MonoBehaviour
 
         Store = new ProjectStore();
         Message = _startupProblem ?? Store.Listing();
+
+        Visualizer = GetComponent<Visualizer>();
 
         // The UXML holds nothing but a full-height root to build into. Adding to the
         // document root instead would put the chrome below that element rather than

@@ -24,11 +24,12 @@ namespace Jacquard.App {
 // opening a panel. A channel with no lane of its own has nowhere to go and greys out,
 // which is also the one place on screen that says which of the eight are in use.
 //
-// It is up all the time, in the top left, and it is the only panel that is. Everything
-// else is either the cursor's or has a switch on the transport row, and both of those
-// exist to keep the plane clear — but a mute is played rather than set, and reaching
-// for a switch to reach for a mute is a beat too late. What it costs is the top left
-// corner of the plane, which is a corner the plane can be panned out from under.
+// It stands in the top left, which is the one corner the cursor's panels never reach,
+// and it is raised by a switch on the transport row like everything else there. A mute
+// is played rather than set, which is an argument for having it up already — but it is
+// eight rows of chrome over the plane, and a hand that is muting is a hand that can
+// press the switch first. What it covers while it is up is a corner the plane can be
+// panned out from under.
 
 sealed class ChannelsPanel
 {

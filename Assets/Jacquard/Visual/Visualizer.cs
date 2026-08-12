@@ -25,6 +25,11 @@ namespace Jacquard.App {
 // trace is a wash the eye can ignore while reading a cell and can still see out of the
 // corner of it while playing. The palette is the UI's own — there is no colour here
 // that Style does not already hold.
+//
+// It is down until it is asked for, on the component's own enabled flag, which is what
+// the switch on the transport row moves. Faint or not, this is the only thing on screen
+// that moves when nothing is being edited, and a background that is always on is a
+// background nobody chose.
 
 [RequireComponent(typeof(JacquardApp))]
 public sealed class Visualizer : MonoBehaviour
@@ -42,7 +47,11 @@ public sealed class Visualizer : MonoBehaviour
 
     // MonoBehaviour implementation
 
-    void Start()
+    // Awake and not Start, because this component ships disabled: what raises it is a
+    // switch on the transport row, and Start never runs on something that has not been
+    // enabled yet. Awake does, so the material and the mesh are built once whether or
+    // not anyone ever asks to see the mix.
+    void Awake()
     {
         _app = GetComponent<JacquardApp>();
 

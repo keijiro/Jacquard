@@ -405,6 +405,21 @@ Notes on the prototype
   that says a panel is not part of the arrangement around the plane, which is what a
   setting nobody visits twice a session should say. It covers the score while it is up,
   and the switch that raised it is the way back.
+- **Everything the transport row switches starts off.** Send FX, Live FX, Global, Channels
+  and the visualizer are five things a cell cannot ask for and so five switches, and none
+  of them is up until it is asked for: the plane is what the screen is for, and a switch
+  that starts on is a decision nobody made. The visualizer is the odd one, since what it
+  raises is not a panel — the switch moves the component's own `enabled` flag, which is
+  where a MonoBehaviour's on and off already live, so a visualizer nobody asked for costs
+  a frame nothing at all. It is also why that component wakes in `Awake` rather than
+  `Start`: `Start` never runs on something that ships disabled.
+
+  **The status line went with them.** It was a paragraph of diagnostics written across the
+  widest part of the row — the cursor position, the voice count, each runner's step and
+  lap — and it was read by nobody while the row grew five switches that have to be
+  reachable on a tablet. What is left of it is the one thing that was not a running count:
+  whatever the file controls have to say, now logged to the console once each time it
+  changes, because a save that failed has to say so somewhere.
 - **The visualizer draws the synth, not the sequence.** What the sequence is doing is
   already on the plane — the playheads say which step each runner is on — and that is a
   different question from what came out of it. A gate that did not fire, a note that lost
@@ -553,12 +568,12 @@ Notes on the prototype
   there is no key on any line, no version bump, and a load leaves the mutes where the
   hands left them.
 
-  The panel is the one with no switch and no cursor behind it, up in the top left
-  whenever the app is. Everything else on screen is either the cursor's or has a button
-  on the transport row, and both of those exist to keep the plane clear — but a mute is
-  played, and reaching for a switch to reach for a mute is a beat too late. It shows all
-  eight channels at once because that is what it is for: a mute is only pressed against
-  what the rest of the mix is doing. *Select* is the row's way onto the plane rather than
+  The panel stands in the top left, the one corner the cursor's panels never reach, and
+  is raised by a switch on the transport row like everything else there. Being played
+  rather than set is an argument for having it up already, and it lost: eight rows of
+  chrome over the plane is a lot to leave standing, and a hand that is muting is a hand
+  that can press the switch first. It shows all eight channels at once because that is
+  what it is for — a mute is only pressed against what the rest of the mix is doing. *Select* is the row's way onto the plane rather than
   a second way of opening a panel — it moves the cursor to the `CHAN` tile that names the
   channel, and the Sound panel comes up because the cursor is on it, the same rule as
   ever. A channel with no lane has nowhere to go and greys out, which is also the only
