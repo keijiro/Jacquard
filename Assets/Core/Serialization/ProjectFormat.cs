@@ -18,6 +18,7 @@ namespace Jacquard {
 //   meter 4 4
 //   fx rsize=0.5 rdamp=0.5 ...
 //   limiter drive=0 ceiling=0 attack=0.005 release=0.15
+//   mutes muted=01000000 soloed=00000000
 //   patch 1 level=0.8 index=3 ...
 //   lane 1 1 CHAN:1 div=16
 //     step C4/4 E4 G4
@@ -28,6 +29,14 @@ namespace Jacquard {
 
 public static class ProjectFormat
 {
+    // Version 12 saves the mutes: a mutes line carrying a digit per channel for what is
+    // silenced and another for what is soloed. An older file has none and reads as a
+    // project with nothing held back, which is where a load used to leave the switches
+    // anyway, so nothing about such a file sounds different for being read here. Both
+    // sets are written even though only one of them is ever consulted, for the reason
+    // ChannelMutes gives: the mutes under a solo are what dropping it gives back. The
+    // bump is for the other direction, as it has been for every line added here.
+    //
     // Version 11 adds the limiter across the finished mix: a limiter line for the four
     // numbers it holds. An older file has none, and reads as a project whose limiter has
     // never been touched — which is a limiter with no drive under a ceiling at full
@@ -92,7 +101,7 @@ public static class ProjectFormat
     // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
     // reads, since a token nothing answers to is skipped, but the parameters that
     // no longer exist fall back to the default patch rather than being converted.
-    public const int Version = 11;
+    public const int Version = 12;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -107,6 +116,7 @@ public static class ProjectFormat
             .Append(project.BeatUnit).Append('\n');
         text.Append("fx ").Append(WriteFx(project.Fx)).Append('\n');
         text.Append("limiter ").Append(WriteLimiter(project.Limiter)).Append('\n');
+        text.Append("mutes ").Append(WriteMutes(project.Mutes)).Append('\n');
         // Every channel gets a line, whether anything plays on it or not: a regular
         // file is worth more here than a short one, and a bank of eight is small.
         for (var channel = 1; channel <= PatchBank.Channels; channel++)
@@ -199,6 +209,26 @@ public static class ProjectFormat
          " attack=" + F(limiter.attack) +
          " release=" + F(limiter.release);
 
+    // A digit per channel for each of the two sets, which is the spelling a cycle gate's
+    // laps already use: a run as long as the thing it is a switch per, so which channel
+    // a digit is for is its position and nothing has to be numbered. Written in full
+    // whether anything is held back or not, for the reason every channel gets a patch
+    // line.
+    static string WriteMutes(ChannelMutes mutes)
+    {
+        var text = new StringBuilder("muted=");
+
+        for (var channel = 1; channel <= PatchBank.Channels; channel++)
+            text.Append(mutes.IsMuted(channel) ? '1' : '0');
+
+        text.Append(" soloed=");
+
+        for (var channel = 1; channel <= PatchBank.Channels; channel++)
+            text.Append(mutes.IsSoloed(channel) ? '1' : '0');
+
+        return text.ToString();
+    }
+
     static string WriteFx(in SendFx fx)
       => "rsize=" + F(fx.reverbSize) +
          " rdamp=" + F(fx.reverbDamp) +
@@ -261,6 +291,10 @@ public static class ProjectFormat
 
                 case "limiter":
                     ReadLimiter(ref project.Limiter, tokens);
+                    break;
+
+                case "mutes":
+                    ReadMutes(project.Mutes, tokens);
                     break;
 
                 case "patch":
@@ -553,6 +587,31 @@ public static class ProjectFormat
                 case "ceiling": limiter.ceiling = value; break;
                 case "attack": limiter.attack = value; break;
                 case "release": limiter.release = value; break;
+            }
+        }
+    }
+
+    // The one mutes line, read with the tolerance the two lines above it get. A key
+    // nothing answers to is skipped, a missing one leaves its whole set where the
+    // project was created with it, and a run of digits shorter than the bank leaves the
+    // channels past its end alone — so a hand written `mutes muted=1` silences the first
+    // channel and says nothing about the other seven. Anything but a 1 is off, which is
+    // what makes a run of the wrong length safe rather than an error worth refusing a
+    // file over.
+    static void ReadMutes(ChannelMutes mutes, string[] tokens)
+    {
+        for (var i = 1; i < tokens.Length; i++)
+        {
+            var (key, text) = Split(tokens[i]);
+
+            var muted = key == "muted";
+            if (!muted && key != "soloed") continue;
+
+            for (var channel = 1;
+                 channel <= PatchBank.Channels && channel <= text.Length; channel++)
+            {
+                var on = text[channel - 1] == '1';
+                if (muted) mutes.SetMuted(channel, on); else mutes.SetSoloed(channel, on);
             }
         }
     }

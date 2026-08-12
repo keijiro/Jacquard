@@ -14,10 +14,17 @@ namespace Jacquard {
 // of them, and the mutes are simply not consulted. They are kept rather than cleared,
 // so that dropping the last solo gives back the mix that was there before it.
 //
-// None of this is saved. What a file holds is the piece, and a hand held over one
-// channel of it is a performance, the same argument the live effects are kept out of
-// the format by: there is no version bump here, no key on any line, and a load leaves
-// the mutes exactly where the hands left them.
+// This is saved with the piece, which is why it hangs off the project. A hand held over
+// a channel is played rather than set — that argument once kept it out of the format
+// altogether — but what a hand leaves behind is a decision about how the thing is
+// heard, and it is the one such decision the app used to forget between one session and
+// the next. A file carries one line for it, and a load puts the switches back where the
+// hands that wrote it left them.
+//
+// Both sets are saved, not only the one being consulted. The mutes under a solo are
+// exactly what dropping the last solo gives back, so a file holding only the audible
+// answer would come back with them cleared — which is the one thing the rule above
+// promises does not happen.
 
 public sealed class ChannelMutes
 {

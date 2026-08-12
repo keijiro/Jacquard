@@ -594,10 +594,26 @@ Notes on the prototype
   out instead of clearing themselves — dropping the last solo gives back the mix that was
   underneath it.
 
-  **None of it is saved.** A file holds the piece; a hand held over one channel of it is a
-  performance, which is the argument the live effects are kept out of the format by. So
-  there is no key on any line, no version bump, and a load leaves the mutes where the
-  hands left them.
+  **Both sets are saved**, on a `mutes` line of two digit runs — one switch per channel,
+  the spelling a cycle gate's laps already use — and `ChannelMutes` hangs off `Project`
+  rather than off the app so that the file is the only thing that has to carry it. It was
+  the other way round first, on the argument the live effects are still kept out of the
+  format by: a hand held over a channel is played rather than set, and what a file holds
+  is the piece. What that missed is that the hand comes off again. A performance is gone
+  the moment it stops; a mute left on is a decision about how the piece is heard, and
+  version 12 is the admission that reopening a mix to find every channel back in is
+  losing one silently rather than declining to record it.
+
+  The soloed set is written as well as the muted one even though only ever one of them is
+  consulted, because the mutes underneath a solo are exactly what dropping the last solo
+  gives back — a file that recorded only the audible answer would come back having
+  cleared them, which is the one thing the rule above promises cannot happen.
+
+  What this costs is a second home for the same state, and it is paid by not having one:
+  the sequencer, the panel and the format all read `Project.Mutes` through the project
+  they are already holding, and a load is wired by the assignment that was already there.
+  Anything keeping a `ChannelMutes` of its own would go on pressing switches on the file
+  that was closed, and nothing about the sound would say so.
 
   The panel stands in the top left, the one corner the cursor's panels never reach, and
   is raised by a switch on the transport row like everything else there. Being played

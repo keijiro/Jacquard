@@ -98,10 +98,6 @@ public sealed class JacquardApp : MonoBehaviour
     public Sequencer Sequencer { get; private set; }
     public LiveFx Live { get; private set; }
 
-    // Not part of the project, and so not replaced by a load: a hand over one channel
-    // of the mix belongs to whoever is at the machine rather than to the file.
-    public ChannelMutes Mutes { get; private set; }
-
     // The background drawing, or nothing in a scene without one. It is a component
     // rather than something this owns, so what the UI switches is its enabled flag.
     public Visualizer Visualizer { get; private set; }
@@ -196,8 +192,7 @@ public sealed class JacquardApp : MonoBehaviour
         Project = ReadStartupScore();
 
         Synth = new FmSynth(MaxVoices);
-        Mutes = new ChannelMutes();
-        Sequencer = new Sequencer { Project = Project, Mutes = Mutes };
+        Sequencer = new Sequencer { Project = Project };
         Live = new LiveFx();
 
         View = new ScoreView { Score = Project.Score, Sequencer = Sequencer };

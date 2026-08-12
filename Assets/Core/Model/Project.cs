@@ -35,6 +35,17 @@ public sealed class Project
     public Score Score { get; set; } = new Score();
     public PatchBank Patches { get; } = new PatchBank();
 
+    // Which channels are heard, here on the same reading that puts the bank here: a
+    // mute answers to a channel rather than to the project, and the project is still
+    // the only thing above it that a file is made of. It is the one part of this that
+    // is played rather than set, and it is saved all the same — see ChannelMutes.
+    //
+    // Everything that reads the mutes reads them through the project it is already
+    // holding, rather than being handed a set of its own to keep: a load replaces the
+    // project, so anything with its own reference would go on pressing switches on the
+    // file that was closed.
+    public ChannelMutes Mutes { get; } = new ChannelMutes();
+
     // An empty project still needs one lane to type into.
     public static Project CreateEmpty()
     {

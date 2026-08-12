@@ -86,7 +86,7 @@ sealed class JacquardUI
 
         // The other edge, which is the one place a column is never covered by the
         // cursor's.
-        _channels = new ChannelsPanel(_editor, app.Mutes);
+        _channels = new ChannelsPanel(_editor);
         body.Add(PanelEdge(true, PanelColumn(_channels.Root)));
         ShowChannels(false);
 

@@ -35,9 +35,9 @@ sealed class ChannelsPanel
 {
     public VisualElement Root { get; }
 
-    public ChannelsPanel(ScoreEditor editor, ChannelMutes mutes)
+    public ChannelsPanel(ScoreEditor editor)
     {
-        (_editor, _mutes) = (editor, mutes);
+        _editor = editor;
 
         Root = Controls.Panel("Channels");
         Root.Add(Controls.Divider());
@@ -54,9 +54,9 @@ sealed class ChannelsPanel
         Refresh();
     }
 
-    // Called when the score changes, which is the one thing that can move a row
-    // without the row being touched: a lane arriving or leaving is a channel becoming
-    // reachable or not.
+    // Called when the score changes, which is what can move a row without the row being
+    // touched: a lane arriving or leaving is a channel becoming reachable or not, and a
+    // load is eight rows arriving at once, since the mutes come with the file.
     public void Refresh()
     {
         foreach (var row in _rows) row.Sync();
@@ -65,8 +65,12 @@ sealed class ChannelsPanel
     // Private members
 
     readonly ScoreEditor _editor;
-    readonly ChannelMutes _mutes;
     readonly Row[] _rows;
+
+    // Read off the project every time rather than held, the same way the score is: a
+    // load brings mutes of its own, and a reference taken when this panel was built
+    // would leave the switches pressing on the file that was closed.
+    ChannelMutes Mutes => _editor.Project.Mutes;
 
     // Where Select goes: the head of the first lane that names this channel, in the
     // order the runners are born in, so that a channel with two lanes takes the cursor
@@ -136,7 +140,7 @@ sealed class ChannelsPanel
         // Pulls the row back in line with the mutes and with the score.
         public void Sync()
         {
-            var mutes = _panel._mutes;
+            var mutes = _panel.Mutes;
             var soloing = mutes.AnySoloed;
 
             Controls.SetActive(_solo, mutes.IsSoloed(_channel));
@@ -167,7 +171,7 @@ sealed class ChannelsPanel
         // is synced rather than the row that was pressed.
         void ToggleSolo()
         {
-            var mutes = _panel._mutes;
+            var mutes = _panel.Mutes;
             mutes.SetSoloed(_channel, !mutes.IsSoloed(_channel));
             _panel.Refresh();
             _panel._editor.View.Focus();
@@ -175,7 +179,7 @@ sealed class ChannelsPanel
 
         void ToggleMute()
         {
-            var mutes = _panel._mutes;
+            var mutes = _panel.Mutes;
             if (mutes.AnySoloed) return;
 
             mutes.SetMuted(_channel, !mutes.IsMuted(_channel));

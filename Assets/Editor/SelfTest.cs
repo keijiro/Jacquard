@@ -391,8 +391,8 @@ static class SelfTest
     {
         const int sampleRate = 48000;
 
-        var mutes = new ChannelMutes();
         var project = new Project();
+        var mutes = project.Mutes;
         var score = project.Score;
 
         // Two lanes of one step, told apart by their patch level the way the channel
@@ -406,7 +406,7 @@ static class SelfTest
         project.Patches[1].level = 0.25f;
         project.Patches[2].level = 0.75f;
 
-        var sequencer = new Sequencer { Project = project, Mutes = mutes };
+        var sequencer = new Sequencer { Project = project };
 
         mutes.SetMuted(1, true);
 
@@ -445,6 +445,28 @@ static class SelfTest
         Check(log, "dropping the last solo gives the mutes back",
               restored.Count == 1 && Mathf.Abs(restored[0].level - 0.75f) < 0.001f,
               restored.Count + " notes");
+
+        // And both sets have to survive the file, which is what version 12 is for. The
+        // interesting half is the mute: with channel 2 soloed it is not being consulted
+        // at all, so a file that wrote only the audible answer would come back having
+        // quietly cleared it.
+        mutes.SetSoloed(2, true);
+
+        var reloaded = ProjectFormat.Read(ProjectFormat.Write(project)).Mutes;
+
+        Check(log, "the mutes round trip",
+              reloaded.IsMuted(1) && !reloaded.IsMuted(2) &&
+              reloaded.IsSoloed(2) && !reloaded.IsSoloed(1),
+              "muted 1=" + reloaded.IsMuted(1) + " 2=" + reloaded.IsMuted(2) +
+              ", soloed 1=" + reloaded.IsSoloed(1) + " 2=" + reloaded.IsSoloed(2));
+
+        // A file from before the line existed reads as nothing held back, which is what
+        // a load used to leave behind whatever the file said.
+        var legacy = ProjectFormat.Read("jacquard 11\ntempo 120\n").Mutes;
+
+        Check(log, "a file without a mutes line holds nothing back",
+              !legacy.AnySoloed && !legacy.IsMuted(1),
+              "soloing=" + legacy.AnySoloed + " ch1 muted=" + legacy.IsMuted(1));
     }
 
     // One lap of a sequence, from a standing start.

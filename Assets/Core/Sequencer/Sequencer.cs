@@ -22,11 +22,11 @@ public sealed class Sequencer
 {
     // Public state
 
+    // Which channels are heard comes with it, in Project.Mutes. Nothing about the run
+    // depends on that — see the note on the note tile in Descend — and it is read off
+    // the project rather than held here so that a project loaded over the top of this
+    // one brings its own, which is the whole of the wiring a load needs.
     public Project Project { get; set; }
-
-    // Which channels are heard. Nothing about the run depends on it — see the note on
-    // the note tile in Descend — and a sequencer without one hears everything.
-    public ChannelMutes Mutes { get; set; }
 
     public bool IsPlaying => _playing;
 
@@ -197,7 +197,7 @@ public sealed class Sequencer
                     // jump below is still taken, so a channel let back in is heard
                     // from where the sequence has got to rather than from a lap that
                     // was never run.
-                    if (Mutes != null && !Mutes.Sounds(channel)) break;
+                    if (!Project.Mutes.Sounds(channel)) break;
 
                     // Every note of a chord takes the channel as it stands where it
                     // sits, so a lock between two of them separates the two.
