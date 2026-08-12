@@ -321,16 +321,20 @@ Notes on the prototype
   control the other panels had no use for and a second way to do what the button on the
   row already did. `Controls.Panel` no longer offers one at all: a panel is put away by
   whatever put it up, and the header is a title and nothing else. They hang from the top
-  left, the opposite corner from the cursor's column, so that reaching for an effect
-  never covers what the cursor is saying about the note the effect is for.
+  right in a column of their own, on the inside of the cursor's: a panel that does not
+  follow the cursor cannot queue up behind panels that do, and beside is where the two
+  are read together — how much of a channel goes to the reverb is a row of that
+  channel's Sound panel, and this is what it goes to. They held the opposite corner
+  until the channels wanted it, which is the one place a column is never covered by the
+  cursor's.
 
   **One panel each, Reverb and Delay, and not one panel with two headings in it.** A
   panel is already the thing that says *this group of rows is about that*, so a heading
   inside one was a second answer to a question the panel had answered: the first row of
   a group stood against a rule and the last against nothing, and the column read as one
   loose list rather than as two settled ones. Split, each effect gets the header, the
-  rule and the inset every other group of rows on screen gets, and the left column
-  stacks two panels the way the right one does. They are raised and lowered together,
+  rule and the inset every other group of rows on screen gets, and their column stacks
+  two panels the way the cursor's stacks its own. They are raised and lowered together,
   since they are one setting of the project in two boxes rather than two things to
   arrange.
 

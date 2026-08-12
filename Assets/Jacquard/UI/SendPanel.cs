@@ -30,9 +30,12 @@ namespace Jacquard.App {
 // switch, and it raises and lowers them together — they are one setting of the project
 // in two boxes, not two things to be arranged.
 //
-// They sit at the top left, the opposite corner to the cursor's column, so that
-// reaching for an effect never means covering what the cursor is showing about the
-// note the effect is for.
+// They stand in a column of their own beside the cursor's, on the inside of it. A
+// column of their own because nothing here answers to a cell, and a panel that does
+// not follow the cursor cannot queue up behind panels that do; beside it because the
+// two are read together — how much of a channel goes to the reverb is a row of that
+// channel's Sound panel, and this is what it goes to, so the amount and the effect are
+// a glance apart. What they cost is the plane they cover, and only while they are up.
 //
 // Seven bars between them and no more. The send amounts are not here: how much of a
 // channel goes to the reverb is a property of that channel, so it is in the patch and

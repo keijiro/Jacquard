@@ -5,9 +5,8 @@ using UnityEngine.UIElements;
 
 namespace Jacquard.App {
 
-// Assembles the screen: one row of chrome above a scrolling score plane, with a
-// column of panels floating over each of its top corners and one panel along the
-// bottom edge.
+// Assembles the screen: one row of chrome above a scrolling score plane, with columns
+// of panels floating over its top corners and one panel along the bottom edge.
 //
 // The row carries what belongs to the project as a whole and nothing else. Anything
 // that applies to a cell is on the panel that follows the cursor, which is where the
@@ -66,14 +65,15 @@ sealed class JacquardUI
         _sound = new SoundPanel(_editor);
         _lock = new LockPanel(_editor);
 
-        body.Add(PanelColumn(false, _inspector.Root, _sound.Root, _lock.Root));
-
         // The effects are the project's, not a cell's, so they get a column of their
-        // own on the other edge rather than a slot in the cursor's. One panel each: a
-        // heading inside a panel was doing the work a panel does.
+        // own rather than a slot in the cursor's. One panel each: a heading inside a
+        // panel was doing the work a panel does.
         _reverb = new SendPanel(_editor, SendPanel.Effect.Reverb);
         _delay = new SendPanel(_editor, SendPanel.Effect.Delay);
-        body.Add(PanelColumn(true, _reverb.Root, _delay.Root));
+
+        body.Add(PanelEdge(false, PanelColumn(_reverb.Root, _delay.Root),
+                                  PanelColumn(_inspector.Root, _sound.Root,
+                                              _lock.Root)));
         ShowSend(false);
 
         // Neither column, because this one is not read: it is played. The columns are
@@ -164,8 +164,8 @@ sealed class JacquardUI
         return row;
     }
 
-    // A column of panels down one edge. They stack in the order they are given rather
-    // than each holding a corner of its own: on the right, the Tile panel is always up
+    // A column of panels. They stack in the order they are given rather than each
+    // holding a corner of its own: in the cursor's column the Tile panel is always up
     // so it keeps the top, and whichever of Sound and Lock the cursor calls for falls
     // in under it. A panel that is down is display: none, which takes it out of the
     // column rather than leaving its gap behind.
@@ -176,30 +176,61 @@ sealed class JacquardUI
     // never as tall as the screen; a column that grows downwards costs only what it is
     // using.
     //
-    // The left edge is a second column all the same, and this is what it is for: the
-    // send effects are nothing to do with the cursor, so standing them under the Tile
-    // panel would put a project setting in the queue behind whatever cell is selected,
-    // and they would move down the screen every time the Tile panel grew a line.
-    // Opposite corners also mean that reaching for an effect never covers what the
-    // cursor is saying about the note the effect is for.
-    //
     // A column is transparent to the pointer and only as tall as what is on it, so the
     // plane stays reachable everywhere a panel is not actually drawn.
-    static VisualElement PanelColumn(bool onLeft, params VisualElement[] panels)
+    static VisualElement PanelColumn(params VisualElement[] panels)
     {
         var column = new VisualElement();
-        column.style.position = Position.Absolute;
-        column.style.top = Controls.PanelGap;
+        column.style.flexShrink = 0;
+        // The gap to whatever stands to the right of it, by the same rule the rest of
+        // this file follows. The last column on an edge gives its own back below.
+        column.style.marginRight = Controls.PanelGap;
         column.pickingMode = PickingMode.Ignore;
-
-        if (onLeft)
-            column.style.left = Controls.PanelGap;
-        else
-            column.style.right = Controls.PanelGap;
 
         foreach (var panel in panels) column.Add(panel);
 
         return column;
+    }
+
+    // The columns down one edge of the screen, in the order they stand across it,
+    // pinned to that top corner and no wider than what is on them.
+    //
+    // Two of them on the right, because a panel that answers to the cursor and one that
+    // does not cannot share a column: standing the send effects under the Tile panel
+    // would put a project setting in the queue behind whatever cell is selected, and
+    // move it down the screen every time the Tile panel grew a line. So they get a
+    // column, and the column goes beside the cursor's rather than in the far corner.
+    //
+    // Beside, because the two are read together. What a channel sends is a row of its
+    // Sound panel and what it is sent to is here, so the amount and the effect it feeds
+    // are a glance apart instead of a screen apart — and the left edge, which the send
+    // effects used to hold, is the one place a column can stand without ever being
+    // covered by the cursor's, which is what the channels want.
+    //
+    // What it costs is the plane under it, and only while it is up: a column of panels
+    // that is down is a column of nothing, and this one is down until the Send FX
+    // button raises it.
+    static VisualElement PanelEdge(bool onLeft, params VisualElement[] columns)
+    {
+        var edge = new VisualElement();
+        edge.style.position = Position.Absolute;
+        edge.style.top = Controls.PanelGap;
+        edge.style.flexDirection = FlexDirection.Row;
+        edge.style.alignItems = Align.FlexStart;
+        edge.pickingMode = PickingMode.Ignore;
+
+        if (onLeft)
+            edge.style.left = Controls.PanelGap;
+        else
+            edge.style.right = Controls.PanelGap;
+
+        foreach (var column in columns) edge.Add(column);
+
+        // The gap the last column carries has nothing but the screen's edge or the
+        // plane on the other side of it, and the inset above has already paid for one.
+        columns[columns.Length - 1].style.marginRight = 0;
+
+        return edge;
     }
 
     // One panel along the bottom edge, centred, for the one panel that is played
