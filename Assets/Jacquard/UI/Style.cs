@@ -51,6 +51,13 @@ static class Style
 
     public const float LatticeDot = 2.0f;
 
+    // How far back something goes when it is on the screen but out of reach: a mute
+    // that is not being consulted, a released lock row, the score while another one is
+    // waiting to come in. Dimmed whole rather than greyed control by control, since a
+    // control disabled in the layout engine's sense brings the default theme's idea of
+    // grey with it rather than this one's.
+    public const float DimmedOpacity = 0.45f;
+
     // Colours
 
     public static readonly Color Background = Hex(0x16161a);

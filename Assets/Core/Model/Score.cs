@@ -159,6 +159,35 @@ public sealed class Score
       => Lanes.Where(lane => lane.Channel != null)
               .OrderBy(lane => lane.Y).ThenBy(lane => lane.X);
 
+    // The lane the piece's period is read off: the first channel one lane in the
+    // order the runners are born in.
+    //
+    // Nothing about a lane says that it is this one — it is a position rather than a
+    // property, the same way the order a runner takes its turn in is — so a score
+    // says where it ends by where its channel one lane is written and not by a flag
+    // anybody has to set. Channel one because a lap has to be counted somewhere and
+    // that is where it is legible; a score with no channel one lane is read off
+    // whoever runs first, since something has to answer.
+    //
+    // Only the switch between two scores asks this today. It is here rather than
+    // there because a period belongs to the score that has one, and the next thing
+    // that wants to happen on the turn of a piece should find it already written.
+    public Lane MasterLane
+    {
+        get
+        {
+            Lane first = null;
+
+            foreach (var lane in ChannelLanes)
+            {
+                first ??= lane;
+                if (lane.Channel.Channel == 1) return lane;
+            }
+
+            return first;
+        }
+    }
+
     // Extent of the used area, which is what the view sizes its plane from.
     public int Width => Lanes.Count == 0 ? 0 : Lanes.Max(lane => lane.TermX) + 1;
 

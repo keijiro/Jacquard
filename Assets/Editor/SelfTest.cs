@@ -22,6 +22,7 @@ static class SelfTest
         RoundTrip(log);
         StartupScore(log);
         Playback(log);
+        Switching(log);
         Stack(log);
         Locks(log);
         Channels(log);
@@ -151,6 +152,235 @@ static class SelfTest
         Check(log, "a lock is gone by the next step", untouched > 0,
               untouched + " of " + notes.Count + " notes at the patch level");
     }
+
+    // A score coming in at the turn of the piece.
+    //
+    // What has to hold is that the seam falls on the master lane's lap line, that the
+    // two scores read as one across it — no gap, no overlap, no step missed and none
+    // played twice — and that the line is the one the lap actually ended on rather than
+    // the one the lane's step count would predict, since a jump can shorten a lap.
+    static void Switching(System.Text.StringBuilder log)
+    {
+        // Four steps to the lap, which at 120bpm is 24000 samples exactly, so every
+        // boundary below is a whole number and nothing here is read off a rounding.
+        const long lap = SwitchStep * 4;
+
+        // The seam itself, walked note by note. Asked for part way through the second
+        // lap, so the score going out is played whole and the line at the end of that
+        // lap is where the other one starts.
+        var plain = new Sequencer { Project = SwitchScore(60, 4) };
+        var second = SwitchScore(72, 4);
+
+        var notes = SwitchRun(plain, lap * 4,
+                              at => { if (at == lap + SwitchStep) plain.SwitchTo(second); });
+
+        var seam = lap * 2;
+        var wrong = -1;
+
+        for (var i = 0; i < notes.Count; i++)
+        {
+            var due = SwitchStep * i;
+
+            if (notes[i].startSample == due &&
+                Sounds(notes[i], (due < seam ? 60 : 72) + i % 4)) continue;
+
+            wrong = i;
+            break;
+        }
+
+        Check(log, "two scores read as one across the seam",
+              notes.Count == 16 && wrong < 0,
+              notes.Count + " notes, " +
+              (wrong < 0 ? "every one on its own step"
+                         : "note " + wrong + " at " + notes[wrong].startSample));
+
+        // A lane whose lap divides the master's lands on the line to the bit, and that
+        // instant belongs to the score arriving. Letting it play there would be the
+        // outgoing score sounding on top of the incoming one — and worse, would sweep
+        // the master into the same slice and play the first step of the new lap twice.
+        var pairing = SwitchScore(60, 4);
+        var pairedWith = SwitchScore(72, 4);
+
+        Divide(pairing, 84);
+        Divide(pairedWith, 85);
+
+        var paired = new Sequencer { Project = pairing };
+
+        var pairs = SwitchRun(paired, lap * 3,
+                              at => { if (at == SwitchStep) paired.SwitchTo(pairedWith); });
+
+        var strays = 0;
+        var arrivals = 0;
+
+        foreach (var note in pairs)
+        {
+            if (Sounds(note, 84) && note.startSample >= lap) strays++;
+            if (Sounds(note, 85) && note.startSample == lap) arrivals++;
+        }
+
+        Check(log, "a lane that divides the lap fires once on the line",
+              strays == 0 && arrivals == 1,
+              strays + " late from the score going out, " +
+              arrivals + " on the line from the one coming in");
+
+        // A lap is as long as it turns out to be. Asked for once the first lap has gone
+        // by, so what it waits through is the lap that takes the jump: two steps and
+        // then the branch's two, which is half of what the lane's own length predicts.
+        var gated = new Sequencer { Project = GatedScore() };
+
+        var jumped = SwitchRun(gated, SwitchStep * 20,
+                               at => { if (at == SwitchStep * 8) gated.SwitchTo(SwitchScore(72, 4)); });
+
+        var line = SwitchStep * 12;
+        var landed = -1L;
+        var overran = 0;
+
+        foreach (var note in jumped)
+        {
+            if (FromTheScoreComingIn(note))
+            {
+                if (landed < 0) landed = note.startSample;
+            }
+            else if (note.startSample >= line)
+            {
+                overran++;
+            }
+        }
+
+        Check(log, "the line is where the lap ended and not where it was due",
+              landed == line && overran == 0,
+              "in at " + landed + " against " + line + ", " +
+              overran + " late from the score going out");
+
+        // Nothing to wait through means nothing to wait for.
+        var idle = new Sequencer { Project = SwitchScore(60, 4) };
+        var waiting = SwitchScore(72, 4);
+        var announced = 0;
+
+        idle.Switched += _ => announced++;
+        idle.SwitchTo(waiting);
+
+        Check(log, "a score asked for while stopped comes in at once",
+              idle.Project == waiting && !idle.IsSwitchPending && announced == 1,
+              "pending=" + idle.IsSwitchPending + ", announced " + announced + " times");
+
+        // And one asked for while playing and then stopped under arrives rather than
+        // being lost: the file the hand asked for is the file that ends up open.
+        var abandoned = SwitchScore(84, 4);
+
+        idle.Play(0, 0);
+        idle.SwitchTo(abandoned);
+
+        var held = idle.IsSwitchPending;
+        idle.Stop();
+
+        Check(log, "stopping the transport lets a waiting score in",
+              held && idle.Project == abandoned && !idle.IsSwitchPending,
+              "waited=" + held + ", pending=" + idle.IsSwitchPending);
+
+        // There is one next, so the last thing asked for is the thing that plays.
+        var replaced = new Sequencer { Project = SwitchScore(60, 4) };
+        var dropped = SwitchScore(72, 4);
+        var kept = SwitchScore(84, 4);
+
+        var swapped = SwitchRun(replaced, lap * 2, at =>
+        {
+            if (at == SwitchStep) replaced.SwitchTo(dropped);
+            if (at == SwitchStep * 2) replaced.SwitchTo(kept);
+        });
+
+        var ghosts = 0;
+        var right = 0;
+
+        foreach (var note in swapped)
+        {
+            if (Sounds(note, 72)) ghosts++;
+            if (Sounds(note, 84) && note.startSample == lap) right++;
+        }
+
+        Check(log, "the score asked for last is the one that comes in",
+              ghosts == 0 && right == 1,
+              ghosts + " notes from the score that was replaced");
+    }
+
+    // A sixteenth at 120bpm, which is what every score in the switching check is
+    // written in and what its windows are a step of.
+    const long SwitchStep = 6000;
+
+    // One lane on channel one, a note a step, each score in its own register so that
+    // where a note came from can be read off the note.
+    static Project SwitchScore(int firstNote, int steps)
+    {
+        var project = new Project { Tempo = 120.0f };
+
+        var lane = project.Score.AddLane(1, 1, new ChannelTile { Channel = 1 }, steps);
+
+        for (var i = 0; i < steps; i++)
+            lane.Steps[i].Tiles.Add(new NoteTile { Note = firstNote + i });
+
+        return project;
+    }
+
+    // A second lane, half the master's lap long, sounding once a lap of its own — so it
+    // lands on every line the master draws as well as halfway between them.
+    static void Divide(Project project, int note)
+    {
+        var lane = project.Score.AddLane(1, 3, new ChannelTile { Channel = 2 }, 2);
+        lane.Steps[0].Tiles.Add(new NoteTile { Note = note });
+    }
+
+    // Eight steps whose second lap is four: a cycle gate lets the jump through on the
+    // lap after the first, and the branch behind it is shorter than what it skips.
+    static Project GatedScore()
+    {
+        var project = new Project { Tempo = 120.0f };
+        var score = project.Score;
+
+        var lane = score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 8);
+
+        for (var i = 0; i < 8; i++)
+            lane.Steps[i].Tiles.Add(new NoteTile { Note = 60 + i });
+
+        var jump = new JumpTile();
+
+        lane.Steps[1].Tiles.Clear();
+        lane.Steps[1].Tiles.Add(new CycleGateTile { Period = 2, Pattern = "01" });
+        lane.Steps[1].Tiles.Add(jump);
+
+        var branch = score.AddBranchLane(jump, new GridPoint(1, 3), 2);
+
+        for (var i = 0; i < 2; i++)
+            branch.Steps[i].Tiles.Add(new NoteTile { Note = 50 + i });
+
+        return project;
+    }
+
+    // Runs a sequence in windows one step long, letting a hand reach it before each of
+    // them. A window that carries exactly the step it opens on is what lets the checks
+    // above say when a score was asked for in samples rather than in frames.
+    static System.Collections.Generic.List<FmNoteEvent>
+      SwitchRun(Sequencer sequencer, long span, System.Action<long> hand)
+    {
+        var notes = new System.Collections.Generic.List<FmNoteEvent>();
+
+        sequencer.Play(0, 0);
+
+        for (var position = 0L; position < span; position += SwitchStep)
+        {
+            hand(position);
+            sequencer.Schedule(position, SwitchStep, 48000, notes);
+        }
+
+        return notes;
+    }
+
+    static bool Sounds(in FmNoteEvent note, int pitch)
+      => Mathf.Abs(note.frequency - Pitch.ToFrequency(pitch)) < 0.01f;
+
+    // Every score written to come in above here, and every score written to go out
+    // below it, so a note says which of the two it belongs to.
+    static bool FromTheScoreComingIn(in FmNoteEvent note)
+      => note.frequency > Pitch.ToFrequency(70);
 
     // A stack is read downwards, so a gate reaches what is below it and nothing
     // above it. This is the one case where getting the direction wrong is

@@ -152,9 +152,9 @@ sealed class ChannelsPanel
             // sense — the presses are simply not acted on below — since a disabled
             // control here would inherit the default theme's idea of grey rather than
             // this one's.
-            _mute.style.opacity = soloing ? DimmedOpacity : 1.0f;
+            _mute.style.opacity = soloing ? Style.DimmedOpacity : 1.0f;
             _select.style.opacity = _panel.HeadOf(_channel).HasValue
-                                    ? 1.0f : DimmedOpacity;
+                                    ? 1.0f : Style.DimmedOpacity;
         }
 
         // Private members
@@ -164,8 +164,6 @@ sealed class ChannelsPanel
         readonly Button _solo;
         readonly Button _mute;
         readonly Button _select;
-
-        const float DimmedOpacity = 0.45f;
 
         // Every row's mute changes appearance when any solo moves, so the whole panel
         // is synced rather than the row that was pressed.

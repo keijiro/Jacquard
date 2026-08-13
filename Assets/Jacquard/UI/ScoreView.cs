@@ -22,6 +22,33 @@ public sealed class ScoreView : VisualElement
     public Score Score { get; set; }
     public Sequencer Sequencer { get; set; }
 
+    // Whether the plane is being held still, which it is while a score is waiting to
+    // come in at the turn of the piece: the switch is measured on a lane the runners
+    // are playing, so an edit that moved one would move the line under it.
+    //
+    // Only what edits is held. A press that would have carried a tile is let through
+    // instead of stopped, so it reaches the scroll area and pans, and the plane can be
+    // read and moved about while it waits. Keys go on being raised too — the transport
+    // is on one of them, and what would edit is refused by the editor rather than here.
+    public bool Locked
+    {
+        get => _locked;
+
+        set
+        {
+            if (_locked == value) return;
+
+            _locked = value;
+
+            // Nothing stays in hand across this, for the reason an edit ends a drag:
+            // what a drag is holding is a reading of a score that is about to be
+            // somebody else's.
+            if (value) EndDrag();
+
+            style.opacity = value ? Style.DimmedOpacity : 1.0f;
+        }
+    }
+
     public GridPoint Cursor { get; private set; } = new GridPoint(1, 1);
 
     public event Action CursorMoved;
@@ -353,8 +380,9 @@ public sealed class ScoreView : VisualElement
 
     void OnPointerDown(PointerDownEvent evt)
     {
-        // A modified drag pans the plane instead of editing it.
-        if (ScrollArea.IsPanModifierHeld(evt)) return;
+        // A modified drag pans the plane instead of editing it, and a held plane is
+        // every drag: the press travels on to the scroll area either way.
+        if (_locked || ScrollArea.IsPanModifierHeld(evt)) return;
 
         Focus();
 
@@ -383,7 +411,7 @@ public sealed class ScoreView : VisualElement
     // that a click that wobbles by a pixel still reads as a click.
     void OnPointerMove(PointerMoveEvent evt)
     {
-        if (_grabbed.Kind == CellKind.Empty) return;
+        if (_locked || _grabbed.Kind == CellKind.Empty) return;
 
         var delta = (Vector2)evt.localPosition - _grabOrigin;
 
@@ -546,6 +574,8 @@ public sealed class ScoreView : VisualElement
 
     int _columns = 48;
     int _rows = 28;
+
+    bool _locked;
 
     // What is in hand. An empty cell means nothing is: the kind of the grabbed
     // cell is also what kind of drag it is, a tile being carried to another cell

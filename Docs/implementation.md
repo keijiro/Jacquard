@@ -783,6 +783,58 @@ Notes on the prototype
   whatever happens to sit directly above, which makes two unrelated lanes look
   connected; sequencer.md lists that as undecided, and knowing the lane settles
   it.
+- **A score comes in at the turn of the piece, and the seam is a sample.** A load while
+  the transport is running does not stop it: `Sequencer.SwitchTo` parks the project and
+  the runners are rebuilt on the lap line of the master lane — `Score.MasterLane`, the
+  first channel one lane in the order runners are born in. The line cannot be worked out
+  ahead, since a gate over a `JUMP` decides how long a lap is and one of them throws
+  dice, so it is found as it happens: while something is waiting, the slice loop watches
+  the master's `Pass` across each slice, and the moment it turns over `master.NextSample`
+  is the answer. That sample then becomes a nearer horizon than the window, the outgoing
+  score is run out to it, and the takeover happens inside the same pass — which is what
+  leaves nothing between the two scores and nothing over them.
+
+  Three things make this small. Slice times only ever increase, so at the moment the
+  wrap is seen nothing at or after the line has been emitted. A note is a one-shot
+  event carrying its own gate, release and whole timbre, so nothing needs a note-off at
+  the seam and what was already sounding rings on into the new score by itself. And the
+  outgoing score's last window is already parked in `LiveFx`, so the load must **not**
+  touch it — `Live.Stop()` empties that queue, and emptying it is exactly the hole this
+  is here to avoid.
+
+  The one figure to get right is the comparison at the line, which is `S - Tolerance`
+  and not `S`. A lane whose lap divides the master's — four steps against sixteen — lands
+  on the line bit for bit, since both positions are the same power-of-two multiple of a
+  step accumulated in a double. Letting it run there would sweep the master into that
+  slice as well and play the first step of the new lap twice. So half a sample before
+  the line is where the outgoing score stops, and the cost is that a step landing inside
+  that half sample without being coincident with it is dropped rather than played early
+  — about one in twelve thousand, against a flam on every divisor lane at every seam.
+
+  What the shape is reusable for is the point of writing it this way. A second thing
+  wanting to happen on the turn of the piece adds a slot beside the pending project,
+  one term to the predicate that arms the watch, and a branch in the takeover. What is
+  deliberately not offered is a public reading of where the line is: at the only moment
+  it exists it points up to a lookahead into the future, so anything drawing from it
+  would run ahead of what is heard. `MasterRunner.PlayingStep` is the playhead-corrected
+  answer to how far through the lap the music has got.
+- **The plane is held still while a score waits, and the screen follows the sound.**
+  `ScoreEditor.Locked` refuses every path into the score and the two panels that edit
+  one dim themselves and stop taking presses, because an edit that moved a lane would
+  move the line the switch is measured on. Nothing about the mix is held — sound, sends,
+  limiter, tempo, mutes and the live effects all go on working, since playing across the
+  seam is the whole point of waiting for it. The plane takes the same 0.45 the mutes and
+  a released lock row take, and a press on it is let through rather than stopped, so the
+  scroll area still pans it. A panel is put out of reach by one stretched picking shield
+  rather than by a flag on each of its dozen controls, and never by `SetEnabled`, which
+  would bring the default theme's grey with it.
+
+  The sequencer changes hands up to a lookahead before the seam is audible, so
+  `JacquardApp` holds the sample the `Switched` event carried and adopts the project
+  only once the clock reaches it. The plane therefore comes back exactly as the music
+  turns over rather than a tenth of a second early. What it costs is that for that
+  fraction of a second the app's project is one behind the sequencer's, so a mute
+  pressed inside the window is written to the score that is leaving.
 - **The score the app opens on is a file, not code.** `Project.CreateSample()` built one
   by hand, which was right while the demonstration case was small and wrong the moment
   it became a real piece of work: what is wanted now is eight patches and seven lanes,

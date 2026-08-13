@@ -118,7 +118,33 @@ sealed class JacquardUI
         // A loaded project brings a tempo of its own, which the bar has to follow.
         _tempo.Sync();
 
+        FollowTheLock();
         Report();
+    }
+
+    // Puts the score's own controls out of reach while another score waits to come in,
+    // and gives them back at the seam.
+    //
+    // Three things and no more: the plane, the panel a tile is edited on and the panel
+    // a lock is edited on. What is left alone is the mix — the sound, the sends, the
+    // channels, the tempo — and the live effects, since none of those writes the score
+    // and the point of holding on until the turn of the piece is to play across it.
+    //
+    // The Load button goes with them: a request cannot be taken back, so the switch that
+    // made it says so rather than looking ready to make another.
+    //
+    // Written only when it moves, since all of this is a style write and the frame it
+    // does not move is every frame.
+    void FollowTheLock()
+    {
+        if (_locked == _editor.Locked) return;
+
+        _locked = _editor.Locked;
+
+        _view.Locked = _locked;
+        Controls.SetLocked(_inspector.Root, _locked);
+        Controls.SetLocked(_lock.Root, _locked);
+        _load.style.opacity = _locked ? Style.DimmedOpacity : 1.0f;
     }
 
     // Construction
@@ -204,7 +230,9 @@ sealed class JacquardUI
         row.Add(chooser);
 
         row.Add(Controls.Push("Save", () => { _app.Save(); Refocus(); }, 46));
-        row.Add(Controls.Push("Load", () => { _app.Load(); Refocus(); }, 46));
+
+        _load = Controls.Push("Load", () => { _app.Load(); Refocus(); }, 46);
+        row.Add(_load);
 
         return row;
     }
@@ -538,7 +566,12 @@ sealed class JacquardUI
     Button _visualizerButton;
     bool _visualizerShown;
     ValueBar _tempo;
+    Button _load;
     List<string> _slots;
+
+    // What the score's controls were last put into, so that they are written to when
+    // that changes and not every frame it has not.
+    bool _locked;
 
     const float SeparatorAir = 8.0f;
 

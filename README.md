@@ -92,6 +92,15 @@ one line per step; pick a slot with the File arrows. In a Web build that path is
 the browser's own storage, so a save keeps across a reload but not across clearing
 the site's data.
 
+Loading while the sequence is running does not stop it. The score waits for the turn
+of the piece — the lap of the topmost channel one lane — and then the music carries
+straight on into it, with nothing between the two and whatever was sounding left to
+ring out. While it waits, the plane and the two panels that edit the score are dimmed
+and take no presses, since an edit could move the line the switch is measured on; the
+mix and the live effects go on working, and the plane comes back the moment the music
+turns over. A request cannot be taken back — Stop is what ends the wait, and the score
+comes in there and then.
+
 The score the app opens on is one of those files, checked in at
 `Assets/Jacquard/Scores/Startup.jacquard.txt`. To replace it, save the score from
 the app and copy the file over that one, then run **Jacquard > Run Self Test** to

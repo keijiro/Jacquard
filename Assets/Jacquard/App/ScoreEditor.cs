@@ -37,6 +37,19 @@ public sealed class ScoreEditor
     // the runners can be reconciled.
     public event Action Changed;
 
+    // Whether the score is being held still.
+    //
+    // It is while a load is waiting for the lap line: the switch is measured on the lane
+    // the runners are playing, so an edit that moved a lane or took one away would move
+    // the line under it. Nothing about the mix is held — the sound panel, the sends, the
+    // channels and the live effects all go on working, since what they change is how the
+    // piece is heard rather than where it ends.
+    //
+    // Everything that writes the score asks this. The panels that draw the score dim
+    // themselves and stop taking presses, and this stands behind them so that no path
+    // reaches the score by another route.
+    public bool Locked { get; set; }
+
     public Score Score => Project.Score;
     public CellRef Cell => Score.At(View.Cursor);
     public Tile Selected => Cell.Tile;
@@ -80,6 +93,8 @@ public sealed class ScoreEditor
     // than being checked afterwards.
     public void Put(TileKind kind)
     {
+        if (Locked) return;
+
         Tile tile = kind switch
         {
             // Holding nothing yet. Which parameters a lock takes is the whole of
@@ -115,6 +130,8 @@ public sealed class ScoreEditor
 
     public void Delete()
     {
+        if (Locked) return;
+
         var cell = Cell;
 
         // Deleting a lane's head is how a lane is removed, which also takes any
@@ -143,7 +160,7 @@ public sealed class ScoreEditor
 
     public void Transpose(int semitones)
     {
-        if (Selected is not NoteTile note) return;
+        if (Locked || Selected is not NoteTile note) return;
 
         note.Note = Math.Clamp(note.Note + semitones, Pitch.Lowest, Pitch.Highest);
         RememberNote(note);
@@ -155,6 +172,8 @@ public sealed class ScoreEditor
 
     public void NewChannelLane()
     {
+        if (Locked) return;
+
         var point = Score.FindFreeRow(View.Cursor, 16);
         Score.AddLane(point.X, point.Y, new ChannelTile { Channel = Channel }, 16);
         Commit();
@@ -163,7 +182,7 @@ public sealed class ScoreEditor
     public void ResizeLane(int delta)
     {
         var lane = SelectedLane;
-        if (lane == null) return;
+        if (Locked || lane == null) return;
 
         if (delta > 0)
         {
@@ -189,6 +208,8 @@ public sealed class ScoreEditor
 
     public void DropTiles(CellRef source, GridPoint target)
     {
+        if (Locked) return;
+
         var move = Score.PlanMove(source, target);
         if (!Score.ApplyMove(source, move)) return;
 
@@ -198,7 +219,7 @@ public sealed class ScoreEditor
 
     public void DropLane(Lane lane, GridPoint head)
     {
-        if (!Score.MoveLane(lane, head)) return;
+        if (Locked || !Score.MoveLane(lane, head)) return;
 
         Commit();
         View.SetCursor(head);
@@ -228,6 +249,20 @@ public sealed class ScoreEditor
         Changed?.Invoke();
     }
 
+    // A whole new project rather than an edit of the one that was here.
+    //
+    // Nothing is reconciled, which is the whole difference from a commit: the runners
+    // are already playing what this brings — they were handed it at the lap line, ahead
+    // of the clock — so there is no score to reconcile them with and Resync would only
+    // find them matching what they already hold. What is left is to point the plane and
+    // the panels at it, which is what Changed does.
+    public void Adopt(Project project)
+    {
+        Project = project;
+        View.Score = project.Score;
+        Changed?.Invoke();
+    }
+
     // Keyboard
 
     // What is left to the keys is moving about and the two edits worth repeating:
@@ -235,6 +270,11 @@ public sealed class ScoreEditor
     // so that there is one way of doing it and it is the one on screen.
     public bool HandleKey(KeyDownEvent evt)
     {
+        // Every key here either edits the score or moves the cursor the panels that
+        // edit it are reading, so a held score takes none of them. Play and stop are
+        // settled before this is asked and go on working.
+        if (Locked) return false;
+
         var shift = evt.shiftKey;
         var command = evt.actionKey || evt.commandKey || evt.ctrlKey;
 

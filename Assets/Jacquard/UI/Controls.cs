@@ -455,6 +455,39 @@ static class Controls
         panel.Add(row);
         return panel;
     }
+
+    // Takes a panel out of reach without taking it off the screen.
+    //
+    // A shield rather than a flag on every control: a panel holds a dozen bars and
+    // buttons that each decide for themselves what a press means, and one stretched
+    // element in front of them is picked instead of any of them, so none of them ever
+    // sees a press to decide about. Dimmed by the rule the rest of this UI dims by, and
+    // not disabled in the layout engine's sense — see Style.DimmedOpacity.
+    //
+    // It goes on the panel and not on its body, so that a body built again underneath
+    // it — which is what a panel does whenever the cursor lands on another kind of tile
+    // — comes back exactly as far out of reach as it went.
+    public static void SetLocked(VisualElement panel, bool locked)
+    {
+        panel.style.opacity = locked ? Style.DimmedOpacity : 1.0f;
+
+        var shield = panel.Q(ShieldName);
+
+        if (!locked)
+        {
+            shield?.RemoveFromHierarchy();
+            return;
+        }
+
+        if (shield != null) return;
+
+        shield = new VisualElement
+          { name = ShieldName, pickingMode = PickingMode.Position };
+        shield.StretchToParentSize();
+        panel.Add(shield);
+    }
+
+    const string ShieldName = "lock-shield";
 }
 
 } // namespace Jacquard.App

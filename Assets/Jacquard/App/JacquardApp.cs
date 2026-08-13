@@ -135,22 +135,63 @@ public sealed class JacquardApp : MonoBehaviour
 
     public void Save() => Message = Store.Save(Project);
 
+    // Opens a score without stopping for it.
+    //
+    // The file is read now and the score comes in at the turn of the piece: the
+    // sequencer holds it until the master lane comes round and then plays straight on
+    // into it, so the two scores run together as if they had been written that way. The
+    // transport is not touched and neither is LiveFx — its queue is holding the last of
+    // the outgoing score at that moment, and emptying it is exactly the hole this is
+    // here to avoid.
+    //
+    // Reading the file here rather than at the seam is also what keeps the seam cheap:
+    // what happens at the lap line is a swap of two references and a rebuild of the
+    // plane, with the parsing already done a bar ago.
+    //
+    // A request cannot be taken back, so a second press is not a second request. What
+    // is left to a hand that has changed its mind is Stop, which ends the run the
+    // switch was waiting on and lets the score in at once.
     public void Load()
     {
+        if (Editor.Locked) return;
+
         var project = Store.Load(out var message);
         Message = message;
 
         if (project == null) return;
 
-        Sequencer.Stop();
-        Live.Stop();
+        // Before the request, since a score arriving while the transport is stopped
+        // lands inside this call and gives the lock straight back.
+        Editor.Locked = true;
 
-        Project = project;
-        Sequencer.Project = project;
-        Editor.Project = project;
-        View.Score = project.Score;
+        Sequencer.SwitchTo(project);
 
-        Editor.Commit();
+        // The file controls have nowhere to say anything but the console, so a load
+        // that has not landed says so rather than reading as one that has.
+        if (Sequencer.IsSwitchPending) Message = message + ", in at the turn of the piece";
+    }
+
+    // The sequencer has changed hands. It did so ahead of the clock, by however much of
+    // the lookahead was left, so the screen is not moved yet: what is drawn is what is
+    // heard, and what is heard for a little longer is the score that is going.
+    void OnSwitched(long sample)
+    {
+        _adoptAt = sample;
+        FollowTheSwitch();
+    }
+
+    // Puts the score that is now playing on the plane, once it is the score that is
+    // sounding. The wait is a fraction of a second and the plane is dim for the whole
+    // of it, so the moment the music turns over is the moment the plane comes back.
+    void FollowTheSwitch()
+    {
+        if (_adoptAt is not long at || Synth.CurrentSample < at) return;
+
+        _adoptAt = null;
+
+        Project = Sequencer.Project;
+        Editor.Adopt(Project);
+        Editor.Locked = false;
     }
 
     // The score the app opens on. A file that will not read is not worth stopping for
@@ -200,6 +241,10 @@ public sealed class JacquardApp : MonoBehaviour
         Editor = new ScoreEditor
           { Project = Project, Sequencer = Sequencer, Synth = Synth, View = View };
 
+        // After the editor and the view, since following a switch means pointing both
+        // of them at what the sequencer has taken up.
+        Sequencer.Switched += OnSwitched;
+
         Store = new ProjectStore();
         Message = _startupProblem ?? Store.Listing();
 
@@ -225,6 +270,10 @@ public sealed class JacquardApp : MonoBehaviour
         // First, because this is what moves the audio clock on a driver that has no
         // audio thread of its own, and everything below reads that clock.
         Synth.Pump();
+
+        // Next, because a score that has taken over is the score the rest of this frame
+        // is about: the plane, the panels and the mix all read the project this puts in.
+        FollowTheSwitch();
 
         // Run the sequence as far ahead as it has always run, but park what comes out
         // rather than handing it straight over: a live effect reaches what has not
@@ -412,6 +461,10 @@ public sealed class JacquardApp : MonoBehaviour
     // Whatever the startup file had to say for itself, held until there is a status
     // line to say it on.
     string _startupProblem;
+
+    // The sample a score that has already taken over starts sounding on, and nothing
+    // once the screen has caught up with it.
+    long? _adoptAt;
 
 #if UNITY_EDITOR || UNITY_WEBGL
     PanelSettings _panelCopy;

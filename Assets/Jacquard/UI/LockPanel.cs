@@ -229,11 +229,9 @@ sealed class LockPanel
         {
             var engaged = Engaged;
 
-            style.opacity = engaged ? 1.0f : ReleasedOpacity;
+            style.opacity = engaged ? 1.0f : Style.DimmedOpacity;
             _caption.style.color = engaged || _hover ? Style.NoteText : Style.Label;
         }
-
-        const float ReleasedOpacity = 0.45f;
     }
 }
 

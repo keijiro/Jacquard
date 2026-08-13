@@ -17,6 +17,15 @@ namespace Jacquard {
 //
 // Locks last exactly as long as that pass, so every channel starts each slice from
 // its own patch again.
+//
+// One score can be played out and another begun without stopping, and the seam is the
+// turn of the master lane — see Score.MasterLane, which is where a piece says how long
+// it is. A lap line cannot be worked out in advance, since a gate decides how far a lap
+// goes and one of them throws dice, so it is found as it happens: a project waiting to
+// come in makes the loop watch the master's lap count across each slice, and the sample
+// the next lap starts on becomes a nearer horizon that the outgoing score is run out to.
+// The takeover then happens inside the same pass, which is what leaves nothing between
+// the two scores and nothing over them.
 
 public sealed class Sequencer
 {
@@ -26,11 +35,52 @@ public sealed class Sequencer
     // depends on that — see the note on the note tile in Descend — and it is read off
     // the project rather than held here so that a project loaded over the top of this
     // one brings its own, which is the whole of the wiring a load needs.
-    public Project Project { get; set; }
+    //
+    // Assigning one is an abrupt swap, which is what a project arriving before there is
+    // anything to play means. It also drops a line a switch was waiting on, since that
+    // line was measured on the score being replaced here. SwitchTo is the door that
+    // waits.
+    public Project Project
+    {
+        get => _project;
+
+        set
+        {
+            _project = value;
+            (_incoming, _boundary) = (null, NoBoundary);
+            _master = FindMaster();
+        }
+    }
 
     public bool IsPlaying => _playing;
 
     public IReadOnlyList<Runner> Runners => _runners;
+
+    // The runner the piece's period is counted on, and null while stopped. Its Pass is
+    // the lap count and its PlayingStep is how far through the lap the music has got —
+    // there is no second name here for either, since two names for one number is how
+    // the two get to disagree.
+    public Runner MasterRunner => _master;
+
+    public bool IsSwitchPending => _incoming != null;
+
+    // Raised once an incoming project has taken over, with the sample it took over on,
+    // or zero when there was no run to take over from. It is raised after the window
+    // has been run out rather than at the seam itself, so that a view rebuilt by a
+    // listener cannot land in the middle of the loop that is still emitting notes.
+    public event Action<long> Switched;
+
+    // Puts a project in.
+    //
+    // While stopped it takes effect at once. While playing it waits for the master lane
+    // to come round, and the two scores then read as one: the incoming runners start on
+    // the sample the outgoing lap ended on, with nothing between them and nothing over
+    // them. There is one next, so asking twice is asking once.
+    public void SwitchTo(Project project)
+    {
+        _incoming = project;
+        SettleIfIdle();
+    }
 
     // Transport
 
@@ -39,20 +89,60 @@ public sealed class Sequencer
     public void Play(long currentSample, long lookaheadSamples)
     {
         Stop();
-
-        var start = currentSample + lookaheadSamples;
-        var order = 0;
-
-        foreach (var lane in Project.Score.ChannelLanes)
-            _runners.Add(new Runner(lane, order++, start));
-
-        _playing = _runners.Count > 0;
+        Populate(currentSample + lookaheadSamples);
     }
 
     public void Stop()
     {
         _playing = false;
         _runners.Clear();
+        (_master, _boundary) = (null, NoBoundary);
+
+        SettleIfIdle();
+    }
+
+    // Puts a runner on every CHAN lane of the project, all starting on the same sample.
+    // A standing start and a score taking over from another one are the same act; what
+    // differs is only where that sample comes from.
+    void Populate(double startSample)
+    {
+        _runners.Clear();
+
+        var order = 0;
+
+        foreach (var lane in Project.Score.ChannelLanes)
+            _runners.Add(new Runner(lane, order++, startSample));
+
+        _master = FindMaster();
+        _playing = _runners.Count > 0;
+    }
+
+    // The runner the lap is counted on: the one born from the master lane, and whoever
+    // runs first if the score has nothing to say about it.
+    Runner FindMaster()
+    {
+        var lane = _project?.Score.MasterLane;
+
+        foreach (var runner in _runners)
+            if (runner.OriginLane == lane) return runner;
+
+        return _runners.Count > 0 ? _runners[0] : null;
+    }
+
+    // A request waits for the lap line, and only for as long as there is a run to wait
+    // through. When the run ends first — the transport stopped, or the last CHAN lane
+    // edited away — there is nothing left to wait for and the project arrives. A load
+    // that evaporated because the transport was stopped under it would be worse than
+    // either of the two things that could happen instead.
+    void SettleIfIdle()
+    {
+        if (_playing || _incoming == null) return;
+
+        _project = _incoming;
+        (_incoming, _boundary) = (null, NoBoundary);
+        _master = FindMaster();
+
+        Switched?.Invoke(0);
     }
 
     // Reconciles the runners with an edited score without interrupting the sound.
@@ -87,7 +177,13 @@ public sealed class Sequencer
             _runners.Add(runner);
         }
 
+        _master = FindMaster();
         _playing = _runners.Count > 0;
+
+        // A line already found is not un-found by an edit: it is a sample, and the lap
+        // it was measured on is the one still being played out. What an edit can do is
+        // take the run away altogether, and then a project waiting on it arrives.
+        SettleIfIdle();
     }
 
     // Scheduling
@@ -101,21 +197,70 @@ public sealed class Sequencer
 
         if (!_playing) return;
 
-        var horizon = currentSample + lookaheadSamples;
+        var horizon = (double)(currentSample + lookaheadSamples);
 
         // A slice can only ever consume time, so the bound is a safety net for a
-        // degenerate score rather than an expected limit.
+        // degenerate score rather than an expected limit. A takeover spends one turn of
+        // it without running a slice, and there is at most one of those.
         for (var guard = 0; guard < 1024; guard++)
         {
+            // Where the outgoing score stops. The lap line belongs to the score
+            // arriving, whose runners all start exactly on it, so nothing within half a
+            // sample of it is this one's to play. A lane that divides the lap evenly
+            // lands on that instant to the bit, and letting it run there would sweep the
+            // master itself into the slice and play the first step of the new lap twice.
+            var limit = _boundary < horizon ? _boundary - Tolerance : horizon;
+
             var next = double.MaxValue;
 
             foreach (var runner in _runners)
                 if (runner.NextSample < next) next = runner.NextSample;
 
-            if (next >= horizon) break;
+            if (next < limit)
+            {
+                // Watched only while something is waiting on it, so a run with nothing
+                // pending is the run that was here before.
+                var watching = _incoming != null && !HasBoundary && _master != null;
+                var lap = watching ? _master.Pass : 0;
 
-            RunSlice(next, sampleRate, output);
+                RunSlice(next, sampleRate, output);
+
+                // The lap the piece is measured in has turned over, and the sample the
+                // next one starts on is now known. It could not have been worked out
+                // ahead of time: a gate decides how long a lap is, and one of them
+                // throws dice.
+                if (watching && _master.Pass != lap) _boundary = _master.NextSample;
+
+                continue;
+            }
+
+            // Either the window is spent, or the lap line lies past the end of it and
+            // waits for a later call.
+            if (_boundary >= horizon) break;
+
+            TakeOver();
         }
+
+        // After the loop and never inside it.
+        if (!_switched) return;
+
+        _switched = false;
+        Switched?.Invoke(_switchedAt);
+    }
+
+    // The seam: everything the outgoing score had to say has been said, and nothing of
+    // the incoming one has been said yet. The project is put in before the runners are,
+    // so that every step of the new score reads its own tempo, patches and mutes.
+    void TakeOver()
+    {
+        var at = _boundary;
+
+        _project = _incoming;
+        (_incoming, _boundary) = (null, NoBoundary);
+
+        Populate(at);
+
+        (_switched, _switchedAt) = (true, (long)at);
     }
 
     // One instant of the timeline.
@@ -129,7 +274,7 @@ public sealed class Sequencer
         // on the same instant with the accumulated position differing in the last
         // bit.
         foreach (var runner in _runners)
-            if (runner.NextSample < time + 0.5) _slice.Add(runner);
+            if (runner.NextSample < time + Tolerance) _slice.Add(runner);
 
         // Upper CHAN tiles go first, which is what puts an accent lane placed above
         // the main one in a position to colour it.
@@ -258,11 +403,31 @@ public sealed class Sequencer
 
     // Private members
 
+    // How wide one instant is here. Gathering a slice and deciding which side of the
+    // lap line a runner falls on are the same question asked twice, so they are asked
+    // with the same number.
+    const double Tolerance = 0.5;
+
+    // Where the lap line sits once the master lane has said, and out of the way of
+    // every comparison until it has.
+    const double NoBoundary = double.MaxValue;
+
     readonly List<Runner> _runners = new();
     readonly List<Runner> _previous = new();
     readonly List<Runner> _slice = new();
     readonly PatchBank _working = new();
     readonly Random _random = new();
+
+    Project _project;
+    Project _incoming;
+    Runner _master;
+
+    double _boundary = NoBoundary;
+
+    bool HasBoundary => _boundary < NoBoundary;
+
+    bool _switched;
+    long _switchedAt;
 
     bool _playing;
 }
