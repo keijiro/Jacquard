@@ -36,9 +36,19 @@
   <meta name="viewport"
         content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
   <title>{{{ PRODUCT_NAME }}}</title>
-  <!-- There is no icon to serve, and saying so is what stops the browser asking for
-       one and logging the 404 it gets. -->
-  <link rel="icon" href="data:,">
+  <!-- The mark itself rather than a file beside this one: written out here it is
+       smaller than the request for it would be, and a template that is one file
+       stays one file.
+
+       The mark alone, on nothing, and inked by the scheme the browser is in.
+       Safari decides a favicon it reads as too dark for the tab bar needs a white
+       plate behind it, which puts a ring around a black tile; given a mark that
+       inks itself light on a dark tab there is nothing for it to correct. The
+       switch lives inside the SVG because Safari ignores media on the link and
+       honours it there. The PNG stays under it for anything that cannot read an
+       SVG icon. -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NjAgOTYwIj48c3R5bGU+cGF0aHtmaWxsOiMxNjE2MWF9QG1lZGlhKHByZWZlcnMtY29sb3Itc2NoZW1lOmRhcmspe3BhdGh7ZmlsbDojZjJmMmVlfX08L3N0eWxlPjxwYXRoIGQ9Ik0yNDAgMGgzMDB2NjBoLTMwMHpNNjYwIDBoNjB2NjBoLTYwek03ODAgMGg2MHY2MGgtNjB6TTE4MCA2MGg2MHY2MGgtNjB6TTQyMCA2MGgyNDB2NjBoLTI0MHpNNzIwIDYwaDYwdjYwaC02MHpNNjYwIDEyMGgxMjB2NjBoLTEyMHpNNDIwIDE4MGg2MHY2MGgtNjB6TTU0MCAxODBoMTIwdjYwaC0xMjB6TTQyMCAyNDBoNjB2NjBoLTYwek01NDAgMjQwaDEyMHY2MGgtMTIwek0zMDAgMzAwaDE4MHY2MGgtMTgwek01NDAgMzAwaDEyMHY2MGgtMTIwek00MjAgMzYwaDYwdjYwaC02MHpNNTQwIDM2MGgxMjB2NjBoLTEyMHpNMzAwIDQyMGgxODB2NjBoLTE4MHpNNTQwIDQyMGgxMjB2NjBoLTEyMHpNNDIwIDQ4MGg2MHY2MGgtNjB6TTU0MCA0ODBoMTIwdjYwaC0xMjB6TTQyMCA1NDBoNjB2NjBoLTYwek01NDAgNTQwaDEyMHY2MGgtMTIwek00MjAgNjAwaDYwdjYwaC02MHpNNTQwIDYwMGgxMjB2NjBoLTEyMHpNNDIwIDY2MGg2MHY2MGgtNjB6TTU0MCA2NjBoMTIwdjYwaC0xMjB6TTQyMCA3MjBoNjB2NjBoLTYwek01NDAgNzIwaDEyMHY2MGgtMTIwek02MCA3ODBoMjQwdjYwaC0yNDB6TTQyMCA3ODBoNjB2NjBoLTYwek0xODAgODQwaDMwMHY2MGgtMzAweiIvPjwvc3ZnPg==">
+  <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAd0lEQVR42u3aQQoAIAgEwP7/6fqCYYbI7LFDNEFK0VqX2YlE5oyMpwIAkFx0BfLrrgMANMztoQcA6A6IHNDWOw0AAAAA8OxyAwAwGaAKAegDqhCAPqAKAQAAAAAAAAAAAAAAAEwAVH9gavHKAADwAQYAMA0gMjgHoBgFlsVs7hsAAAAASUVORK5CYII=">
   <style>
     html, body {
       margin: 0;
