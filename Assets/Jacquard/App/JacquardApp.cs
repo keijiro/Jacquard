@@ -65,6 +65,16 @@ public sealed class JacquardApp : MonoBehaviour
     [field:SerializeField]
     public TextAsset StartupScore { get; set; }
 
+    // The wordmark at the left of the transport row. A bitmap and not a Painter2D
+    // drawing like every other mark in here: the type is a pixel font already, so
+    // what would be drawn is the same grid of squares the texture holds, and it is
+    // cut from the same source the logo and the app icon are.
+    //
+    // Unassigned is a row that simply starts at Play, which is what every build
+    // before this one looked like.
+    [field:SerializeField]
+    public Texture2D Logo { get; set; }
+
     // How big a unit of this interface comes out is not settled here any more. It
     // belongs to the panel settings asset, which holds a constant physical size
     // against a reference of 132 dots to the inch — so a unit is a hundred and

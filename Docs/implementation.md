@@ -1210,6 +1210,16 @@ Notes on the prototype
   size, so that is stepping off the broken path rather than correcting a value it
   produced — which is why it needs no timer, unlike the workaround that stays in
   physical size and folds a ratio into the scale.
+- **The marks are generated, not drawn.** The logo, the wordmark on the transport
+  row, the app icon and the favicon are all cut from the same pixel font by the
+  scripts in [Branding], which reduce the type to its own sixty unit grid and
+  apply the glitch in whole cells, so nothing anywhere is off that grid. Only the
+  wordmark on the row is an asset the app loads — `Assets/Branding/Logo.png`,
+  wired to `JacquardApp.Logo` by the scene builder, and a bitmap rather than a
+  Painter2D drawing like every other mark in the interface, since what would be
+  drawn is the same grid of squares the texture already holds. Paying for its
+  width is why the File chooser's caption is held to the width of the word
+  instead of the caption column's: nothing on that row lines up with it.
 - Editor menu items: *Jacquard > Rebuild Main Scene* regenerates the scene, and
   *Jacquard > Run Self Test* checks the file format round trip, plays four laps of
   the sample score without a device, reads a stack whose gate sits between two
@@ -1218,3 +1228,5 @@ Notes on the prototype
   one, which is most of what there is to get wrong about it — and renders the two
   effect buses to measure that a repeat lands on the beat, that moving the delay time
   does not splice the signal, and that the reverb's tail settles.
+
+[Branding]: ../Branding/README.md

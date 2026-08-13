@@ -159,6 +159,11 @@ sealed class JacquardUI
     {
         var row = Bar();
 
+        // The name of the thing, where an app's name goes. It is the one mark on the
+        // row that does nothing when it is pressed, so it stands before the rule that
+        // the transport starts at rather than among the switches.
+        if (_app.Logo != null) row.Add(Wordmark(_app.Logo));
+
         _play = Controls.Push("Play", _app.TogglePlay, 54);
         row.Add(_play);
 
@@ -167,7 +172,9 @@ sealed class JacquardUI
         // to it a beat at a time.
         _tempo = Controls.Bar(TempoRange, () => _editor.Project.Tempo,
                               value => _editor.Project.Tempo = value);
-        _tempo.style.width = Controls.Width(78);
+        // Cut from 78 to pay for the wordmark. What it has to hold is three digits,
+        // which is a good deal less than it had.
+        _tempo.style.width = Controls.Width(62);
         row.Add(_tempo);
 
         row.Add(Separator());
@@ -230,8 +237,16 @@ sealed class JacquardUI
         // name longer than the box draws past it rather than being clipped — where a
         // switch that does not fit is a switch that cannot be pressed. Cut from 190 when
         // the row grew its fourth and fifth switch, which is what put the touch profile
-        // back inside an iPad mini's 917 units.
-        chooser.style.width = Controls.Width(170);
+        // back inside an iPad mini's 917 units, and from 170 when the wordmark arrived
+        // at the left of the row and had to be paid for from somewhere.
+        //
+        // What paid for most of it is the caption beside it rather than the box: a
+        // caption is as wide as the longest parameter name on a panel so that a column
+        // of rows lines up, and this one stands on a row of switches with nothing to
+        // line up with. Held to the width of the word instead, the box gives back
+        // fifty units and the name between the arrows is as long as it ever was.
+        chooser.ElementAt(0).style.width = Controls.Width(20);
+        chooser.style.width = Controls.Width(114);
         chooser.style.marginBottom = 0;
         row.Add(chooser);
 
@@ -381,6 +396,31 @@ sealed class JacquardUI
         row.style.borderBottomColor = Style.PanelLine;
         return row;
     }
+
+    // The wordmark on the row, one unit to a cell of the type it is set in.
+    //
+    // The texture holds two pixels per cell, so on a screen the panel doubles it lands
+    // pixel for pixel and on one it does not it reduces by exactly two — either way a
+    // cell stays a square. It is the same size in both profiles: nothing here is
+    // pressed, so it has no target to grow, and the touch row has no width to give.
+    static VisualElement Wordmark(Texture2D texture)
+    {
+        var mark = new VisualElement();
+        mark.style.width = texture.width / LogoPixelsPerCell;
+        mark.style.height = texture.height / LogoPixelsPerCell;
+        mark.style.flexShrink = 0;
+        // The row's own inset and not a gap: the name stands off the transport the
+        // way it stands off the edge of the screen, so the air reads the same on both
+        // sides of it rather than sitting it among the switches.
+        mark.style.marginRight = Controls.Inset;
+        mark.style.backgroundImage = Background.FromTexture2D(texture);
+        // Held to the colour the row's own type is, rather than the white it is drawn
+        // in, so the name does not sit brighter than everything it names.
+        mark.style.unityBackgroundImageTintColor = Style.NoteText;
+        return mark;
+    }
+
+    const float LogoPixelsPerCell = 2.0f;
 
     static VisualElement Separator()
     {

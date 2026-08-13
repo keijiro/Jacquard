@@ -23,6 +23,10 @@ static class SceneBuilder
 
     const string VisualizerShaderPath = "Assets/Jacquard/Visual/Visualizer.shader";
 
+    // The wordmark on the transport row, cut from the same grid as the logo in the
+    // README and the app icon; Branding/make_logo_png.py writes it.
+    const string LogoPath = "Assets/Branding/Logo.png";
+
     [MenuItem("Jacquard/Rebuild Main Scene")]
     public static void Build()
     {
@@ -54,6 +58,7 @@ static class SceneBuilder
 
         var app = appObject.AddComponent<JacquardApp>();
         app.StartupScore = AssetDatabase.LoadAssetAtPath<TextAsset>(StartupScorePath);
+        app.Logo = AssetDatabase.LoadAssetAtPath<Texture2D>(LogoPath);
 
         // Beside the app rather than on the camera: what it draws it reads off the
         // synth, and the shader is a reference because a shader nothing in a scene
