@@ -345,10 +345,14 @@ public sealed class Sequencer
                     if (!Project.Mutes.Sounds(channel)) break;
 
                     // Every note of a chord takes the channel as it stands where it
-                    // sits, so a lock between two of them separates the two.
-                    output.Add(FmNoteEvent.FromPatch(_working[channel], note.Note,
-                                                     note.Length * stepSeconds,
-                                                     startSample));
+                    // sits, so a lock between two of them separates the two. That
+                    // reaches the pitch as well as the timbre: the working patch is
+                    // what SoundingPitch is asked about, so a lock on the transpose
+                    // moves the notes under it and no others.
+                    output.Add(FmNoteEvent.FromPatch(
+                      _working[channel],
+                      Project.SoundingPitch(_working[channel], note.Note),
+                      note.Length * stepSeconds, startSample));
                     break;
 
                 // Where the runner goes next, decided here but taken afterwards:

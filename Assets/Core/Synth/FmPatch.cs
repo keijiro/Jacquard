@@ -37,8 +37,17 @@ static class FmCurve
 // it is scheduled, which is also why a parameter lock can alter one note without
 // disturbing anything else. gateScale is not an oscillator setting but lives here
 // so that every lock target is a plain field of one struct — and every field is a
-// lock target, which is what makes ParamTargets a list of these thirteen and
+// lock target, which is what makes ParamTargets a list of these fourteen and
 // nothing else.
+//
+// One of them the synth never sees. transpose moves the note the sequencer is about
+// to make, so it is spent before an event exists and is the one field with nothing
+// mirroring it in FmNoteEvent — an event already knows what it sounds, and a number
+// saying how far it was moved to get there would be a second answer nobody reads.
+// It is in the patch because it answers to a channel, in the way the sends do, and
+// because a step that moves one channel's notes and nothing else is exactly what a
+// lock is for. Where it is spent, and what happens to the note next, is
+// Project.SoundingPitch.
 //
 // Three of them are not oscillator settings at all, in the sense that they describe
 // nothing about how the tone is made: where the note sits across the stereo image,
@@ -72,6 +81,8 @@ static class FmCurve
 
 public struct FmPatch
 {
+    public float transpose;  // Semitones the channel's notes are moved by
+
     public float level;      // Output level [0,1]
     public float pan;        // Across the image, -1 hard left to +1 hard right
     public float gateScale;  // Multiplies the note's gate length
@@ -99,7 +110,8 @@ public struct FmPatch
     // sounds exactly as it did before there was one. Pan starts centred, which the
     // gains below are normalized to render exactly as an unpanned note used to.
     public static FmPatch Default => new FmPatch
-      { level = 0.8f,
+      { transpose = 0.0f,
+        level = 0.8f,
         pan = 0.0f,
         gateScale = 1.0f,
         modulatorRatio = 2.0f,

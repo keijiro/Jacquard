@@ -15,6 +15,12 @@ namespace Jacquard {
 // The limiter is here on a stronger reading of it still. A send is at least a thing a
 // note can be given more or less of; the limiter is across the sum of everything, so
 // there is no per note share of it to put anywhere else.
+//
+// The scale is here on the plainest reading of all: a piece is in a key. What it does
+// happens a note at a time, which is what the channel's transpose does too, but the
+// two are held apart for exactly the reason the reverb and its sends are — how far a
+// channel is moved is a property of that channel, and what the whole thing is allowed
+// to land on is not.
 
 public sealed class Project
 {
@@ -45,6 +51,29 @@ public sealed class Project
     // project, so anything with its own reference would go on pressing switches on the
     // file that was closed.
     public ChannelMutes Mutes { get; } = new ChannelMutes();
+
+    // Which semitones are allowed to sound, here on the plainest reading of the rule
+    // that puts the reverb here: there is one of it for the whole thing. A piece is in
+    // a key, not a channel — two channels in two keys is two pieces — so this is the
+    // one place it can be set from and the one place a load has to put it back.
+    public Scale Scale { get; } = new Scale();
+
+    // What a written note actually sounds as: the channel moves it, and then the scale
+    // decides whether it will have it there.
+    //
+    // The order is the whole of what this says, and it is here rather than at the two
+    // places that ask so that there is one of it. A transpose that ran after the snap
+    // would carry every note straight back out of the scale, which is the one order
+    // that makes both settings useless at once.
+    //
+    // The patch is passed in rather than looked up because the sequencer holds a
+    // working copy of it — the locks of this instant have already coloured it — and
+    // that is what makes a lock on the transpose reach one step.
+    //
+    // What the live effects do is deliberately not here: they colour a note that has
+    // already been made, in hertz, and so they land outside the scale. See LiveFx.
+    public int SoundingPitch(in FmPatch patch, int note)
+      => Scale.Snap(note + (int)System.MathF.Round(patch.transpose));
 
     // An empty project still needs one lane to type into.
     public static Project CreateEmpty()

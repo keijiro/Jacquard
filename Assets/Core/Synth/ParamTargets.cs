@@ -16,11 +16,22 @@ namespace Jacquard {
 // to the reverb is a property of that note, and what the reverb then does with it
 // is a property of the project.
 //
-// The order is the order the Sound and Lock panels read in, and it opens with the
-// two that place the note in the mix rather than shape it — how loud, and where.
-// The four FM parameters then run in the order a musician dials them: what the
+// One of them is not addressed to the synth at all. The transpose is read by the
+// sequencer as it makes the note and never reaches a voice, which makes it the one
+// entry here that is about *which* note sounds rather than what it sounds like. It is
+// in the list because the list is the fields of the patch and because it is worth
+// locking — a step that lifts one channel an octave is a lock the way a step that
+// throws one note into the reverb is.
+//
+// The order is the order the Sound and Lock panels read in. It opens with the note
+// itself, then the two that place it in the mix rather than shape it — how loud, and
+// where. The four FM parameters then run in the order a musician dials them: what the
 // modulator is tuned to, how much of it arrives, how much of itself it hears, and
 // how quickly all of that gets out of the way.
+//
+// The numbers these constants hold are an index into an array and nothing else: a
+// file names a target by its key, so inserting one at the front costs nothing but a
+// recompile.
 //
 // The names are the musician's rather than the synthesis textbook's, and they do not
 // match the fields they address: an FM amount is a modulation index and an amp
@@ -30,33 +41,34 @@ namespace Jacquard {
 
 public static class ParamTargets
 {
-    public const int Level = 0;
-    public const int Pan = 1;
-    public const int Gate = 2;
-    public const int ModRatio = 3;
-    public const int ModIndex = 4;
-    public const int Feedback = 5;
-    public const int ModDecay = 6;
-    public const int CarAttack = 7;
-    public const int CarRelease = 8;
-    public const int PitchSweep = 9;
-    public const int PitchDecay = 10;
-    public const int ReverbSend = 11;
-    public const int DelaySend = 12;
+    public const int Transpose = 0;
+    public const int Level = 1;
+    public const int Pan = 2;
+    public const int Gate = 3;
+    public const int ModRatio = 4;
+    public const int ModIndex = 5;
+    public const int Feedback = 6;
+    public const int ModDecay = 7;
+    public const int CarAttack = 8;
+    public const int CarRelease = 9;
+    public const int PitchSweep = 10;
+    public const int PitchDecay = 11;
+    public const int ReverbSend = 12;
+    public const int DelaySend = 13;
 
-    public const int Count = 13;
+    public const int Count = 14;
 
     public static readonly string[] Names =
-      { "Level", "Pan", "Gate ratio", "FM ratio", "FM amount", "Feedback",
-        "FM decay", "Amp attack", "Amp release", "Pitch sweep", "Pitch decay",
-        "Reverb send", "Delay send" };
+      { "Transpose", "Level", "Pan", "Gate ratio", "FM ratio", "FM amount",
+        "Feedback", "FM decay", "Amp attack", "Amp release", "Pitch sweep",
+        "Pitch decay", "Reverb send", "Delay send" };
 
     public static string Name(int target)
       => target >= 0 && target < Count ? Names[target] : "?";
 
     // Spelling used in a saved file, where a space would break the tokenizer.
     public static readonly string[] Keys =
-      { "level", "pan", "gate", "ratio", "index", "feedback",
+      { "transpose", "level", "pan", "gate", "ratio", "index", "feedback",
         "moddecay", "carattack", "carrelease", "pitchsweep", "pitchdecay",
         "rsend", "dsend" };
 
@@ -81,6 +93,10 @@ public static class ParamTargets
         ModRatio => 0.05f,
         Gate => 0.05f,
         CarAttack => 0.001f,
+        // Two octaves either way, which is as far as a part can be moved and still be
+        // the part that was written: past that a bass line is a lead and the scale it
+        // is snapped to is the only thing it still has in common with the score.
+        Transpose => -24.0f,
         // Symmetric about the centre, which is also what tells the bar to draw itself
         // out from where the note is unpanned rather than from the left edge.
         Pan => -1.0f,
@@ -90,6 +106,7 @@ public static class ParamTargets
 
     public static float Max(int target) => target switch
     {
+        Transpose => 24.0f,
         Level => 1.0f,
         Gate => 4.0f,
         ModIndex => 12.0f,
@@ -121,6 +138,7 @@ public static class ParamTargets
 
     public static float Get(in FmPatch patch, int target) => target switch
     {
+        Transpose => patch.transpose,
         Level => patch.level,
         Pan => patch.pan,
         Gate => patch.gateScale,
@@ -143,6 +161,7 @@ public static class ParamTargets
 
         switch (target)
         {
+            case Transpose: patch.transpose = value; break;
             case Level: patch.level = value; break;
             case Pan: patch.pan = value; break;
             case Gate: patch.gateScale = value; break;

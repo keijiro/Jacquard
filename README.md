@@ -5,7 +5,7 @@ A prototype grid sequencer. Lanes of steps are laid out anywhere on one plane; a
 step stacks what happens at the same instant; gates, parameter locks and jumps
 turn sixteen slots into something that changes as it repeats.
 
-Built with Unity 6.5 (6000.5.6f1). Open the project and play `Assets/Main.unity`.
+Built with Unity 6.5 (6000.5.8f1). Open the project and play `Assets/Main.unity`.
 
 The synth runs on the Scriptable Audio Pipeline, which the Web platform does not
 support; there the same DSP is rendered from `Update` and pushed to the Web Audio
@@ -19,7 +19,7 @@ Using it
 | --- | --- |
 | Move the cursor | Click a cell, or the arrow keys |
 | Write a note | The `NOTE` button the Tile panel offers on a free cell |
-| Transpose | Shift+up/down for a semitone, add command for an octave |
+| Transpose a note | Shift+up/down for a semitone, add command for an octave, which rewrites the tile |
 | Add a gate or a lock | The buttons the Tile panel offers on a free cell |
 | Which laps a cycle gate fires on | Its Period, and the switch per lap under it |
 | Remove a tile | Delete on the Tile panel, or the delete key |
@@ -34,11 +34,13 @@ Using it
 | Details of a tile | The panel on the right follows the cursor |
 | Set a number | Drag its bar right or up, shift for fine; double click to type one |
 | Timbre | Select a `CHAN` cell, which brings up the Sound panel for its channel |
+| Move a channel in pitch | Transpose, the first row of its Sound panel, in semitones |
+| Hold the piece to a key | The Global button opens the panel the Scale is set on, a switch per semitone laid out as a keyboard |
 | Silence a channel, or hear one alone | The Channels button opens a row per channel, with a Mute and a Solo switch on each; a solo overrules every mute, and both are saved with the score |
 | Go to a channel | Select on its row, which puts the cursor on the `CHAN` tile that names it |
 | Reverb and delay | The Send FX button opens the panel they are set on; how much of a channel reaches each is the last two rows of its Sound panel |
 | Play the sequence by hand | The Live FX button opens a row of buttons that act while they are held |
-| Loudness and punch | The Global button opens the panel the limiter is set on; Threshold is the one that is played, and the make-up gain follows it so the mix gets louder as it gets harder; the bottom of that bar is the whole mix through the soft clip |
+| Loudness and punch | The same Global panel holds the limiter; Threshold is the one that is played, and the make-up gain follows it so the mix gets louder as it gets harder; the bottom of that bar is the whole mix through the soft clip |
 | What a lock holds | Select it, then move a bar on the Lock panel; click a name to let go |
 | Play | Space, or the Play button |
 | Tempo | The bpm bar beside Play, which the delay is in time with |
@@ -66,6 +68,20 @@ puts the last copy down. Only notes, gates and locks travel — a `JUMP` in a st
 is stepped over and a double click on one does nothing, since a jump is the thing
 its branch lane answers to and there cannot be two of it. What was taken lights
 up for a moment, and with nothing taken yet a double click does nothing at all.
+
+What a note sounds as is decided twice over on the way out, and neither pass touches
+what is written: the channel's Transpose moves it, and then the Scale drops it onto the
+nearest semitone it allows, the lower of the two when it sits exactly between. So a part
+can be moved into another key and stay in it, and a scale can be tried against a piece
+and taken off again. Everything on, which is how a score starts, is the scale that does
+nothing; nothing on has nowhere to send a note, so every note stays where it was
+written and the scale does nothing again. A parameter lock can
+reach the Transpose like any other, which is how one step of a channel is lifted and the
+rest left where they are.
+
+The Live FX buttons stand outside all of this. They colour a note that has already been
+made, so an octave or a rise reaches whatever it likes and the scale never catches it —
+which is what a gesture should do and a key signature should not.
 
 A lane holds its whole row from `CHAN` to `TERM` whether anything is written on
 it yet or not, so nothing else can grow across it and no lane can be dropped on

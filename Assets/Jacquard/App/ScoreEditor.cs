@@ -305,6 +305,12 @@ public sealed class ScoreEditor
     // Sounds a note straight away, so that editing is audible. It goes out with the
     // timbre of the channel the cursor is on, so what a note sounds like here is
     // what it will sound like when the sequence reaches it.
+    //
+    // Which is why the pitch goes through the same two steps the sequencer puts it
+    // through — the channel's transpose, then the scale — and why a note written
+    // outside the scale is heard where it will land rather than where it was typed.
+    // The locks and the live effects are still not here: those belong to a step and
+    // to a hand on a button, and neither is what a cell is being asked about.
     public void Preview(int note) => Preview(note, Channel);
 
     public void Preview(int note, int channel)
@@ -315,7 +321,8 @@ public sealed class ScoreEditor
         var start = Synth.CurrentSample + Synth.MinimumLead + Synth.SampleRate / 20;
         var length = 60.0f / Math.Max(Project.Tempo, 1.0f) / 4.0f;
 
-        Synth.Schedule(FmNoteEvent.FromPatch(patch, note, length, start));
+        Synth.Schedule(FmNoteEvent.FromPatch(patch, Project.SoundingPitch(patch, note),
+                                             length, start));
     }
 
     public void Commit()

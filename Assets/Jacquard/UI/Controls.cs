@@ -297,7 +297,7 @@ static class Controls
     // for it. The run is what carries the meaning, and the panel captions the run.
     public static Button Switch(int perRow, Action onClick)
     {
-        var size = Mathf.Floor((PanelWidth - Inset * 2 + Gap) / perRow) - Gap;
+        var size = SwitchSize(perRow);
 
         var button = Push("", onClick);
         button.style.width = size;
@@ -309,6 +309,13 @@ static class Controls
         button.style.marginBottom = Gap;
         return button;
     }
+
+    // How big one of them comes out, for a run that has to place a switch itself
+    // rather than let a row lay it out. It is a metric of the profile in force, so a
+    // caller cannot write the number down; the scale keyboard needs it to put the
+    // black keys in the gaps between the white ones.
+    public static float SwitchSize(int perRow)
+      => Mathf.Floor((PanelWidth - Inset * 2 + Gap) / perRow) - Gap;
 
     // Value bars
 

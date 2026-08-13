@@ -19,7 +19,8 @@ namespace Jacquard {
 //   fx rsize=0.5 rdamp=0.5 ...
 //   limiter ceiling=0 attack=0.005 release=0.15
 //   mutes muted=01000000 soloed=00000000
-//   patch 1 level=0.8 index=3 ...
+//   scale notes=101011010101
+//   patch 1 transpose=0 level=0.8 index=3 ...
 //   lane 1 1 CHAN:1 div=16
 //     step C4/4 E4 G4
 //     step
@@ -29,6 +30,16 @@ namespace Jacquard {
 
 public static class ProjectFormat
 {
+    // Version 14 adds the two things that decide which note a written note sounds as: a
+    // scale line for the whole piece, and a transpose on each patch. A file without
+    // either reads exactly as it did — a project starts chromatic, which is the scale
+    // that does nothing, and a patch with no transpose= keeps the zero it is built with,
+    // so nothing about an older piece moves. The bump is for the other direction, since
+    // an older build meets an unknown keyword on the scale line and refuses the file.
+    //
+    // Both are one change because they are one feature: a transpose without a scale
+    // walks a part out of its key, and a scale without a transpose has nothing to catch.
+    //
     // Version 13 drops the limiter's drive and makes its ceiling automatic: the make-up
     // gain is now whatever the ceiling took off, so there is no drive= on the limiter
     // line any more. An older file is converted by LimiterSqueeze rather than having its
@@ -111,7 +122,7 @@ public static class ProjectFormat
     // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
     // reads, since a token nothing answers to is skipped, but the parameters that
     // no longer exist fall back to the default patch rather than being converted.
-    public const int Version = 13;
+    public const int Version = 14;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -127,6 +138,7 @@ public static class ProjectFormat
         text.Append("fx ").Append(WriteFx(project.Fx)).Append('\n');
         text.Append("limiter ").Append(WriteLimiter(project.Limiter)).Append('\n');
         text.Append("mutes ").Append(WriteMutes(project.Mutes)).Append('\n');
+        text.Append("scale ").Append(WriteScale(project.Scale)).Append('\n');
         // Every channel gets a line, whether anything plays on it or not: a regular
         // file is worth more here than a short one, and a bank of eight is small.
         for (var channel = 1; channel <= PatchBank.Channels; channel++)
@@ -199,7 +211,8 @@ public static class ProjectFormat
     }
 
     static string WritePatch(in FmPatch patch)
-      => "level=" + F(patch.level) +
+      => "transpose=" + F(patch.transpose) +
+         " level=" + F(patch.level) +
          " pan=" + F(patch.pan) +
          " gate=" + F(patch.gateScale) +
          " mratio=" + F(patch.modulatorRatio) +
@@ -234,6 +247,20 @@ public static class ProjectFormat
 
         for (var channel = 1; channel <= PatchBank.Channels; channel++)
             text.Append(mutes.IsSoloed(channel) ? '1' : '0');
+
+        return text.ToString();
+    }
+
+    // A digit per semitone, C first, in the same spelling for the same reason: which
+    // note a digit is for is where it stands. Written in full even when every one of
+    // them is on, which is a scale that does nothing — a file says what it is set to
+    // rather than only what is unusual about it.
+    static string WriteScale(Scale scale)
+    {
+        var text = new StringBuilder("notes=");
+
+        for (var degree = 0; degree < Scale.Degrees; degree++)
+            text.Append(scale.Allows(degree) ? '1' : '0');
 
         return text.ToString();
     }
@@ -304,6 +331,10 @@ public static class ProjectFormat
 
                 case "mutes":
                     ReadMutes(project.Mutes, tokens);
+                    break;
+
+                case "scale":
+                    ReadScale(project.Scale, tokens);
                     break;
 
                 case "patch":
@@ -538,6 +569,7 @@ public static class ProjectFormat
 
             switch (key)
             {
+                case "transpose": patch.transpose = value; break;
                 case "level": patch.level = value; break;
                 case "pan": patch.pan = value; break;
                 case "gate": patch.gateScale = value; break;
@@ -647,6 +679,23 @@ public static class ProjectFormat
                 var on = text[channel - 1] == '1';
                 if (muted) mutes.SetMuted(channel, on); else mutes.SetSoloed(channel, on);
             }
+        }
+    }
+
+    // The scale line, read with the same tolerance the mutes line gets: an unknown key
+    // is skipped and a run shorter than twelve leaves the degrees past its end where the
+    // project was created with them, which is on. So a hand written `scale notes=0`
+    // takes out the C and says nothing about the other eleven.
+    static void ReadScale(Scale scale, string[] tokens)
+    {
+        for (var i = 1; i < tokens.Length; i++)
+        {
+            var (key, text) = Split(tokens[i]);
+            if (key != "notes") continue;
+
+            for (var degree = 0;
+                 degree < Scale.Degrees && degree < text.Length; degree++)
+                scale.SetAllowed(degree, text[degree] == '1');
         }
     }
 

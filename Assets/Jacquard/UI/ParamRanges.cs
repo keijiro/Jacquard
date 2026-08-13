@@ -79,6 +79,13 @@ static class ParamRanges
             ParamTargets.Pan =>
               new ValueBar.Range(low, high, scale: 100.0f, digits: 0, display: Side),
 
+            // Whole semitones, since half of one is not a transposition of anything
+            // written on the plane. Read with its sign, which pan is the other
+            // parameter to spell out: what a transpose is is a direction and a
+            // distance, and "3" alone says only half of that. The bar grows out of the
+            // centre on its own, the range straddling zero.
+            ParamTargets.Transpose => ValueBar.Integer(low, high, display: Signed),
+
             _ => ValueBar.Amount(low, high)
         };
     }
@@ -87,6 +94,12 @@ static class ParamRanges
     {
         var amount = Mathf.RoundToInt(Mathf.Clamp(value, -1.0f, 1.0f) * 100.0f);
         return amount == 0 ? "C" : (amount < 0 ? "L " : "R ") + Mathf.Abs(amount);
+    }
+
+    static string Signed(float value)
+    {
+        var amount = Mathf.RoundToInt(value);
+        return amount > 0 ? "+" + amount : amount.ToString();
     }
 
     // What a relative lock shifts that value by: the same reading over a bar that

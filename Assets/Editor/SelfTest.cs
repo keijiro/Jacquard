@@ -26,6 +26,7 @@ static class SelfTest
         Switching(log);
         Stack(log);
         CopyStack(log);
+        Tuning(log);
         Locks(log);
         Channels(log);
         Mutes(log);
@@ -642,6 +643,155 @@ static class SelfTest
 
         Check(log, "a gate governs the note below it", below == laps / 4,
               below + " notes under a four lap gate over " + laps + " laps");
+    }
+
+    // What a written note sounds as, which is two settings in one order: the channel's
+    // transpose moves it and then the scale decides whether it will have it there. Both
+    // ends of that are worth checking and so is the order — a scale applied first and
+    // transposed afterwards would let every note straight back out of the key, and
+    // nothing about a single note at a single setting would show it.
+    //
+    // The live effects are checked here too, from the other side: they have to reach
+    // pitches the scale forbids, because they stand after the note was made and a
+    // gesture is not a key signature.
+    static void Tuning(System.Text.StringBuilder log)
+    {
+        const int sampleRate = 48000;
+
+        // One degree allowed says the most about the walk: from a note in the middle of
+        // the eleven that are not, below, above and the exact tie are all reachable.
+        var single = new Scale();
+        for (var degree = 1; degree < Scale.Degrees; degree++)
+            single.SetAllowed(degree, false);
+
+        Check(log, "a note outside the scale falls to the nearest one in it",
+              single.Snap(61) == 60 && single.Snap(67) == 72 && single.Snap(72) == 72,
+              single.Snap(61) + " " + single.Snap(67) + " " + single.Snap(72));
+
+        Check(log, "a note the same distance from two of them falls to the lower",
+              single.Snap(66) == 60, single.Snap(66).ToString());
+
+        var none = new Scale();
+        for (var degree = 0; degree < Scale.Degrees; degree++)
+            none.SetAllowed(degree, false);
+
+        Check(log, "a scale with nothing on lets every note through",
+              none.Snap(61) == 61 && none.Snap(66) == 66,
+              none.Snap(61) + " " + none.Snap(66));
+
+        Check(log, "a fresh scale is no scale at all",
+              new Scale().Snap(61) == 61, new Scale().Snap(61).ToString());
+
+        // The order, through the sequencer. C major, and a C written on the plane: at
+        // two semitones it comes out as the D that is in the key, and at one it is
+        // moved onto a C# the key does not have and falls back to where it started.
+        // Snapping first would have given 61 instead, since a C is already in the key
+        // and nothing would have been there to catch what the transpose then did.
+        Check(log, "the transpose moves the note and the scale then catches it",
+              Written(60, 2.0f, sampleRate) == 62 && Written(60, 1.0f, sampleRate) == 60,
+              Written(60, 2.0f, sampleRate) + " and " + Written(60, 1.0f, sampleRate));
+
+        Check(log, "a channel with no transpose and no scale is where it was written",
+              Written(60, 0.0f, sampleRate) == 60,
+              Written(60, 0.0f, sampleRate).ToString());
+
+        // A lock on the transpose, which is what the target is in the list for: the
+        // sequencer reads the working patch, so it reaches the notes under it in that
+        // step and no others.
+        var project = new Project();
+        var lane = project.Score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 2);
+
+        var lift = new RelativeParamTile();
+        lift.Engage(ParamTargets.Transpose, 12.0f);
+
+        lane.Steps[0].Tiles.Add(lift);
+        lane.Steps[0].Tiles.Add(new NoteTile { Note = 60 });
+        lane.Steps[1].Tiles.Add(new NoteTile { Note = 60 });
+
+        var sequencer = new Sequencer { Project = project };
+        var notes = new System.Collections.Generic.List<FmNoteEvent>();
+
+        sequencer.Play(0, 0);
+        sequencer.Schedule(0, sampleRate / 5, sampleRate, notes);
+
+        Check(log, "a lock on the transpose lifts its own step and no other",
+              notes.Count == 2 && Sounds(notes[0], 72) && Sounds(notes[1], 60),
+              notes.Count + " notes");
+
+        // The live effects, against a scale that allows one note in twelve. Every step
+        // of the chromatic run is snapped onto a C, and the rise then walks straight
+        // off it a semitone at a time.
+        var chromatic = new Scale();
+        for (var degree = 1; degree < Scale.Degrees; degree++)
+            chromatic.SetAllowed(degree, false);
+
+        var span = LiveSixteenth * 8;
+        var plain = LiveRun(null, span, sampleRate, scale: chromatic);
+
+        Check(log, "the scale reaches what the sequencer hands over",
+              LiveNoteAt(plain, 0) == 60 && LiveNoteAt(plain, 1) == 60 &&
+              LiveNoteAt(plain, 7) == 72,
+              LiveNoteAt(plain, 0) + " " + LiveNoteAt(plain, 1) + " " +
+              LiveNoteAt(plain, 7));
+
+        var rise = LiveRun((live, now) =>
+          { if (now == 0) live.Press(LiveEffect.Rise, LiveLookahead); },
+          span, sampleRate, scale: chromatic);
+
+        Check(log, "a live effect reaches the notes the scale will not have",
+              LiveNoteAt(rise, 0) == 60 && LiveNoteAt(rise, 1) == 61 &&
+              LiveNoteAt(rise, 2) == 62,
+              LiveNoteAt(rise, 0) + " " + LiveNoteAt(rise, 1) + " " +
+              LiveNoteAt(rise, 2));
+
+        // The file. Both are written in full, so what comes back is compared against
+        // what went out rather than against a default that happens to match.
+        var saved = new Project();
+        saved.Scale.SetAllowed(1, false);
+        saved.Scale.SetAllowed(6, false);
+        saved.Patches[2].transpose = -5.0f;
+
+        var reloaded = ProjectFormat.Read(ProjectFormat.Write(saved));
+
+        Check(log, "the scale and the transpose round trip",
+              !reloaded.Scale.Allows(1) && !reloaded.Scale.Allows(6) &&
+              reloaded.Scale.Allows(0) && reloaded.Scale.Allows(11) &&
+              Mathf.Abs(reloaded.Patches[2].transpose + 5.0f) < 0.001f,
+              "transpose " + reloaded.Patches[2].transpose);
+
+        // An older file has neither, and has to come back as the piece it was: every
+        // note allowed, and no channel moved.
+        var older = ProjectFormat.Read("jacquard 13\ntempo 120\n");
+        var chromaticBack = true;
+        for (var degree = 0; degree < Scale.Degrees; degree++)
+            chromaticBack &= older.Scale.Allows(degree);
+
+        Check(log, "a file from before either one is unmoved",
+              chromaticBack && Mathf.Abs(older.Patches[1].transpose) < 0.001f,
+              "every degree on: " + chromaticBack);
+    }
+
+    // A note written on a one step lane, sounded through a C major scale at the given
+    // transpose, and read back as the note number it came out as.
+    static int Written(int note, float transpose, int sampleRate)
+    {
+        var project = new Project();
+
+        foreach (var degree in new[] { 1, 3, 6, 8, 10 })
+            project.Scale.SetAllowed(degree, false);
+
+        project.Patches[1].transpose = transpose;
+
+        var lane = project.Score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 1);
+        lane.Steps[0].Tiles.Add(new NoteTile { Note = note });
+
+        var sequencer = new Sequencer { Project = project };
+        var notes = new System.Collections.Generic.List<FmNoteEvent>();
+
+        sequencer.Play(0, 0);
+        sequencer.Schedule(0, sampleRate / 10, sampleRate, notes);
+
+        return notes.Count > 0 ? Semitones(notes[0]) : -1;
     }
 
     // One lock holding two parameters has to move both of them and leave the rest of
@@ -1267,7 +1417,7 @@ static class SelfTest
     // sequence it stood in for simply by reading the notes back.
     // release is the one patch value any of these checks cares about; zero leaves the
     // channel at the default the rest of them are measured against.
-    static Project LiveScore(float release)
+    static Project LiveScore(float release, Scale scale)
     {
         var project = new Project { Tempo = 120.0f };
         var lane = project.Score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 16);
@@ -1277,14 +1427,20 @@ static class SelfTest
 
         if (release > 0.0f) project.Patches[1].carrierRelease = release;
 
+        // Chromatic unless a caller wants the notes caught on the way out, which is
+        // what the live effects are asked about in Tuning.
+        if (scale != null)
+            for (var degree = 0; degree < Scale.Degrees; degree++)
+                project.Scale.SetAllowed(degree, scale.Allows(degree));
+
         return project;
     }
 
     static System.Collections.Generic.List<FmNoteEvent> LiveRun(
       System.Action<LiveFx, long> hand, long span, int sampleRate,
-      float release = 0.0f)
+      float release = 0.0f, Scale scale = null)
     {
-        var project = LiveScore(release);
+        var project = LiveScore(release, scale);
         var sequencer = new Sequencer { Project = project };
         var live = new LiveFx();
 
@@ -1315,12 +1471,15 @@ static class SelfTest
       => notes.Find(note => note.startSample == LiveLookahead + step * LiveSixteenth);
 
     static int LiveNoteAt(System.Collections.Generic.List<FmNoteEvent> notes, long step)
-    {
-        var note = LiveEventAt(notes, step);
-        return note.frequency > 0.0f
-          ? Mathf.RoundToInt(69.0f + 12.0f * Mathf.Log(note.frequency / 440.0f, 2.0f))
-          : -1;
-    }
+      => Semitones(LiveEventAt(notes, step));
+
+    // The note number an event came out as, which is the only way to read a pitch once
+    // it has been through the live effects: they colour a frequency, having no semitone
+    // left to move by then.
+    static int Semitones(in FmNoteEvent note)
+      => note.frequency > 0.0f
+         ? Mathf.RoundToInt(69.0f + 12.0f * Mathf.Log(note.frequency / 440.0f, 2.0f))
+         : -1;
 
     // The oscillator, which neither the round trip nor the note counts say
     // anything about. Ported from unity-sap-test's offline checks, and worth

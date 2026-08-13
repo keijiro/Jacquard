@@ -56,12 +56,52 @@ Notes on the prototype
   main one, colour it.
 - **A lock is over when its instant is.** There is no accumulating lock and no
   standing channel state; every channel starts each instant from its patch again.
+- **What a written note sounds as is decided twice, and neither pass is an edit.**
+  `Project.SoundingPitch` is the whole of it: the channel's transpose moves the note,
+  and then the scale drops it onto the nearest semitone it allows. The plane is not
+  touched — a note tile keeps the pitch it was given and goes on showing it — which is
+  the point rather than a limitation. A scale that rewrote the notes could be applied
+  once; one that decides what they sound as can be tried against a piece, moved, and
+  taken off again, and the piece underneath is still the piece that was written.
+
+  **The order is the feature.** Snapping first and transposing after would carry every
+  note straight back out of the key, which makes both settings useless at once, so the
+  two live in one function rather than at the two places that ask. And what the scale
+  does to a note it will not have is snap and not drop: a note that does not sound is a
+  hole in the music, and no arrangement of a stack fills one.
+
+  **The scale is the project's and the transpose is the channel's**, which is the same
+  split the effects already make: one reverb for the whole thing, and how much of a
+  channel reaches it in the patch. A piece is in a key — two channels in two keys is
+  two pieces — while how far a part is moved is plainly a property of that part.
+  Everything on is the scale that does nothing and is where a score starts, so a file
+  from before there was one sounds exactly as it did. Nothing on has nowhere to send a
+  note, so every note stays where it was written; that is inert rather than wrong, the
+  same way a cycle gate switched on nowhere is.
+
+  **The live effects are outside it, and no code says so.** `LiveFx.Colour` stands
+  after the sequencer has made the event and works in hertz, having no semitone left to
+  move by then — so an octave or a rise reaches whatever pitch it likes and the scale
+  never sees it. That is the right answer as well as the free one: a key signature is
+  something the piece is written under and a live effect is a hand on a button, and a
+  gesture that could only reach the notes already allowed would be a gesture with the
+  interesting part taken out.
 - **Every field of the patch is a lock target.** `FmPatch` and `ParamTargets` name
-  the same thirteen parameters, so there is nothing a channel holds that a step cannot
+  the same fourteen parameters, so there is nothing a channel holds that a step cannot
   reach for one instant. One of them, the gate ratio, multiplies the length written
   on the note rather than being a length itself, which is why the note reads in
   steps and the channel in percent: the two are the same multiplication and only
   the unit tells them apart.
+
+  **One of them the synth never sees.** The transpose moves the note the sequencer is
+  about to make, so it is spent before an event exists and is the one patch field with
+  nothing mirroring it in `FmNoteEvent` — an event already knows what it sounds, and a
+  number saying how far it was carried to get there would be a second answer nobody
+  reads. It is in the patch because it answers to a channel, the way the sends do, and
+  in the target list because the list *is* the fields of the patch. What that buys is
+  the reason it is worth having there rather than beside the tempo: the sequencer reads
+  the working patch, the one this instant's locks have already coloured, so a `PABS` or
+  a `PREL` on the transpose lifts the notes under it in that step and no others.
 - **The parameters are named and ordered for a player, not for the synthesis.** What is
   on the panel is `FM ratio`, `FM amount`, `Feedback`, `FM decay` and then `Amp attack`
   / `Amp release`, where the code says `modulationIndex`, `carrierAttack` and so on. A
@@ -308,7 +348,7 @@ Notes on the prototype
   The panel grows by about a hundred points at the longest period, and it can afford
   to: eight switches to a line is a bar of sixteenths and puts thirty-two laps in four
   lines, and a gate cell is not a `CHAN` cell, so this panel is never the one standing
-  over a thirteen row Sound panel.
+  over a fourteen row Sound panel.
 - **A panel shows what the cursor is on**, and nothing is toggled. The tile panel
   keeps the corner and follows the cursor; beside it comes up either the Sound
   panel, while a `CHAN` cell is selected, or the Lock panel, while a `PABS` or
@@ -458,14 +498,27 @@ Notes on the prototype
   precisely the decision to stop doing that, so a converted project comes back |c| dB
   louder.
 
-  **The panel is Global rather than Limiter**, which is a name for what will be on it
-  rather than for what is on it now. A Limiter panel would be the right name for exactly
-  as long as the limiter is the only setting of its kind, and a panel per setting is a
-  row of switches on the transport for what is really one question — *what is set for the
-  whole thing?* So the panel answers that and the group inside it is headed `Limiter`,
-  which makes it the one panel here that needs a heading; every other one holds a single
-  kind of thing, which is the argument that split the send effects into two panels in the
-  first place.
+  **The panel is Global rather than Limiter**, which was a name for what would be on it
+  rather than for what was on it — and the scale is the first thing to arrive and prove
+  it. A Limiter panel would have been the right name for exactly as long as the limiter
+  was the only setting of its kind, and a panel per setting is a row of switches on the
+  transport for what is really one question — *what is set for the whole thing?* So the
+  panel answers that and each group inside it is headed, which makes it the one panel
+  here that needs headings; every other one holds a single kind of thing, which is the
+  argument that split the send effects into two panels in the first place. The scale
+  stands above the limiter in the order a note meets them: what it is allowed to be,
+  and then what the sum of everything is held under.
+
+  **The scale is a keyboard because a run of twelve boxes is not one.** Seven switches
+  across the bottom and five in the gaps above them, with the two gaps a keyboard does
+  not have — E to F and B to C — left empty. That is the whole of the shape and
+  deliberately so: what it has to do is let a hand find a semitone without counting, and
+  the two missing blacks do all of it. Narrower blacks, an overlap, a drawn key would be
+  a picture of a keyboard, and these are switches — a press allows a note rather than
+  playing one. They carry no captions for the reason a lap switch carries none: position
+  is what a switch in a run means, and here the position is a pitch. The size comes from
+  `Controls.SwitchSize`, since it is a metric of the profile in force and the blacks have
+  to be placed against it rather than laid out by a row.
 
   It comes up **in the middle of the screen**. The columns are all read against the plane
   and the dock is played over it, but a limiter is set while listening to the whole mix
@@ -979,13 +1032,17 @@ Notes on the prototype
   Two things deliberately do not move. `Style`'s cell pitch is untouched, because the
   score already read right on the iPad and only the chrome did not. And paddings,
   margins and dividers stay at their mouse values: the growth is spent on the targets
-  and not on the air between them, which a thirteen row Sound panel cannot afford.
+  and not on the air between them, which a fourteen row Sound panel cannot afford.
 
   That row count is the number to watch. In the touch profile a row costs 33pt, and
-  the column — transport, Tile panel over a `CHAN` head, Sound panel — now stands at
-  roughly 853pt against 834 on an iPad Pro 11", 820 on an Air and 744 on a mini. The
+  the column — transport, Tile panel over a `CHAN` head, Sound panel — stands at
+  roughly 886pt against 834 on an iPad Pro 11", 820 on an Air and 744 on a mini. The
   column does not scroll, so the shortest screens genuinely lose their bottom rows,
-  and **every further lock target costs another 33pt off the same budget.**
+  and **every further lock target costs another 33pt off the same budget.** The
+  transpose is the row that took it from 853 to 886, and it was spent knowingly: what
+  it buys is a lock that moves a note rather than shapes one, which nothing else in the
+  list can do. The mouse profile measures 630pt of column at the same cursor, so this
+  is a tablet's problem and not a shape that is wrong everywhere.
 
   A scale on the panels was the alternative and it is ruled out by what is coming.
   Pinch zoom will put a continuous fractional scale on the plane's content, which
