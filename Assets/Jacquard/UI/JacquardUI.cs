@@ -61,6 +61,7 @@ sealed class JacquardUI
         _view.KeyPressed += OnKey;
         _view.CursorMoved += OnCursorMoved;
         _view.RevealRequested += Reveal;
+        _view.Reframed += _scroll.Shift;
         _view.DoubleClicked += _editor.PlaceNote;
         _view.TilesDropped += _editor.DropTiles;
         _view.LaneDropped += _editor.DropLane;
@@ -105,6 +106,11 @@ sealed class JacquardUI
         _editor.Changed += OnChanged;
 
         _view.Rebuild();
+
+        // After the rebuild, since where the score has come to rest on the plane is
+        // what this is aiming at.
+        ShowScore();
+
         _view.Focus();
     }
 
@@ -505,12 +511,18 @@ sealed class JacquardUI
     void Refocus() => _view.Focus();
 
     // Brings the cursor into view when it walks off the edge.
+    //
+    // Measured against what the plane was asked for rather than what it is showing. A
+    // cursor moved by an edit is a cursor moved in the same breath as the plane growing
+    // to the left, and the offset taking that up is a frame ahead of the layout that
+    // allows it; reading the clamped value here would overwrite that and let the score
+    // jump by the width of the whole margin.
     void Reveal(Rect rect)
     {
         var size = _scroll.contentRect.size;
         if (size.x <= 0.0f || size.y <= 0.0f) return;
 
-        var offset = _scroll.Offset;
+        var offset = _scroll.Requested;
 
         if (rect.xMin < offset.x) offset.x = rect.xMin;
         if (rect.xMax > offset.x + size.x) offset.x = rect.xMax - size.x;
@@ -518,6 +530,41 @@ sealed class JacquardUI
         if (rect.yMax > offset.y + size.y) offset.y = rect.yMax - size.y;
 
         _scroll.Offset = offset;
+    }
+
+    // Opens on the score rather than on the corner of the plane, with the cursor on it.
+    //
+    // The plane keeps ten columns and eight rows of empty ground above and to the left
+    // of the score, so the corner is bare lattice and the score is somewhere off to the
+    // right of it. Two cells of that margin are left showing: enough to say that the
+    // plane goes on in that direction — which is the only way of saying so, since
+    // nothing draws an edge — and not so much that the score is not the first thing
+    // read. Scrolled flush to the score instead, the margin would be off screen
+    // entirely, and a lane cannot be carried into ground that is not on the screen.
+    //
+    // The cursor goes to the score's own corner, which for a score written the usual way
+    // is the head of its first lane. It used to arrive there by standing still — the
+    // cursor starts at cell (1,1) and that is where a score used to begin — and now that
+    // a score begins further in, where it begins has to be asked for.
+    //
+    // Only at startup. A score that comes in at the turn of the piece must move neither:
+    // the seam is there so that two scores read as one, and the reframe has already put
+    // the incoming one at the same corner the outgoing one was at.
+    void ShowScore()
+    {
+        const int margin = 2;
+
+        var score = _editor.Score;
+
+        // Before the offset, since SetCursor asks to be brought into view and this is a
+        // stronger statement about where to look than that one.
+        _view.SetCursor(new GridPoint(score.MinX, score.MinY));
+
+        // The same inset the plane gives its own edge, so the cell sits where a cell at
+        // the corner of the plane would.
+        var corner = new GridPoint(score.MinX - margin, score.MinY - margin);
+        _scroll.Offset = Style.CellOrigin(corner) -
+                         new Vector2(Style.Padding, Style.Padding);
     }
 
     // What the file controls have to say, which is the one thing the status line

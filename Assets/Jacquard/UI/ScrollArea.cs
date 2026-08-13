@@ -26,6 +26,23 @@ public sealed partial class ScrollArea : VisualElement
 
     public Vector2 Offset { get => _offset; set => SetOffset(value); }
 
+    // The offset that was asked for, which is not always the one in force: a plane that
+    // has just grown is a plane whose layout has not run yet, so a request reaching past
+    // what it used to hold is clamped for a frame. Anything that means to survive that
+    // frame reads this and not Offset.
+    public Vector2 Requested => _requested;
+
+    // Takes up a distance without reading back what is in force, which is what the
+    // score plane needs when it moves the score bodily underneath itself: the plane grew
+    // on its left and everything on it went right, and adding that here is what leaves
+    // the picture where it stood. Reading Offset instead would throw away a request the
+    // layout has not caught up with, which is the whole of what this exists for.
+    public void Shift(Vector2 delta)
+    {
+        _requested += delta;
+        Clamp();
+    }
+
     // VisualElement implementation
 
     public override VisualElement contentContainer => _content;
@@ -45,8 +62,16 @@ public sealed partial class ScrollArea : VisualElement
         RegisterCallback<PointerMoveEvent>(OnPointerMove);
         RegisterCallback<PointerUpEvent>(OnPointerUp);
         RegisterCallback<PointerCaptureOutEvent>(_ => (_pressed, _dragging) = (false, false));
-        RegisterCallback<GeometryChangedEvent>(_ => SetOffset(_offset));
-        _content.RegisterCallback<GeometryChangedEvent>(_ => SetOffset(_offset));
+        RegisterCallback<GeometryChangedEvent>(_ => Clamp());
+
+        // The content's own geometry is what a request is waiting on, so this is where a
+        // request stops being pending: the size it was clamped against is now the real
+        // one. Collapsing it here and not on the viewport's event matters — the viewport
+        // can be resized in a pass the content has not been measured in, and a request
+        // dropped there would be dropped before it was ever answered. Collapsed at all
+        // because a request that outlived its answer would spring the view back to it
+        // the next time the plane happened to grow.
+        _content.RegisterCallback<GeometryChangedEvent>(_ => { Clamp(); _requested = _offset; });
     }
 
     // Holding the pan modifier grabs the plane instead of editing it, which is
@@ -68,6 +93,14 @@ public sealed partial class ScrollArea : VisualElement
     bool _invertWheel;
 
     Vector2 _offset;
+
+    // What was asked for, against _offset which is what the plane can currently give.
+    // A gesture adds its delta to the latter and never to this, which is what keeps a
+    // pan against an edge from banking travel: push at the end of the plane for a second
+    // and it comes back the moment the hand turns round rather than a second later. Only
+    // something that has asked for ground the layout has not caught up with reads this.
+    Vector2 _requested;
+
     Vector2 _dragPoint;
     bool _pressed;
     bool _dragging;
@@ -79,9 +112,16 @@ public sealed partial class ScrollArea : VisualElement
 
     void SetOffset(Vector2 offset)
     {
+        _requested = offset;
+        Clamp();
+    }
+
+    // What the request comes to against the plane as it is now laid out.
+    void Clamp()
+    {
         var max = (Vector2)_content.layout.size - contentRect.size;
         max = Vector2.Max(max, Vector2.zero);
-        _offset = Vector2.Min(Vector2.Max(offset, Vector2.zero), max);
+        _offset = Vector2.Min(Vector2.Max(_requested, Vector2.zero), max);
         _content.style.translate = new Translate(-_offset.x, -_offset.y);
     }
 

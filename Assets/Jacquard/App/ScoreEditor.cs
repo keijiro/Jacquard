@@ -113,7 +113,13 @@ public sealed class ScoreEditor
 
         if (tile is JumpTile jump)
         {
-            var below = new GridPoint(Math.Max(1, View.Cursor.X - 4), Score.Height + 1);
+            // Below everything, and back a little from the jump so the link has
+            // somewhere to travel. Held at the score's own left edge rather than at the
+            // plane's: the margin out there is what a lane is carried into by hand, and
+            // a branch lane dropped in it would push the whole score aside to make
+            // room it never asked for.
+            var below = new GridPoint(Math.Max(Score.MinX + 1, View.Cursor.X - 4),
+                                      Score.Height + 1);
             Score.AddBranchLane(jump, below, 4);
         }
 
@@ -205,6 +211,11 @@ public sealed class ScoreEditor
     // lane is carried by the head cell that names it. That leaves nothing here to
     // do but apply what the drop resolved to and follow it with the cursor, so
     // that the panel goes on showing what was just moved.
+    //
+    // Both follow the cursor by asking a lane where it now is, and neither by reusing
+    // the cell the drop was aimed at. Committing can move the score bodily — a lane put
+    // down to the left of the others takes the plane with it — so a coordinate worked
+    // out before the commit is a coordinate about the score as it used to sit.
 
     public void DropTiles(CellRef source, GridPoint target)
     {
@@ -222,7 +233,7 @@ public sealed class ScoreEditor
         if (Locked || !Score.MoveLane(lane, head)) return;
 
         Commit();
-        View.SetCursor(head);
+        View.SetCursor(lane.HeadPoint);
     }
 
     // Playback

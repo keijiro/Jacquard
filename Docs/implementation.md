@@ -759,6 +759,48 @@ Notes on the prototype
   neighbour by putting a tile down while the Steps control beside it refused the
   same growth. Both now ask `Score.HasRoomToGrow`. A drop that cannot happen has
   nowhere lit up for it, which says so without a second colour.
+- **The plane grows on all four sides, and the score is what moves.** It keeps ten
+  columns and eight rows of empty ground past the score, which for the right and below
+  falls out of the plane's own size and for the left and above cannot: the plane starts
+  at cell (0,0) and a coordinate before it is a coordinate no lane can hold. So
+  `ScoreView.Reframe` carries the score further in instead — `Score.Translate` over
+  every lane, since a lane is the only thing that holds a position at all. A tile knows
+  nothing about where it is, a jump reaches its branch lane by reference, and a runner
+  carries a lane and a step index, so this is safe to do while the sequence plays;
+  everything positional that is read of a score is read relatively, both the order
+  `ChannelLanes` gives and the `MasterLane` that falls out of it, and an ordering does
+  not notice a translation.
+
+  The alternative was negative coordinates and an origin on the view, which keeps a
+  lane's saved position as an identity but has to be threaded through every pixel and
+  every floor in the model. Neither avoids the hard part, which is that moving the score
+  moves everything drawn: the scroll offset has to take up exactly the same distance in
+  the same breath, and the plane it is being clamped against has not been laid out yet.
+  That is what `ScrollArea` holding a requested offset apart from the one in force is
+  for, and it is also why `Reveal` reads the requested one — a cursor moved by an edit is
+  a cursor moved in the same frame the plane grew.
+
+  A score *arriving* is the one case where none of that applies, and it has to be told
+  apart from a score moving. How far a score coming in off a file has to travel to reach
+  the corner is a fact about the file and nothing to do with what is on the screen, so
+  taking it up would carry the plane off by an arbitrary distance — far enough, measured
+  at 8 columns and 6 rows on one of the saved scores here, to leave the incoming score
+  off the edge of the viewport. So `ScoreView.Score` notes that it was handed a different
+  score and the next reframe normalises it and stops there: the cursor stays on the cell
+  it was on and the viewport does not move. What holds two scores together is that both
+  end up at the same corner, so the one coming in appears exactly where the one going out
+  was — which at the turn of a piece is the whole point, and the reason the seam needs no
+  scrolling of its own. The startup score is the one that is framed, by `ShowScore`, and
+  that is also where the cursor is put on the score rather than left in the margin: it
+  used to arrive on the first lane's head by standing still at cell (1,1), and a score
+  that begins further in has to be asked for.
+
+  The rule is one sided: at *least* ten columns, so surplus margin is left where it is.
+  Dragging a lane back to the right or deleting the leftmost one would otherwise haul
+  the whole score after it and rewrite every coordinate in the file for nothing. The one
+  thing that had to move with it is where a branch lane goes, which used to be floored
+  against the plane's edge and would have landed in the margin — a jump is not a request
+  to widen the plane.
 - **The cell pitch is what the rest of the plane is derived from.** A cell is
   30x32 with a 4px gutter, set by what has to fit inside one rather than by taste:
   a sharp note name is a little over twenty pixels wide, and

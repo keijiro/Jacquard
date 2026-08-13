@@ -62,6 +62,11 @@ A lane holds its whole row from `CHAN` to `TERM` whether anything is written on
 it yet or not, so nothing else can grow across it and no lane can be dropped on
 one. Give a lane a clear row of its own and it will take tiles anywhere along it.
 
+The plane keeps empty ground on every side of the score, so a lane can be carried
+or started above and to the left of everything as freely as below and to the
+right of it. Reaching that way is pan and then drag: the plane does not scroll
+itself while a lane is in hand.
+
 Live FX
 -----------
 

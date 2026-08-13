@@ -193,11 +193,38 @@ public sealed class Score
 
     public int Height => Lanes.Count == 0 ? 0 : Lanes.Max(BottomOf) + 1;
 
+    // The other two corners of the same rectangle. Width and Height are counted from
+    // the origin because that is where the plane starts, so a score sitting away from
+    // it needs these to say where it begins: the leftmost cell a lane owns is its
+    // head, and the topmost is the rail row, since a stack hangs downwards from it.
+    public int MinX => Lanes.Count == 0 ? 0 : Lanes.Min(lane => lane.HeadX);
+
+    public int MinY => Lanes.Count == 0 ? 0 : Lanes.Min(lane => lane.Y);
+
+    // The last row this lane occupies, and not the one after it: a lane with nothing
+    // stacked on it owns its rail row alone. Height adds the one that turns a row into
+    // a count, the same way Width does — this used to return a row too far, which left
+    // the plane a row deeper below the score than it was above it.
     static int BottomOf(Lane lane)
     {
         var depth = 1;
         foreach (var step in lane.Steps) depth = System.Math.Max(depth, step.Depth);
-        return lane.Y + depth;
+        return lane.Y + depth - 1;
+    }
+
+    // Moves the whole score across the plane, which is how it keeps free ground on
+    // its left and above without a coordinate ever going negative — see
+    // ScoreView.Reframe, which is the only caller and where the policy is.
+    //
+    // A lane is the only thing that holds a position: a tile knows nothing about
+    // where it is, a jump reaches its branch lane by reference, and a runner carries
+    // a lane and a step index. So this is the whole of it, and it is safe to do while
+    // the sequence plays — everything positional that is read of a score is relative,
+    // both the order ChannelLanes gives and the MasterLane that falls out of it, and
+    // a translation leaves an ordering alone.
+    public void Translate(int dx, int dy)
+    {
+        foreach (var lane in Lanes) (lane.X, lane.Y) = (lane.X + dx, lane.Y + dy);
     }
 
     // Editing

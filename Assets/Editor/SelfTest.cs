@@ -21,6 +21,7 @@ static class SelfTest
 
         RoundTrip(log);
         StartupScore(log);
+        Plane(log);
         Playback(log);
         Switching(log);
         Stack(log);
@@ -102,6 +103,117 @@ static class SelfTest
         {
             log.Append("  STARTUP SCORE UNREADABLE: ").Append(error.Message).Append('\n');
         }
+    }
+
+    // The score's extent on the plane, and its right to be moved about on one.
+    //
+    // A score is carried bodily so that the plane can keep free ground on its left and
+    // above without a coordinate ever going negative — the view does the carrying, and
+    // what is checked here is that the model comes through it unhurt. Everything a
+    // translation must not disturb is something read relatively: the order the runners
+    // are born in, the lane a piece's length is measured on, and the one pairing the
+    // file states as a coordinate.
+    static void Plane(System.Text.StringBuilder log)
+    {
+        // Where a score begins, against a lane put down on purpose: its head is one
+        // column left of it, and a stack three deep on row 4 ends on row 6, so seven
+        // rows are used. Height counting the row after that is what used to leave the
+        // plane a row deeper below the score than above it.
+        var measured = new Project().Score;
+        var tall = measured.AddLane(1, 4, new ChannelTile { Channel = 1 }, 2);
+
+        for (var i = 0; i < 3; i++) tall.Steps[1].Tiles.Add(new NoteTile { Note = 60 + i });
+
+        Check(log, "the corner is the leftmost head and the topmost rail",
+              measured.MinX == 0 && measured.MinY == 4,
+              "corner " + measured.MinX + "," + measured.MinY);
+
+        Check(log, "height reaches the deepest stack and no further",
+              measured.Height == 7,
+              "height " + measured.Height + " for a lane on row 4 three deep");
+
+        // Now the sample score, which has everything a translation could disturb: three
+        // channel lanes whose order is read off position, and a jump reaching a branch
+        // lane, which is the one pairing the file states as a coordinate.
+        var project = Project.CreateSample();
+        var score = project.Score;
+
+        var jump = (JumpTile)null;
+
+        foreach (var lane in score.Lanes)
+            foreach (var step in lane.Steps)
+                jump ??= step.Find<JumpTile>();
+
+        var master = score.MasterLane;
+        var order = Rows(score);
+
+        var lanes = score.Lanes.ToArray();
+        var was = new GridPoint[lanes.Length];
+        for (var i = 0; i < lanes.Length; i++) was[i] = new GridPoint(lanes[i].X, lanes[i].Y);
+
+        var (width, height) = (score.Width, score.Height);
+
+        score.Translate(9, 7);
+
+        var together = true;
+        for (var i = 0; i < lanes.Length; i++)
+            together &= lanes[i].X == was[i].X + 9 && lanes[i].Y == was[i].Y + 7;
+
+        Check(log, "every lane moved by the same amount", together,
+              lanes.Length + " lanes now at " + Cells(score));
+
+        Check(log, "the corner and the extent moved with them",
+              score.MinX == 9 && score.MinY == 8 &&
+              score.Width == width + 9 && score.Height == height + 7,
+              "corner " + score.MinX + "," + score.MinY +
+              ", extent " + score.Width + "x" + score.Height);
+
+        // The order the runners are born in is read off position, so this is the check
+        // that says moving a score does not change what it plays.
+        Check(log, "the runners keep their order", Rows(score, 7) == order,
+              "was " + order + ", now " + Rows(score));
+
+        // And the lane a switch between two scores measures its lap line on, which is
+        // that same order asked one more question.
+        Check(log, "the master lane is still the same lane",
+              master != null && score.MasterLane == master,
+              master == null ? "no master lane" : "row " + score.MasterLane.Y);
+
+        Check(log, "a jump still reaches its branch lane",
+              jump != null && score.Locate(jump) != null &&
+              score.DestinationOf(jump) != null,
+              jump == null ? "no jump in the sample score"
+                           : "jump at " + score.Locate(jump));
+
+        // A moved score has to write a file that reads back as the same score, which for
+        // the branch link means the coordinate written and the coordinate resolved being
+        // worked out from the same positions.
+        var reread = ProjectFormat.Read(ProjectFormat.Write(project));
+        var branch = reread.Score.Lanes.Find(lane => lane.IsBranch);
+
+        Check(log, "a moved score survives the file",
+              branch?.JumpSource != null &&
+              reread.Score.MinX == 9 && reread.Score.MinY == 8,
+              branch?.JumpSource == null ? "branch link lost"
+                : "corner " + reread.Score.MinX + "," + reread.Score.MinY);
+    }
+
+    // The rows the channel lanes come back in, which is the order their runners are
+    // born in. Offset by what a translation moved them, so the two readings compare.
+    static string Rows(Score score, int offset = 0)
+    {
+        var text = new System.Text.StringBuilder();
+        foreach (var lane in score.ChannelLanes)
+            text.Append(text.Length == 0 ? "" : ",").Append(lane.Y - offset);
+        return text.ToString();
+    }
+
+    static string Cells(Score score)
+    {
+        var text = new System.Text.StringBuilder();
+        foreach (var lane in score.Lanes)
+            text.Append(text.Length == 0 ? "" : " ").Append(lane.X).Append(',').Append(lane.Y);
+        return text.ToString();
     }
 
     // Runs the mockup score for four laps' worth of samples and counts what comes

@@ -19,7 +19,15 @@ public sealed class ScoreView : VisualElement
 {
     // Public state
 
-    public Score Score { get; set; }
+    // The score on the plane. Assigning a different one says that what comes next is a
+    // score arriving and not the one here being edited, which is the difference Reframe
+    // has to know about: there is nothing to hold still across a score being replaced.
+    public Score Score
+    {
+        get => _score;
+        set { _arrived |= value != _score; _score = value; }
+    }
+
     public Sequencer Sequencer { get; set; }
 
     // Whether the plane is being held still, which it is while a score is waiting to
@@ -57,6 +65,12 @@ public sealed class ScoreView : VisualElement
     // Raised with the rect the cursor now occupies, so that a container can bring
     // it into view.
     public event Action<Rect> RevealRequested;
+
+    // Raised with how far the score has just been moved across the plane, in pixels,
+    // so that a container can take up the same distance and leave the picture where it
+    // stood. The plane grew on its left by this much and everything on it went right by
+    // it; a viewport that did not follow would look as though the score had jumped.
+    public event Action<Vector2> Reframed;
 
     // Raised on a double click, once the cursor has been put on the cell that was
     // hit: a second click on a cell means the tile that cell usually gets.
@@ -103,6 +117,10 @@ public sealed class ScoreView : VisualElement
         // Nothing can stay in hand across an edit: what a drag is holding is a
         // reading of the score, and this is the score having changed.
         EndDrag();
+
+        // Before the resize, which reads the positions this may have moved, and before
+        // the cells, which bake theirs in as they are built.
+        Reframe();
 
         Resize();
 
@@ -167,16 +185,83 @@ public sealed class ScoreView : VisualElement
 
     // Geometry
 
+    // How much empty ground the plane keeps past the score, so that there is always
+    // somewhere to put a new lane. The same margin on all four sides: to the right and
+    // below it falls out of the plane's size, and to the left and above out of Reframe.
+    //
+    // A row above is not optional. A jump link into the topmost lane is painted through
+    // the row over its head, and FindFreeRow keeps one clear so that an unrelated stack
+    // does not read as chained to it, so PadRows below one would draw off the plane.
+    const int PadColumns = 10;
+    const int PadRows = 8;
+
+    // Keeps the free ground to the left and above that the plane's size keeps to the
+    // right and below, by moving the score rather than by letting a coordinate go
+    // negative. The plane starts at cell (0,0) and nothing in the model addresses a
+    // cell before it; what a score can do instead is sit further in.
+    //
+    // One sided on purpose. Surplus margin is left where it is, so the only thing that
+    // ever moves a score is a lane carried or created into the margin — dragging one
+    // back to the right, or deleting the leftmost lane, would otherwise haul the whole
+    // score after it and rewrite every coordinate in the file for no gain.
+    void Reframe()
+    {
+        // Whether this is a score being moved or a score arriving. Read here rather
+        // than acted on at the assignment, since it is this rebuild that the answer is
+        // about, and read whether or not anything moves.
+        var arrived = _arrived;
+        _arrived = false;
+
+        // With no lanes there is no leftmost one to measure, and the score would
+        // otherwise be handed the same delta on every rebuild for ever.
+        if (Score.Lanes.Count == 0) return;
+
+        var dx = Mathf.Max(0, PadColumns - Score.MinX);
+        var dy = Mathf.Max(0, PadRows - Score.MinY);
+        if (dx == 0 && dy == 0) return;
+
+        Score.Translate(dx, dy);
+
+        // A score that has just arrived is normalised and nothing else. How far it had
+        // to travel is how far the file it came out of happened to sit from the corner,
+        // which is a fact about the file and not about anything on the screen — moving
+        // the cursor and the viewport by it would carry the plane off by an arbitrary
+        // distance and could leave the incoming score off the edge of it. What holds the
+        // two scores together is that both end up at the same corner, so the one coming
+        // in appears exactly where the one going out was, which at the turn of a piece
+        // is the whole point.
+        if (arrived) return;
+
+        // Otherwise the score under the cursor has moved, and the cursor travels with
+        // it: it stays on the cell it was on and there is nothing for the panels to hear
+        // about. Not through SetCursor, which would say the cursor had moved and ask to
+        // be brought into view — and being brought into view is the one thing that must
+        // not happen here, since the scroll offset is about to be moved by exactly this
+        // much to hold the picture still. Its bounds are seen to at the end of Resize
+        // instead, which is where the plane's size is known.
+        Cursor = Cursor.Offset(dx, dy);
+
+        Reframed?.Invoke(new Vector2(dx * Style.StrideX, dy * Style.StrideY));
+    }
+
     // The plane is kept a good deal larger than the score so that there is always
     // empty ground to put a new lane on.
     void Resize()
     {
-        _columns = Mathf.Max(48, Score.Width + 10);
-        _rows = Mathf.Max(28, Score.Height + 8);
+        _columns = Mathf.Max(48, Score.Width + PadColumns);
+        _rows = Mathf.Max(28, Score.Height + PadRows);
 
         var size = Style.PlaneSize(_columns, _rows);
         style.width = size.x;
         style.height = size.y;
+
+        // Whatever the plane has become, the cursor is on it. A reframe moves the
+        // cursor by what it moved the score, which the plane does not always match
+        // because of the floors above; and a score losing its bottom lane shrinks the
+        // plane out from under a cursor standing down there. Silently, since the cell
+        // it lands on is read by the panels that this rebuild is refreshing anyway.
+        Cursor = new GridPoint(Mathf.Clamp(Cursor.X, 0, _columns - 1),
+                               Mathf.Clamp(Cursor.Y, 0, _rows - 1));
     }
 
     // Painting
@@ -574,6 +659,12 @@ public sealed class ScoreView : VisualElement
 
     int _columns = 48;
     int _rows = 28;
+
+    Score _score;
+
+    // Set when a different score is put on the plane and cleared by the rebuild that
+    // takes it up, so that the reframe knows a score arriving from a score moving.
+    bool _arrived;
 
     bool _locked;
 
