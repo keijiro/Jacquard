@@ -1,3 +1,5 @@
+<img src="Branding/jacquard-logo.svg" width="500" alt="Jacquard">
+
 Jacquard
 ========
 
@@ -146,8 +148,10 @@ Documentation
 | [Docs/sequencer.md] | The sequencer specification |
 | [Docs/mockup.html] | The static mockup the look comes from |
 | [Docs/implementation.md] | How it is built, and the decisions behind it |
+| [Branding/README.md] | The marks, and how they are cut from the type |
 
 [Docs/prototype.md]: Docs/prototype.md
 [Docs/sequencer.md]: Docs/sequencer.md
 [Docs/mockup.html]: Docs/mockup.html
 [Docs/implementation.md]: Docs/implementation.md
+[Branding/README.md]: Branding/README.md

@@ -1,0 +1,9 @@
+# What the scripts here write and something else then carries: the icon and the
+# bar logo are copied into Assets, and the two favicons are written into the Web
+# template as data URIs. The copy in the repository is the one being used, so
+# these are intermediates. jacquard-logo.svg is not among them -- the README
+# serves that file itself.
+icon.png
+logo-bar.png
+favicon.png
+favicon.svg
