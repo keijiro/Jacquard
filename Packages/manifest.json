@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "com.unity.burst": "1.8.29",
+    "com.unity.burst": "1.8.30",
     "com.unity.device-simulator.devices": "1.0.1",
     "com.unity.inputsystem": "1.20.0",
     "com.unity.pipeline": "0.5.0-exp.1",
