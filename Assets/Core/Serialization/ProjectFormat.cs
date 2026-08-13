@@ -30,6 +30,16 @@ namespace Jacquard {
 
 public static class ProjectFormat
 {
+    // Version 15 adds a unison to every patch: a uni= on the patch line, and a fourth
+    // target a lock can name before the ones that shape the tone. An older file has
+    // none and reads as a project where every note is a single voice, which is what
+    // every note in one was, so nothing about it sounds different for being read here.
+    // There is no conversion to make, because the setting that does nothing is the one
+    // a missing key already falls back to. The bump is for the other direction, as it
+    // was for the pan: an older build skips an unknown key on a patch line without a
+    // word but refuses a lock naming unison, and this is what turns that into the
+    // message about a file from a newer version.
+    //
     // Version 14 adds the two things that decide which note a written note sounds as: a
     // scale line for the whole piece, and a transpose on each patch. A file without
     // either reads exactly as it did — a project starts chromatic, which is the scale
@@ -122,7 +132,7 @@ public static class ProjectFormat
     // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
     // reads, since a token nothing answers to is skipped, but the parameters that
     // no longer exist fall back to the default patch rather than being converted.
-    public const int Version = 14;
+    public const int Version = 15;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -214,6 +224,7 @@ public static class ProjectFormat
       => "transpose=" + F(patch.transpose) +
          " level=" + F(patch.level) +
          " pan=" + F(patch.pan) +
+         " uni=" + F(patch.unison) +
          " gate=" + F(patch.gateScale) +
          " mratio=" + F(patch.modulatorRatio) +
          " index=" + F(patch.modulationIndex) +
@@ -572,6 +583,7 @@ public static class ProjectFormat
                 case "transpose": patch.transpose = value; break;
                 case "level": patch.level = value; break;
                 case "pan": patch.pan = value; break;
+                case "uni": patch.unison = value; break;
                 case "gate": patch.gateScale = value; break;
                 case "mratio": patch.modulatorRatio = value; break;
                 case "index": patch.modulationIndex = value; break;

@@ -87,7 +87,7 @@ Notes on the prototype
   gesture that could only reach the notes already allowed would be a gesture with the
   interesting part taken out.
 - **Every field of the patch is a lock target.** `FmPatch` and `ParamTargets` name
-  the same fourteen parameters, so there is nothing a channel holds that a step cannot
+  the same fifteen parameters, so there is nothing a channel holds that a step cannot
   reach for one instant. One of them, the gate ratio, multiplies the length written
   on the note rather than being a length itself, which is why the note reads in
   steps and the channel in percent: the two are the same multiplication and only
@@ -181,6 +181,94 @@ Notes on the prototype
   **The sends take the voice unpanned.** Each is a mono feed into an effect that
   builds an image of its own, so a tail that also leaned towards the side its note
   came from would be two answers to one question.
+- **A unison pair is one voice and not two**, which is the decision the rest of the
+  parameter follows from. Above zero, `unison` sounds the note twice — the two halves
+  tuned a little apart and stood either side of where the pan puts them — and both are
+  rendered by the same slot, so `FmVoiceState.Next` hands back two numbers where it
+  used to return one and `FmVoicePool` sums them for the sends and spreads them across
+  the dry bus.
+
+  Two voices was the obvious alternative and it loses three ways. The pool is
+  twenty-four slots, so a pair per note halves the polyphony, and slots are the scarce
+  thing here where CPU is not — the mix costs 1.29ms of a 5.3ms buffer with all
+  twenty-four sounding. A note is made in three places — the sequencer, the Sound
+  panel's audition and `LiveFx`, which colours events after the fact — so a pair made
+  upstream is a pair three call sites have to keep making correctly. And `Trigger`
+  knows nothing about pairs, so stealing would take one half and leave the other
+  sounding alone: a note that goes half out of tune exactly when the music is densest.
+
+  **The detune is an interval and the spread is a position, and they finish at
+  different places on purpose.** Sixty cents end to end at the top of the travel,
+  which is 15Hz of beating at A4 and a pair that is audibly arguing about which note
+  it is — the edge the parameter is aimed at. In cents rather than in Hz for the
+  reason the pitch envelope is in octaves: a fixed number of Hz is most of a semitone
+  under a bass line and nothing under a lead, so one setting would mean a different
+  amount of detune on every part it was used on. The image, meanwhile, is somewhere a
+  pair can be *put*, and once it is at the sides there is nowhere further; so the
+  spread finishes at 0.3 and the rest of the bar is detune alone. Tying the two
+  together would have meant no setting where a wide pair is only just detuned, which
+  is most of what this is for — the first third buys the image and a chorus at 18
+  cents, and the rest reaches for the edge.
+
+  It was thirty cents first, picked as the point a pair stops reading as one note, and
+  that number was arrived at by reasoning and not by listening. Played, thirty is
+  where that *begins*: the top of the bar was a wide chorus, the sourness the
+  parameter is named for was not on the bar at all, and everything interesting was
+  crowded into the last inch of travel. Sixty puts a genuinely different sound at the
+  top and leaves the chorus around 0.2 to 0.3, which is where the spread is finishing
+  anyway — so the two halves of the bar each have something of their own to do.
+
+  **The gain law is pinned at both ends and loose in the middle, because the two ends
+  are exact for different reasons.** At the bottom of the travel the pair is on one
+  spot and barely detuned, so every channel hears both halves in step and a half each
+  is the single voice this was — which is what makes that end continuous with a note
+  that has no unison at all, rather than stepping 3dB the instant the bar leaves zero.
+  At the top each half is a signal of its own, so their powers add rather than their
+  amplitudes, and root two down is unity again. The crossing between the two runs over
+  the spread's travel because that is what it is a statement about: **how far apart the
+  pair is tuned is what decides whether it adds as one signal or as two.** What it
+  costs is a fraction of a decibel around the middle, in whichever direction the note's
+  own pitch and length have left the pair coherent — which is not a number the law can
+  know, and is why the ends are what it is pinned to.
+
+  **The pan reaches the end of its travel at every unison, and what gives way is the
+  width.** Each half is thrown out by the spread cut down by the room the pan has left
+  it, so a pair opened at the centre reaches the sides and the same pair on a note
+  already thrown right closes up as it travels and lands on the wall as one.
+
+  Reaching by the whole spread and clamping was the obvious arrangement and it was
+  wrong, in a way that only showed up when both controls were used at once. The outer
+  half stopped at the wall while the inner one went on travelling, so the pair narrowed
+  and its centre moved half as far as the number said: at full unison a hard panned
+  note came out 4.8dB to one side, where an unpanned note is *silent* on the other.
+  That makes pan a control that quietly means less the more unison is used, and leaves
+  two parameters fighting over the same wall. Proportional instead, and each keeps its
+  own meaning — pan says where, unison says how wide, and the second one spends
+  whatever the first one left. What it costs is width at the extremes, where a hard
+  panned pair is two copies on one spot; they are still detuned, so what a note loses
+  out there is its image and not its thickness. The clamp inside the pan law is now a
+  guard rather than the mechanism, since nothing reaches it.
+
+  What that travel must *not* do is reach into the gain law, and the first attempt at
+  it did exactly that. The argument was that a pair squeezed shut against a wall is two
+  halves on one spot again, so it wants a half each — and it is wrong for the reason
+  stated above: a pair sixty cents apart stopped agreeing with itself long before
+  anything panned it, and putting it back on one spot does not put it back in step.
+  Measured, that mistake took a hard panned note down a full 3dB. The reason the gain
+  can ignore the pan entirely is that the pan has no say in the level anyway — under
+  the equal power law the four gains of a pair square and sum to four wherever the two
+  are put. Position moves the sound, the spread decides what it weighs, and neither
+  reaches into the other. The self test sweeps both axes rather than the unison alone,
+  which is what would have caught this the first time.
+
+  Two things are deliberately shared and one deliberately is not. Both halves follow
+  the one pitch envelope, so a sweep lands with the interval still open instead of the
+  pair closing up as it arrives; both take the same ratio, index and envelopes, since
+  this is one note sounded twice and not two sounds. What they cannot share is the
+  feedback memory: the two modulators run at different frequencies, and one loop fed
+  from both would couple them into something that is neither. And neither half starts
+  phase-offset, which would decorrelate the onset at the price of hollowing it out —
+  a percussive patch is mostly onset.
 - **The delay time is the one number in the project that is smoothed**, and the reason
   is what kind of quantity it is. The reverb's size and damping are coefficients, so
   moving one changes how what is already in the lines decays and there is no seam. A
@@ -348,7 +436,7 @@ Notes on the prototype
   The panel grows by about a hundred points at the longest period, and it can afford
   to: eight switches to a line is a bar of sixteenths and puts thirty-two laps in four
   lines, and a gate cell is not a `CHAN` cell, so this panel is never the one standing
-  over a fourteen row Sound panel.
+  over a fifteen row Sound panel.
 - **A panel shows what the cursor is on**, and nothing is toggled. The tile panel
   keeps the corner and follows the cursor; beside it comes up either the Sound
   panel, while a `CHAN` cell is selected, or the Lock panel, while a `PABS` or
@@ -1032,17 +1120,27 @@ Notes on the prototype
   Two things deliberately do not move. `Style`'s cell pitch is untouched, because the
   score already read right on the iPad and only the chrome did not. And paddings,
   margins and dividers stay at their mouse values: the growth is spent on the targets
-  and not on the air between them, which a fourteen row Sound panel cannot afford.
+  and not on the air between them, which a fifteen row Sound panel cannot afford.
 
   That row count is the number to watch. In the touch profile a row costs 33pt, and
   the column — transport, Tile panel over a `CHAN` head, Sound panel — stands at
-  roughly 886pt against 834 on an iPad Pro 11", 820 on an Air and 744 on a mini. The
+  roughly 919pt against 834 on an iPad Pro 11", 820 on an Air and 744 on a mini. The
   column does not scroll, so the shortest screens genuinely lose their bottom rows,
   and **every further lock target costs another 33pt off the same budget.** The
   transpose is the row that took it from 853 to 886, and it was spent knowingly: what
   it buys is a lock that moves a note rather than shapes one, which nothing else in the
   list can do. The mouse profile measures 630pt of column at the same cursor, so this
   is a tablet's problem and not a shape that is wrong everywhere.
+
+  The unison is the row that took it from 886 to 919, and it was spent for the same
+  kind of reason — what it buys is the one setting here that makes a channel sound
+  like more than one voice, which nothing else in the list can do at all. But 886 was
+  already over every one of those screens, so this row was not paid for out of a
+  budget that had anything left in it: it is the second one in a row bought on credit,
+  and **the column needs somewhere to put a row before it can honestly afford
+  another.** Which is the decision this section defers and should stop deferring —
+  a scroll on the cursor's column, or a Sound panel that groups its fifteen rows
+  behind something, since the metric profiles are not where the answer is.
 
   A scale on the panels was the alternative and it is ruled out by what is coming.
   Pinch zoom will put a continuous fractional scale on the plane's content, which

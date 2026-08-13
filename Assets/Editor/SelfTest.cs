@@ -32,6 +32,7 @@ static class SelfTest
         Mutes(log);
         Sends(log);
         Pan(log);
+        Unison(log);
         Live(log);
         Synth(log);
         Delay(log);
@@ -1212,6 +1213,169 @@ static class SelfTest
               " version 7 pan=" + legacy.Patches[1].pan);
     }
 
+    // Unison, which is the pan law asked a second question: a note is a pair, tuned
+    // apart and thrown apart. Four things can go wrong with that and every one of them
+    // is silent in the code and obvious in the room. A pair that sat beside the note
+    // instead of straddling it would take a chord flat as the setting was turned up. A
+    // detune in hertz rather than in cents would be a different interval on every part
+    // it was used on. A pair that did not hold its level would make this a volume
+    // control with a chorus attached. And a note with no unison has to be the note
+    // there was, or every project written until now quietly changes.
+    static void Unison(System.Text.StringBuilder log)
+    {
+        // A plain sine — no modulation, no sweep — so that the zero crossing estimate
+        // can read each half's pitch, held for longer than the measurement window.
+        var note = new FmNoteEvent
+          { frequency = 440.0f, level = 1.0f, duration = 2.0f,
+            modulatorRatio = 2.0f, modulationIndex = 0.0f, modulatorDecay = 1.0f,
+            carrierAttack = 0.005f, carrierRelease = 0.01f };
+
+        // Nothing beside the note when it is off, which is the debt the pan paid too.
+        // The ratio has to be exactly one and not nearly one, since it is what the
+        // increment is divided by: anything else and every existing project is
+        // retuned by a fraction of a cent.
+        RenderPair(note, 0.2f, out var alone, out var silent);
+
+        var leaked = 0.0f;
+        foreach (var sample in silent) leaked = Mathf.Max(leaked, Mathf.Abs(sample));
+
+        note.UnisonGains(out var singleL, out var singleR, out var offL, out var offR);
+
+        Check(log, "a note without unison is one voice and nothing beside it",
+              note.DetuneRatio == 1.0f && note.UnisonGain == 1.0f &&
+              leaked == 0.0f && offL == 0.0f && offR == 0.0f &&
+              Mathf.Abs(singleL - 1.0f) < 0.001f && Rms(alone, 0, alone.Length) > 0.1f,
+              "ratio=" + note.DetuneRatio + " gain=" + note.UnisonGain +
+              " second partial peaks at " + leaked);
+
+        // Where the pair sits. Read either side rather than as a beat, because what
+        // has to hold is that the written note is in the middle of the two.
+        note.unison = 1.0f;
+        RenderPair(note, 0.5f, out var low, out var high);
+
+        var (from, to) = (Seconds(0.05f), Seconds(0.45f));
+
+        var below = Frequency(low, from, to);
+        var above = Frequency(high, from, to);
+
+        var centre = Mathf.Sqrt(below * above);
+        var cents = 1200.0f * Mathf.Log(above / below, 2.0f);
+
+        Check(log, "the pair straddles the note that was written",
+              Mathf.Abs(centre - 440.0f) < 1.0f,
+              "centred on " + centre + "Hz, from " + below + " to " + above);
+
+        Check(log, "the far end is the interval the synth promises",
+              Mathf.Abs(cents - FmNoteEvent.MaxDetuneCents) < 1.0f,
+              cents + " cents apart");
+
+        // And an interval rather than a distance: two octaves down, the same setting
+        // has to come out at the same number of cents, which is a quarter of the beat.
+        var deep = note;
+        deep.frequency = 110.0f;
+
+        RenderPair(deep, 0.5f, out var deepLow, out var deepHigh);
+
+        var deepCents = 1200.0f * Mathf.Log(Frequency(deepHigh, from, to) /
+                                            Frequency(deepLow, from, to), 2.0f);
+
+        Check(log, "the same setting is the same interval two octaves down",
+              Mathf.Abs(deepCents - cents) < 1.0f,
+              deepCents + " cents against " + cents);
+
+        // The image opens over the first three tenths and no further, so that the rest
+        // of the travel is the detune alone.
+        var (quarter, third, all) = (note, note, note);
+        (quarter.unison, third.unison, all.unison) = (0.075f, 0.3f, 1.0f);
+
+        Check(log, "the image opens over three tenths and then stands still",
+              Mathf.Abs(quarter.Spread - 0.25f) < 0.001f &&
+              third.Spread == 1.0f && all.Spread == 1.0f,
+              "0.075 spreads " + quarter.Spread + ", 0.3 spreads " + third.Spread);
+
+        // And the pan reaches the end of its own travel whatever the unison is, which
+        // is the whole point of the pair closing up rather than piling against a wall.
+        // A hard panned note is on one side and silent on the other at every setting —
+        // the thing a clamped pair could not do, since its inner half stayed behind.
+        var thrown = note;
+        (thrown.unison, thrown.pan) = (1.0f, 1.0f);
+
+        thrown.UnisonGains(out var thrownLA, out var thrownRA,
+                           out var thrownLB, out var thrownRB);
+
+        var halfWay = note;
+        (halfWay.unison, halfWay.pan) = (1.0f, 0.5f);
+
+        Check(log, "the pan still reaches the end however wide the pair is",
+              thrown.Reach == 0.0f &&
+              thrownLA < 0.001f && thrownLB < 0.001f &&
+              Mathf.Abs(thrownRA - thrownRB) < 0.001f &&
+              Mathf.Abs(halfWay.Reach - 0.5f) < 0.001f,
+              "hard over reaches " + thrown.Reach + " and leaks " +
+              (thrownLA + thrownLB) + " to the far side; halfway reaches " +
+              halfWay.Reach);
+
+        // The level across the travel, which is what the gain law is for. Both ends
+        // are exact and the two ends are exact for different reasons, so both are
+        // measured: at the bottom the pair is on one spot and every channel hears the
+        // two halves in step, and at the top each channel hears one half only.
+        //
+        // In between it is neither, because how much of the two a channel still hears
+        // in step is falling as the pair opens — the one setting does both — so the
+        // reading is handed over from one to the other across the same travel. That
+        // crossing is a description of what the ear meets and not a law, which is why
+        // what is asserted about the middle is loose where the ends are exact.
+        //
+        // Swept across the pan as well as across the unison, since the pan is now what
+        // decides how far a pair actually opens: a law that held only down the middle
+        // of the image would be a note that changed level as it was moved.
+        var flattest = 0.0f;
+
+        for (var i = 0; i <= 20; i++)
+        for (var j = -4; j <= 4; j++)
+        {
+            var wide = note;
+            (wide.unison, wide.pan) = (i / 20.0f, j / 4.0f);
+
+            wide.UnisonGains(out var la, out var ra, out var lb, out var rb);
+
+            var gain = wide.UnisonGain;
+
+            // Two halves adding as one signal, against two adding as two — handed over
+            // by the spread, since what decides which of the two a pair is doing is how
+            // far apart it is tuned and not where it has been put. Reading the reach
+            // here instead is the mistake this sweep exists to catch: it calls a hard
+            // panned pair coherent because the two halves are on one spot, when sixty
+            // cents of detune has long since stopped them agreeing, and it costs such a
+            // note 3dB.
+            var together = (la + lb) * (la + lb) + (ra + rb) * (ra + rb);
+            var apart = la * la + lb * lb + ra * ra + rb * rb;
+
+            var spread = wide.Spread;
+            var power = gain * gain *
+                        (together * (1.0f - spread) + apart * spread);
+
+            // Against the 2 a single centred note carries, in decibels.
+            flattest = Mathf.Max(flattest, Mathf.Abs(10.0f * Mathf.Log10(power / 2.0f)));
+        }
+
+        Check(log, "the level holds however wide the pair is opened and wherever it sits",
+              flattest < 0.5f, "largest departure " + flattest + "dB");
+
+        // And it travels with the patch, like every other field of one.
+        var project = new Project();
+        project.Patches[1].unison = 0.4f;
+
+        var reloaded = ProjectFormat.Read(ProjectFormat.Write(project));
+        var legacy = ProjectFormat.Read("jacquard 14\ntempo 120\npatch 1 level=0.5\n");
+
+        Check(log, "a unison round trips and an older file comes back single",
+              Mathf.Abs(reloaded.Patches[1].unison - 0.4f) < 0.001f &&
+              legacy.Patches[1].unison == 0.0f,
+              "unison=" + reloaded.Patches[1].unison +
+              " version 14 unison=" + legacy.Patches[1].unison);
+    }
+
     // The live effects, which are the one thing that colours a note without being
     // written anywhere on the plane.
     //
@@ -1995,9 +2159,29 @@ static class SelfTest
 
         voice.Trigger(note, SampleRate);
 
-        for (var i = 0; i < buffer.Length; i++) buffer[i] = voice.Next(i / SampleRate);
+        for (var i = 0; i < buffer.Length; i++)
+        {
+            voice.Next(i / SampleRate, out var lower, out var upper);
+            buffer[i] = lower + upper;
+        }
 
         return buffer;
+    }
+
+    // The two halves of a unison voice kept apart, which is the only way to measure
+    // what each one is tuned to: summed, all a pair leaves behind is its beat.
+    static void RenderPair(in FmNoteEvent note, float seconds,
+                           out float[] lower, out float[] upper)
+    {
+        lower = new float[Seconds(seconds)];
+        upper = new float[lower.Length];
+
+        var voice = new FmVoiceState();
+
+        voice.Trigger(note, SampleRate);
+
+        for (var i = 0; i < lower.Length; i++)
+            voice.Next(i / SampleRate, out lower[i], out upper[i]);
     }
 
     static float Rms(float[] buffer, int from, int to)

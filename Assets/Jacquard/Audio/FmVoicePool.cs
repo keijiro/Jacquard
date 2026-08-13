@@ -56,7 +56,15 @@ struct FmVoicePool
     //
     // The sends take the voice unpanned. Each of those buses is a mono feed into an
     // effect that builds a stereo image of its own, so a tail that also leaned to the
-    // side its note came from would be two answers to one question.
+    // side its note came from would be two answers to one question. A voice that is a
+    // unison pair goes in as the sum of its two halves for the same reason and not a
+    // new one: what the effect wants is the note, and where the note's halves were
+    // stood is a fact about the dry mix.
+    //
+    // Which is also why the dry sum has two terms now and the sends still have one.
+    // The two halves of a pair are rendered at two positions, so each needs its own
+    // pair of gains; everything downstream of that is the arrangement there always
+    // was, with a gain per destination fixed for the life of the voice.
     //
     // levels is the one thing written here that nothing downstream reads: how loud each
     // slot was over this buffer, for whoever is drawing the pool. It is a level and not
@@ -111,8 +119,12 @@ struct FmVoicePool
             var total = note.TotalDuration;
 
             // Once per voice per buffer, not per sample: the note holds still, so
-            // the pair of gains it renders at does too.
-            note.PanGains(out var left, out var right);
+            // the gains it renders at do too. A note asking for unison is two
+            // positions rather than one — its own, thrown out to either side by the
+            // spread — and one without gets back the pair of gains it always had
+            // beside a second pair of zeroes for a half that is never rendered.
+            note.UnisonGains(out var lowerL, out var lowerR,
+                             out var upperL, out var upperR);
 
             var loudest = 0.0f;
 
@@ -125,12 +137,16 @@ struct FmVoicePool
                 if (time < 0.0f) continue;              // Starts later in this buffer
                 if (time >= total) { voice.Release(); break; }
 
-                var sample = voice.Next(time);
+                voice.Next(time, out var lower, out var upper);
+
+                // What the voice is worth as one signal, which is what everything
+                // with nowhere to put a position takes.
+                var sample = lower + upper;
 
                 if (watched) loudest = math.max(loudest, math.abs(sample));
 
-                dryL[frame] += sample * left;
-                dryR[frame] += sample * right;
+                dryL[frame] += lower * lowerL + upper * upperL;
+                dryR[frame] += lower * lowerR + upper * upperR;
                 reverbIn[frame] += sample * note.reverbSend;
                 delayIn[frame] += sample * note.delaySend;
             }

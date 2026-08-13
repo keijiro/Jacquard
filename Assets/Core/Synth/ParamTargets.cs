@@ -16,6 +16,11 @@ namespace Jacquard {
 // to the reverb is a property of that note, and what the reverb then does with it
 // is a property of the project.
 //
+// What is not free about that is the screen. Adding one here adds a row to the Sound
+// panel and a row to the Lock panel, and on a tablet that column does not scroll — so
+// a target arriving in this list is a decision about how tall a panel may be as much
+// as it is one about what a lock can say.
+//
 // One of them is not addressed to the synth at all. The transpose is read by the
 // sequencer as it makes the note and never reaches a voice, which makes it the one
 // entry here that is about *which* note sounds rather than what it sounds like. It is
@@ -24,10 +29,10 @@ namespace Jacquard {
 // throws one note into the reverb is.
 //
 // The order is the order the Sound and Lock panels read in. It opens with the note
-// itself, then the two that place it in the mix rather than shape it — how loud, and
-// where. The four FM parameters then run in the order a musician dials them: what the
-// modulator is tuned to, how much of it arrives, how much of itself it hears, and
-// how quickly all of that gets out of the way.
+// itself, then the three that place it in the mix rather than shape it — how loud,
+// where, and how wide. The four FM parameters then run in the order a musician dials
+// them: what the modulator is tuned to, how much of it arrives, how much of itself it
+// hears, and how quickly all of that gets out of the way.
 //
 // The numbers these constants hold are an index into an array and nothing else: a
 // file names a target by its key, so inserting one at the front costs nothing but a
@@ -44,33 +49,34 @@ public static class ParamTargets
     public const int Transpose = 0;
     public const int Level = 1;
     public const int Pan = 2;
-    public const int Gate = 3;
-    public const int ModRatio = 4;
-    public const int ModIndex = 5;
-    public const int Feedback = 6;
-    public const int ModDecay = 7;
-    public const int CarAttack = 8;
-    public const int CarRelease = 9;
-    public const int PitchSweep = 10;
-    public const int PitchDecay = 11;
-    public const int ReverbSend = 12;
-    public const int DelaySend = 13;
+    public const int Unison = 3;
+    public const int Gate = 4;
+    public const int ModRatio = 5;
+    public const int ModIndex = 6;
+    public const int Feedback = 7;
+    public const int ModDecay = 8;
+    public const int CarAttack = 9;
+    public const int CarRelease = 10;
+    public const int PitchSweep = 11;
+    public const int PitchDecay = 12;
+    public const int ReverbSend = 13;
+    public const int DelaySend = 14;
 
-    public const int Count = 14;
+    public const int Count = 15;
 
     public static readonly string[] Names =
-      { "Transpose", "Level", "Pan", "Gate ratio", "FM ratio", "FM amount",
-        "Feedback", "FM decay", "Amp attack", "Amp release", "Pitch sweep",
-        "Pitch decay", "Reverb send", "Delay send" };
+      { "Transpose", "Level", "Pan", "Unison", "Gate ratio", "FM ratio",
+        "FM amount", "Feedback", "FM decay", "Amp attack", "Amp release",
+        "Pitch sweep", "Pitch decay", "Reverb send", "Delay send" };
 
     public static string Name(int target)
       => target >= 0 && target < Count ? Names[target] : "?";
 
     // Spelling used in a saved file, where a space would break the tokenizer.
     public static readonly string[] Keys =
-      { "transpose", "level", "pan", "gate", "ratio", "index", "feedback",
-        "moddecay", "carattack", "carrelease", "pitchsweep", "pitchdecay",
-        "rsend", "dsend" };
+      { "transpose", "level", "pan", "unison", "gate", "ratio", "index",
+        "feedback", "moddecay", "carattack", "carrelease", "pitchsweep",
+        "pitchdecay", "rsend", "dsend" };
 
     public static string Key(int target)
       => target >= 0 && target < Count ? Keys[target] : "level";
@@ -141,6 +147,7 @@ public static class ParamTargets
         Transpose => patch.transpose,
         Level => patch.level,
         Pan => patch.pan,
+        Unison => patch.unison,
         Gate => patch.gateScale,
         ModIndex => patch.modulationIndex,
         ModRatio => patch.modulatorRatio,
@@ -164,6 +171,7 @@ public static class ParamTargets
             case Transpose: patch.transpose = value; break;
             case Level: patch.level = value; break;
             case Pan: patch.pan = value; break;
+            case Unison: patch.unison = value; break;
             case Gate: patch.gateScale = value; break;
             case ModIndex: patch.modulationIndex = value; break;
             case ModRatio: patch.modulatorRatio = value; break;

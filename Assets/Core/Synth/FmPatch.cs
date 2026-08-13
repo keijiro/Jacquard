@@ -37,7 +37,7 @@ static class FmCurve
 // it is scheduled, which is also why a parameter lock can alter one note without
 // disturbing anything else. gateScale is not an oscillator setting but lives here
 // so that every lock target is a plain field of one struct — and every field is a
-// lock target, which is what makes ParamTargets a list of these fourteen and
+// lock target, which is what makes ParamTargets a list of these fifteen and
 // nothing else.
 //
 // One of them the synth never sees. transpose moves the note the sequencer is about
@@ -49,18 +49,26 @@ static class FmCurve
 // lock is for. Where it is spent, and what happens to the note next, is
 // Project.SoundingPitch.
 //
-// Three of them are not oscillator settings at all, in the sense that they describe
+// Four of them are not oscillator settings at all, in the sense that they describe
 // nothing about how the tone is made: where the note sits across the stereo image,
-// and how much of it goes to each of the two send effects, whose own settings belong
-// to the project rather than to a timbre (SendFx). They are in the patch because
-// each is worth locking — a reverb on one note of a chord, or that note thrown to
-// one side, is exactly the accent a lock exists for — and because a position and a
-// send decided at note-on are a position and a send that never have to be smoothed.
+// how wide it sits there, and how much of it goes to each of the two send effects,
+// whose own settings belong to the project rather than to a timbre (SendFx). They
+// are in the patch because each is worth locking — a reverb on one note of a chord,
+// or that note thrown to one side, is exactly the accent a lock exists for — and
+// because a position and a send decided at note-on are a position and a send that
+// never have to be smoothed.
 //
 // Pan moves the dry signal only. What the note sends to the reverb and the delay
 // goes in unpanned, since each of those makes a stereo image of its own out of a
 // mono feed, and a tail that argued with the note's own position would be two
 // answers to one question.
+//
+// Unison is the width: above zero the note is sounded twice rather than once, the
+// two copies tuned a little apart and stood on either side of where the pan puts
+// them, so that they beat against each other. It is the one thing here that changes
+// how many oscillators a note costs, and it is still a field of the patch rather
+// than a property of the synth because a step that widens one note of a line and
+// leaves the rest single is the same kind of accent a send is.
 //
 // The two operators get deliberately different envelope shapes, matching what
 // each one actually does. The carrier gates the output, so it is an AR: rise,
@@ -85,6 +93,7 @@ public struct FmPatch
 
     public float level;      // Output level [0,1]
     public float pan;        // Across the image, -1 hard left to +1 hard right
+    public float unison;     // How wide the detuned pair sits [0,1]; 0 is one voice
     public float gateScale;  // Multiplies the note's gate length
 
     public float modulatorRatio;  // Modulator frequency as a ratio of frequency
@@ -108,11 +117,14 @@ public struct FmPatch
     // would use: entering a depth is then enough to hear what it does. The sends
     // start silent for the same reason: a project that never opens the Send FX panel
     // sounds exactly as it did before there was one. Pan starts centred, which the
-    // gains below are normalized to render exactly as an unpanned note used to.
+    // gains below are normalized to render exactly as an unpanned note used to, and
+    // unison starts at nothing, which is one voice per note and the same debt paid
+    // the same way.
     public static FmPatch Default => new FmPatch
       { transpose = 0.0f,
         level = 0.8f,
         pan = 0.0f,
+        unison = 0.0f,
         gateScale = 1.0f,
         modulatorRatio = 2.0f,
         modulationIndex = 3.0f,
@@ -139,6 +151,7 @@ public struct FmNoteEvent
     public float frequency;
     public float level;    // Peak output level [0,1]
     public float pan;      // Across the image, -1 hard left to +1 hard right
+    public float unison;   // How wide the detuned pair sits [0,1]; 0 is one voice
     public float duration; // Gate length in seconds; release follows it
     public int priority;   // Higher priority wins when voices are stolen
 
@@ -171,8 +184,15 @@ public struct FmNoteEvent
     // headroom at the extremes, where a note is on one side only; the soft clip at
     // the end of the mix is already what a dense chord relies on.
     public void PanGains(out float left, out float right)
+      => Gains(pan, out left, out right);
+
+    // The same law asked about somewhere other than the note's own position, which is
+    // what a unison pair needs: the two halves are read through this at the two places
+    // the spread puts them, so nothing about how a position becomes a pair of gains is
+    // said twice.
+    public static void Gains(float position, out float left, out float right)
     {
-        var position = pan < -1.0f ? -1.0f : pan > 1.0f ? 1.0f : pan;
+        position = position < -1.0f ? -1.0f : position > 1.0f ? 1.0f : position;
 
         // A quarter turn of travel: hard left at zero and hard right at a right
         // angle, with the centre halfway between at 45 degrees.
@@ -183,6 +203,132 @@ public struct FmNoteEvent
     }
 
     const float Root2 = 1.41421356f;
+    const float Root2Inverse = 0.70710678f;
+
+    // How far each half of a unison pair is moved from the note, as a frequency ratio:
+    // one half is multiplied by it and the other divided, so what was written stays in
+    // the middle and a chord does not drift as the setting is turned up.
+    //
+    // An interval and not a number of hertz, for the reason the pitch envelope is in
+    // octaves: a fixed offset in hertz is most of a semitone at the bottom of a bass
+    // line and nothing at all at the top of a lead, so one setting would mean a
+    // different amount of detune on every part it was used on.
+    //
+    // Sixty cents from end to end at the top of the travel — 15Hz of beating at A4
+    // and a little over 2Hz at the bottom of a bass line, which is well past a chorus
+    // and into a pair that is audibly arguing about the note. Proportional below it,
+    // so the point the spread finishes at is 18 cents and 4.6Hz, which is where the
+    // thickening lives; everything above that is the parameter reaching for the edge
+    // it is named after.
+    //
+    // It was thirty when this arrived, chosen as the point a pair stops reading as one
+    // note, and thirty turned out to be where that only just begins: the top of the bar
+    // sounded like a wide chorus rather than like the edge, and the interesting half of
+    // the travel was all crowded into the last inch. Doubling it spends the top of the
+    // range on something that is actually a different sound and leaves the useful
+    // chorus at 0.2 to 0.3, where the spread is finishing anyway.
+    public const float MaxDetuneCents = 60.0f;
+
+    public float DetuneRatio
+      => unison <= 0.0f ? 1.0f
+         : FastMath.Pow2(unison * MaxDetuneCents / 2400.0f);
+
+    // How far apart the setting asks for the two halves to be thrown, which opens over
+    // the first three tenths of the travel and is wide open above them.
+    //
+    // The spread and the detune finish at different places on purpose. Tying them
+    // together would mean no setting where a wide pair is only just detuned, which is
+    // most of what this is for; and the image is somewhere a pair can be put, with
+    // nowhere further to put it once it is at the sides, while the interval goes on
+    // being worth more all the way up.
+    public const float SpreadFull = 0.3f;
+
+    public float Spread
+      => unison <= 0.0f ? 0.0f
+         : unison >= SpreadFull ? 1.0f : unison / SpreadFull;
+
+    // How far each half actually travels, which is the spread cut down by the room the
+    // pan has left it. A pair opened at the centre reaches the sides; the same pair on
+    // a note already thrown to the right closes up as it goes, and lands on the wall as
+    // one.
+    //
+    // This is what keeps the two parameters out of each other's way. Reaching by the
+    // whole spread and clamping was the obvious arrangement and the wrong one: the
+    // outer half would stop at the wall while the inner one went on travelling, so a
+    // pan at full unison moved the pair half as far as it says and never got it hard
+    // over at all — a fully panned note came out 4.8dB to one side where an unpanned
+    // one is silent on the other. Which makes pan a control that quietly means less
+    // the more unison is used, and two settings that fight over the same wall.
+    //
+    // Proportional instead, so **pan always reaches the end of its travel and unison
+    // spreads by however much is left there.** What it costs is width at the extremes,
+    // where a hard panned pair is two copies on one spot — but they are still detuned,
+    // so what a note loses out there is the image and not the thickness. And nothing
+    // is clamped any more: the clamp inside Gains is a guard rather than the mechanism.
+    //
+    // Spelled out rather than reaching for MathF.Abs and MathF.Min, since this is read
+    // inside the render job and one extern Burst cannot resolve takes the compiled
+    // library down for the whole assembly.
+    public float Reach
+    {
+        get
+        {
+            var distance = pan < 0.0f ? -pan : pan;
+            return distance >= 1.0f ? 0.0f : Spread * (1.0f - distance);
+        }
+    }
+
+    // What each half is rendered at, so that turning unison up is a change of width
+    // and not a change of level.
+    //
+    // Both ends of this are exact rather than a compromise, and they are different
+    // numbers because the two halves reach a channel differently at each end. With the
+    // pair on top of each other every channel hears both of them in step, and two
+    // coherent halves at a half each are the single voice this was — which is what
+    // makes the very bottom of the travel continuous with a note that has no unison at
+    // all, rather than stepping 3dB the instant the bar leaves zero. Wide open, each
+    // channel hears one half only, and a hard panned half is already up by root two,
+    // so root two down is unity per side.
+    //
+    // The crossing between them runs over the spread's travel, and the spread is read
+    // here rather than the reach for a reason worth stating, because the obvious guess
+    // is the other one. **What decides whether two halves add as one signal or as two
+    // is the detune and not where they sit.** A pair sixty cents apart has stopped
+    // agreeing with itself long before anything panned it, and squeezing it onto one
+    // spot against a wall does not put it back in step — so a gain that fell to a half
+    // out there would take a hard panned note down 3dB for no reason an ear could name.
+    //
+    // The pan cannot pull the level about in any case, which is what makes reading the
+    // spread alone sufficient: under the equal power law the four gains of a pair square
+    // and sum to four wherever the two are put, so two decorrelated halves carry the
+    // same power at every position. Position moves the sound and the spread decides
+    // what it weighs, and neither reaches into the other.
+    //
+    // What it costs is about a decibel around the middle, in whichever direction the
+    // note's own pitch and length have left the pair coherent — which is not a number
+    // the law can know, and is why the ends are what it is pinned to.
+    public float UnisonGain
+      => unison <= 0.0f ? 1.0f : 0.5f + (Root2Inverse - 0.5f) * Spread;
+
+    // The dry gains a note renders its two halves at: the note's own position moved
+    // out to either side by whatever the reach turned out to be, each read through the
+    // pan law. A note with no unison gets back exactly the pair of gains it always
+    // had, and a second pair of zeroes for a half that is never rendered.
+    public void UnisonGains(out float leftA, out float rightA,
+                            out float leftB, out float rightB)
+    {
+        if (unison <= 0.0f)
+        {
+            PanGains(out leftA, out rightA);
+            (leftB, rightB) = (0.0f, 0.0f);
+            return;
+        }
+
+        var reach = Reach;
+
+        Gains(pan - reach, out leftA, out rightA);
+        Gains(pan + reach, out leftB, out rightB);
+    }
 
     // Carrier level: rise over the attack, hold for the rest of the gate, then
     // release from whatever level was actually reached, so a note shorter than
@@ -256,6 +402,7 @@ public struct FmNoteEvent
           frequency = Pitch.ToFrequency(note),
           level = Math.Clamp(patch.level, 0.0f, 1.0f),
           pan = Math.Clamp(patch.pan, -1.0f, 1.0f),
+          unison = Math.Clamp(patch.unison, 0.0f, 1.0f),
           duration = MathF.Max(gateSeconds * patch.gateScale, 0.005f),
           // Louder notes outrank quieter ones when the pool runs out of voices,
           // so an accent survives a dense chord.

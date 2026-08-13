@@ -35,6 +35,7 @@ Using it
 | Set a number | Drag its bar right or up, shift for fine; double click to type one |
 | Timbre | Select a `CHAN` cell, which brings up the Sound panel for its channel |
 | Move a channel in pitch | Transpose, the first row of its Sound panel, in semitones |
+| Thicken a channel | Unison, under Pan on its Sound panel: above zero every note sounds twice, detuned apart and spread across the image. The image opens over the first three tenths and the rest of the bar goes on detuning, up to just past being out of tune. A note already panned to one side keeps its position and spreads by whatever room is left |
 | Hold the piece to a key | The Global button opens the panel the Scale is set on, a switch per semitone laid out as a keyboard |
 | Silence a channel, or hear one alone | The Channels button opens a row per channel, with a Mute and a Solo switch on each; a solo overrules every mute, and both are saved with the score |
 | Go to a channel | Select on its row, which puts the cursor on the `CHAN` tile that names it |
