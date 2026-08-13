@@ -728,6 +728,48 @@ Notes on the prototype
   buttons the Tile panel used to carry: a lane further down runs later, so moving
   one is a thing to watch happen against the lanes it will now overwrite rather
   than to arrive at a cell at a time.
+- **A double click copies a stack, where it used to write a note.** The gesture asks
+  the same question a drag does — this cell, then that one — about a shape that stays
+  where it is: on a tile it takes that tile and everything under it, and on ground that
+  would take a tile it puts the last copy down. What it replaced was a second way of
+  doing what the `NOTE` button does, on the cell the button was already offered on;
+  what it does now is the edit that had no way of being made at all. A chord, or a gate
+  with what it governs, could be carried to another step or built again a cell at a
+  time, and nothing could make a second one.
+
+  **The flow tiles have no copy, which is a fact about them rather than a rule over
+  them.** A `CHAN` names a lane, a `JUMP` *is* the identity its branch lane answers to
+  (`Lane.JumpSource` holds the tile itself), and a `TERM` is implied one column past
+  the last step and never stored. None of them means anything a cell away from where
+  it stands, so `Tile.Copy` returns nothing for them and that is the whole of what
+  keeps them out: a jump in the middle of a stack is stepped over rather than ending
+  the walk — it is not the bottom of the stack, and what hangs under it is still under
+  everything above it — and a double click on one does nothing.
+
+  A copy is written out by hand rather than round-tripped through `ProjectFormat`,
+  which has a text for every tile already. That text is a file's spelling: reading it
+  back is private, throws on anything it cannot parse, wants the file version to go
+  with it, and forgets a cycle gate's laps above its period. Copying is also done
+  twice, once into the clipboard and once out of it, so that editing the tiles a copy
+  came from leaves it alone and two pastes are two stacks rather than one written in
+  two places.
+
+  **A paste is refused whole or not at all.** `Score.PlaceStack` looks at the ground
+  the whole run needs before it writes a single tile, since `Score.Place` in a loop
+  would leave half a stack growing out of a step when the cell after next turns out to
+  be somebody else's. It lands only where a placed tile could, which is where the Tile
+  panel offers one, and only at the bottom of a stack: `Place` also takes a depth that
+  is already filled and overwrites it, which for one tile is a tile changing its mind
+  and for a run would be the rest of the stack disappearing under it.
+
+  **With nothing copied yet, the gesture does nothing** rather than falling back on
+  the note it used to write. One gesture reading two ways depending on what was done
+  ten minutes ago is a gesture nobody can aim, and the fallback would be invisible
+  exactly when it fired — on the empty cell, which is where a paste is aimed too. The
+  cells a copy came from light up for a fifth of a second instead, drawn by the same
+  overlay as the drop cells and saying the same kind of thing: these cells and not
+  those. What was stepped over does not light, so what a copy left behind is visible
+  without a word for it.
 - **A drag means whatever the cell under it holds.** A tile or a lane head has
   something to carry, so a drag there carries it; free ground has nothing to carry,
   so a drag there moves the plane instead. Panning used to ask for a wheel event or

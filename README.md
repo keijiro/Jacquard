@@ -18,13 +18,15 @@ Using it
 | Action | How |
 | --- | --- |
 | Move the cursor | Click a cell, or the arrow keys |
-| Write a note | Double click a free cell, or its `NOTE` button on the Tile panel |
+| Write a note | The `NOTE` button the Tile panel offers on a free cell |
 | Transpose | Shift+up/down for a semitone, add command for an octave |
 | Add a gate or a lock | The buttons the Tile panel offers on a free cell |
 | Which laps a cycle gate fires on | Its Period, and the switch per lap under it |
 | Remove a tile | Delete on the Tile panel, or the delete key |
 | Move a tile | Drag it; within its own step that reorders the stack |
 | Move a sub-stack | Drag a tile to another step, and what hangs below it comes too |
+| Copy a sub-stack | Double click a tile, which lights up what it took |
+| Paste it | Double click a cell that would take a tile |
 | Move a lane | Drag its `CHAN` or `JDST` cell |
 | Lengthen a lane | Put a tile on its `TERM` cell, or use Steps on its `CHAN` cell |
 | New lane | Select bare ground, then New lane; delete a lane from its `CHAN` cell |
@@ -57,6 +59,13 @@ Dragging is the exception: a tile dropped on an occupied cell opens the stack up
 and takes its place, which is how one is reordered. A drop with nowhere to go —
 off any lane, or with no room under the stack it would join — leaves nothing lit
 up on the plane and does not happen.
+
+Double clicking is the same reach without the carrying: on a tile it takes a copy
+of that tile and everything under it, and on any cell that would take a tile it
+puts the last copy down. Only notes, gates and locks travel — a `JUMP` in a stack
+is stepped over and a double click on one does nothing, since a jump is the thing
+its branch lane answers to and there cannot be two of it. What was taken lights
+up for a moment, and with nothing taken yet a double click does nothing at all.
 
 A lane holds its whole row from `CHAN` to `TERM` whether anything is written on
 it yet or not, so nothing else can grow across it and no lane can be dropped on

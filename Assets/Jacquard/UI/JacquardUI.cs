@@ -62,7 +62,7 @@ sealed class JacquardUI
         _view.CursorMoved += OnCursorMoved;
         _view.RevealRequested += Reveal;
         _view.Reframed += _scroll.Shift;
-        _view.DoubleClicked += _editor.PlaceNote;
+        _view.DoubleClicked += _editor.DoubleClick;
         _view.TilesDropped += _editor.DropTiles;
         _view.LaneDropped += _editor.DropLane;
 

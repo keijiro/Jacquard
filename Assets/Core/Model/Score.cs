@@ -249,6 +249,74 @@ public sealed class Score
         return true;
     }
 
+    // A copy of the tile at this point and of everything hanging under it, or
+    // nothing when that cell holds no tile or holds one that has no copy.
+    //
+    // What hangs below comes along for the reason a drag takes it along: what a gate
+    // or a lock governs is exactly what is under it, so a sub-stack is the unit
+    // worth having twice. Tiles with no copy are stepped over rather than ending the
+    // walk — a jump in the middle of a stack is not the bottom of it, and what is
+    // under the jump is still under everything above it.
+    //
+    // cells collects where the copied tiles were standing, for a caller that wants
+    // to show what it just took. The ones stepped over are not in it.
+    public List<Tile> CopyStack(GridPoint point, List<GridPoint> cells = null)
+    {
+        var cell = At(point);
+        if (cell.Kind != CellKind.Tile) return null;
+
+        // Asked of the tile that was aimed at before anything is gathered: a cell
+        // that cannot be copied from is not a copy of nothing, it is nothing
+        // happening, and what the caller already holds stays untouched.
+        if (cell.Tile.Copy() == null) return null;
+
+        var tiles = cell.Lane.Steps[cell.Step].Tiles;
+        var copies = new List<Tile>();
+
+        for (var depth = cell.Depth; depth < tiles.Count; depth++)
+        {
+            var copy = tiles[depth].Copy();
+            if (copy == null) continue;
+
+            copies.Add(copy);
+            cells?.Add(cell.Lane.CellPoint(cell.Step, depth));
+        }
+
+        return copies;
+    }
+
+    // Puts a run of tiles down as one stack, keeping their order, and answers
+    // whether it happened. The tiles become the score's: a caller handing over what
+    // it means to keep has to hand over copies.
+    //
+    // Not Place called in a loop. A stack that will not fit has to be refused whole
+    // — half of one left growing out of a step is not what anybody asked for — so
+    // the ground is looked at before a single tile is written.
+    public bool PlaceStack(GridPoint point, IReadOnlyList<Tile> tiles)
+    {
+        if (tiles == null || tiles.Count == 0) return false;
+
+        var lane = PlacementLane(point, out var step, out var depth);
+        if (lane == null) return false;
+
+        // Only onto the bottom of a stack, where Place would have appended. Place
+        // also takes a depth that is already filled and overwrites it, which for one
+        // tile is a tile changing and for a run would be the rest of the stack
+        // disappearing under it.
+        if (depth != (lane.StepAt(step)?.Depth ?? 0)) return false;
+
+        // The cell aimed at has been answered for by PlacementLane; what is left is
+        // the room the rest of the run needs under it. The lane is excused for the
+        // reason it is in PlanMove: the cells it is about to fill are its own.
+        for (var i = 1; i < tiles.Count; i++)
+            if (!IsFree(lane.CellPoint(step, depth + i), lane)) return false;
+
+        if (step == lane.Steps.Count) lane.AddStep();
+
+        lane.Steps[step].Tiles.AddRange(tiles);
+        return true;
+    }
+
     // The lane that would take a tile at this point, if any. The editor asks this
     // before offering a tile, so that the only cells offering one are the cells
     // that will take it.

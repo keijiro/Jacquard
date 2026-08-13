@@ -20,6 +20,23 @@ namespace Jacquard {
 public abstract class Tile
 {
     public abstract string Token { get; }
+
+    // A tile of the same kind holding the same thing, or nothing for a tile that
+    // cannot be had twice. Having no copy is what keeps a tile out of a copied
+    // stack, so which tiles take part in one is said here and nowhere else.
+    //
+    // The flow tiles are the ones with no copy, which is a fact about them rather
+    // than a rule laid over them: a CHAN names a lane, a JUMP is the identity its
+    // branch lane answers to, and a TERM is implied one column past the last step
+    // and never stored. None of them means anything a cell away from where it
+    // stands.
+    //
+    // Written out by hand rather than round-tripped through ProjectFormat, which
+    // has a text for every tile already. That text is a file's spelling: reading it
+    // back is private, throws on anything it cannot parse, wants the file version
+    // to go with it, and forgets a cycle gate's laps above its period. A copy has
+    // to be exactly what it came from.
+    public virtual Tile Copy() => null;
 }
 
 // Notes
@@ -38,6 +55,8 @@ public sealed class NoteTile : Tile
       => HasDefaultLength ? Pitch.ToName(Note)
          : Pitch.ToName(Note) + "/" +
            Length.ToString("0.###", CultureInfo.InvariantCulture);
+
+    public override Tile Copy() => new NoteTile { Note = Note, Length = Length };
 }
 
 // Parameter locks
@@ -95,6 +114,16 @@ public abstract class ParamTile : Tile
         }
     }
 
+    // Fills in a lock of whichever kind the caller made, since what a lock holds is
+    // kept here and the kind is all a subclass adds.
+    protected ParamTile CopyInto(ParamTile copy)
+    {
+        for (var target = 0; target < ParamTargets.Count; target++)
+            if (_engaged[target]) copy.Engage(target, _amounts[target]);
+
+        return copy;
+    }
+
     readonly bool[] _engaged = new bool[ParamTargets.Count];
     readonly float[] _amounts = new float[ParamTargets.Count];
 
@@ -104,11 +133,15 @@ public abstract class ParamTile : Tile
 public sealed class AbsoluteParamTile : ParamTile
 {
     public override string Token => "PABS";
+
+    public override Tile Copy() => CopyInto(new AbsoluteParamTile());
 }
 
 public sealed class RelativeParamTile : ParamTile
 {
     public override string Token => "PREL";
+
+    public override Tile Copy() => CopyInto(new RelativeParamTile());
 }
 
 // Gates
@@ -177,6 +210,12 @@ public sealed class CycleGateTile : GateTile
 
     public override string Token => "GCYC" + _period + ":" + Pattern;
 
+    // The whole mask and not the pattern, so that the laps outside the period come
+    // across as well: a period pulled in on the original is pulled in on the copy
+    // and finds the same switches when it is let back out.
+    public override Tile Copy()
+      => new CycleGateTile { _period = _period, _mask = _mask };
+
     int _period = 4;
     uint _mask = 1;
 
@@ -202,6 +241,8 @@ public sealed class ProbGateTile : GateTile
 
     public override string Token
       => "GPRB:" + _percent.ToString("0.#", CultureInfo.InvariantCulture);
+
+    public override Tile Copy() => new ProbGateTile { Percent = _percent };
 
     float _percent = 50.0f;
 }

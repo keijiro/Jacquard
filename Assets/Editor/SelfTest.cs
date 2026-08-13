@@ -25,6 +25,7 @@ static class SelfTest
         Playback(log);
         Switching(log);
         Stack(log);
+        CopyStack(log);
         Locks(log);
         Channels(log);
         Mutes(log);
@@ -493,6 +494,107 @@ static class SelfTest
     // below it, so a note says which of the two it belongs to.
     static bool FromTheScoreComingIn(in FmNoteEvent note)
       => note.frequency > Pitch.ToFrequency(70);
+
+    // Copying a stack is the one edit whose result is invisible until it is put
+    // down again, so what it took is checked here rather than by eye: the tiles that
+    // cannot travel have to be stepped over rather than to end the walk, and what
+    // comes back has to be free of the tiles it was taken from. The paste is checked
+    // for the mistake that costs a score — a run that will not fit has to be refused
+    // whole rather than half written.
+    static void CopyStack(System.Text.StringBuilder log)
+    {
+        var score = new Score();
+        var lane = score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 4);
+
+        var held = new AbsoluteParamTile();
+        held.Engage(0, 0.25f);
+
+        var tiles = lane.Steps[0].Tiles;
+        tiles.Add(new NoteTile { Note = 64 });
+        tiles.Add(held);
+        tiles.Add(new JumpTile());
+        tiles.Add(new NoteTile { Note = 60, Length = 2.0f });
+
+        var cells = new System.Collections.Generic.List<GridPoint>();
+        var copied = score.CopyStack(lane.CellPoint(0, 1), cells);
+
+        Check(log, "a copy leaves behind what cannot travel",
+              copied != null && copied.Count == 2 &&
+              copied[0] is AbsoluteParamTile && copied[1] is NoteTile,
+              copied == null ? "nothing was copied"
+                             : Tokens(copied) + " from a stack of " + tiles.Count);
+
+        // Everything below reads what came back, so a copy that came back wrong is
+        // reported once rather than throwing over the checks that follow it.
+        if (copied == null || copied.Count != 2) return;
+
+        Check(log, "the lit cells are the cells that travelled",
+              cells.Count == 2 && cells[0] == lane.CellPoint(0, 1) &&
+              cells[1] == lane.CellPoint(0, 3),
+              cells.Count + " cells for " + (copied?.Count ?? 0) + " tiles");
+
+        Check(log, "what a lock holds comes with it",
+              copied?[0] is AbsoluteParamTile p && p.IsEngaged(0) &&
+              Mathf.Abs(p[0] - 0.25f) < 1e-4f,
+              copied?[0].Token ?? "nothing");
+
+        // The tiles that were copied from, edited afterwards. A copy that is really
+        // the same object would follow them.
+        held.Engage(0, 0.9f);
+        ((NoteTile)tiles[3]).Note = 72;
+
+        Check(log, "a copy is not the tile it came from",
+              copied[0] is AbsoluteParamTile kept &&
+              Mathf.Abs(kept[0] - 0.25f) < 1e-4f &&
+              copied[1] is NoteTile note && note.Note == 60,
+              Tokens(copied) + " after the originals moved");
+
+        Check(log, "a tile that cannot travel copies nothing at all",
+              score.CopyStack(lane.CellPoint(0, 2)) == null &&
+              score.CopyStack(lane.HeadPoint) == null &&
+              score.CopyStack(lane.CellPoint(1, 0)) == null,
+              "a jump, a head and an empty step");
+
+        // Onto the empty step next door.
+        var pasted = score.PlaceStack(lane.CellPoint(1, 0), Copies(copied));
+
+        Check(log, "a stack pastes onto an empty step in the order it was taken",
+              pasted && Tokens(lane.Steps[1].Tiles) == Tokens(copied),
+              Tokens(lane.Steps[1].Tiles));
+
+        // Onto the terminator, which is a step the lane does not have yet.
+        var grown = score.PlaceStack(lane.TermPoint, Copies(copied));
+
+        Check(log, "a paste onto the terminator grows the lane",
+              grown && lane.Steps.Count == 5 &&
+              Tokens(lane.Steps[4].Tiles) == Tokens(copied),
+              lane.Steps.Count + " steps, the last one " + Tokens(lane.Steps[4].Tiles));
+
+        Check(log, "a paste onto an occupied cell is refused",
+              !score.PlaceStack(lane.CellPoint(0, 0), Copies(copied)) &&
+              lane.Steps[0].Tiles.Count == 4,
+              lane.Steps[0].Tiles.Count + " tiles left in the stack it was aimed at");
+
+        // A lane immediately below leaves the empty step room for one tile and no
+        // more, which is what a two tile paste has to notice before it writes one.
+        score.AddLane(1, 2, new ChannelTile { Channel = 2 }, 4);
+
+        Check(log, "a paste with nowhere to go writes nothing",
+              !score.PlaceStack(lane.CellPoint(2, 0), Copies(copied)) &&
+              lane.Steps[2].IsEmpty,
+              lane.Steps[2].Depth + " tiles under a lane one row down");
+    }
+
+    static System.Collections.Generic.List<Tile>
+      Copies(System.Collections.Generic.List<Tile> tiles)
+    {
+        var copies = new System.Collections.Generic.List<Tile>();
+        foreach (var tile in tiles) copies.Add(tile.Copy());
+        return copies;
+    }
+
+    static string Tokens(System.Collections.Generic.IEnumerable<Tile> tiles)
+      => string.Join(" ", System.Linq.Enumerable.Select(tiles, tile => tile.Token));
 
     // A stack is read downwards, so a gate reaches what is below it and nothing
     // above it. This is the one case where getting the direction wrong is

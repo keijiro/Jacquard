@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -128,10 +129,6 @@ public sealed class ScoreEditor
         Commit();
     }
 
-    // The shorthand for the Note button, since a note is what most cells get and a
-    // double click is already on the cell that would take one.
-    public void PlaceNote() => Put(TileKind.Note);
-
     bool Put(Tile tile) => CanPlace && Score.Place(View.Cursor, tile);
 
     public void Delete()
@@ -151,6 +148,73 @@ public sealed class ScoreEditor
 
         if (Score.Remove(View.Cursor)) Commit();
     }
+
+    // Copying
+    //
+    // A double click on the plane means one of two things, and the cell says which:
+    // on a tile it takes a copy of that tile and the stack under it, on ground that
+    // would take a tile it puts the last copy down. So the gesture that used to
+    // write one note now writes the shape that was hardest to write — a chord, or a
+    // gate with what it governs — and the Tile panel is left as the one way of
+    // asking for a tile by name.
+    //
+    // Nothing is offered on the chrome to go with it. What is copied is a position
+    // on the plane and what is copied onto is another one, which is a thing to point
+    // at rather than a button to press, and the plane already answers positions.
+    //
+    // An empty copy is not a paste of nothing: with nothing taken yet the gesture
+    // does nothing at all, rather than falling back on the note it used to write.
+    // One gesture reading two ways depending on what was done ten minutes ago is a
+    // gesture nobody can aim.
+
+    public void DoubleClick()
+    {
+        if (Cell.Kind == CellKind.Tile) CopyStack(); else PasteStack();
+    }
+
+    public void CopyStack()
+    {
+        _copiedCells.Clear();
+
+        var copies = Score.CopyStack(View.Cursor, _copiedCells);
+        if (copies == null) return;
+
+        _copied = copies;
+
+        // The score is unchanged, so there is nothing to commit and nothing for the
+        // runners to be reconciled with. What the plane shows is the cells that were
+        // taken, which is also what says a jump in the stack was left behind.
+        View.Flash(_copiedCells);
+    }
+
+    public void PasteStack()
+    {
+        if (Locked || _copied == null || !CanPlace) return;
+
+        // Copied again on the way out as well as on the way in: what is held has to
+        // be untouched by an edit of the tiles it came from, and two pastes have to
+        // be two stacks rather than one stack written in two places.
+        var tiles = new List<Tile>();
+        foreach (var tile in _copied) tiles.Add(tile.Copy());
+
+        var point = View.Cursor;
+        var lane = Score.PlacementLane(point, out var step, out _);
+        if (!Score.PlaceStack(point, tiles)) return;
+
+        Commit();
+
+        // Asked of the lane after the commit, the way a drop is: committing can move
+        // the score bodily, so the cell worked out before it is a cell on the score
+        // as it used to sit.
+        View.SetCursor(lane.CellPoint(step, lane.Steps[step].Depth - tiles.Count));
+
+        // A step is one instant, so the notes in a stack are a chord and are
+        // previewed as one.
+        foreach (var tile in tiles) if (tile is NoteTile note) Preview(note.Note);
+    }
+
+    List<Tile> _copied;
+    readonly List<GridPoint> _copiedCells = new();
 
     // Notes
 

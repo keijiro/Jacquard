@@ -73,7 +73,7 @@ public sealed class ScoreView : VisualElement
     public event Action<Vector2> Reframed;
 
     // Raised on a double click, once the cursor has been put on the cell that was
-    // hit: a second click on a cell means the tile that cell usually gets.
+    // hit, so that what it means is a question about the cell the cursor is now on.
     public event Action DoubleClicked;
 
     // Raised when something carried by hand is let go. The view resolves nothing
@@ -115,8 +115,10 @@ public sealed class ScoreView : VisualElement
     public void Rebuild()
     {
         // Nothing can stay in hand across an edit: what a drag is holding is a
-        // reading of the score, and this is the score having changed.
+        // reading of the score, and this is the score having changed. A light on a
+        // cell goes out for the same reason — a reframe can move what it is on.
         EndDrag();
+        EndFlash();
 
         // Before the resize, which reads the positions this may have moved, and before
         // the cells, which bake theirs in as they are built.
@@ -438,6 +440,7 @@ public sealed class ScoreView : VisualElement
         painter.Stroke();
 
         DrawDropCells(painter);
+        DrawFlashCells(painter);
     }
 
     // The cells a drag would land on, filled faintly and outlined. There is no
@@ -459,6 +462,44 @@ public sealed class ScoreView : VisualElement
         foreach (var point in _dropCells) RoundedRect(painter, Style.CellRect(point),
                                                       Style.Radius);
         painter.Stroke();
+    }
+
+    // The cells a copy has just been taken from, filled for as long as it takes to
+    // notice. Drawn like the drop cells because it is the same statement — these
+    // cells and not those — said about something that has already happened.
+    void DrawFlashCells(Painter2D painter)
+    {
+        if (_flashCells.Count == 0) return;
+
+        painter.fillColor = Style.Fade(Style.Cursor, 0.3f);
+        painter.BeginPath();
+        foreach (var point in _flashCells) RoundedRect(painter, Style.CellRect(point),
+                                                       Style.Radius);
+        painter.Fill(FillRule.NonZero);
+    }
+
+    // Lights the given cells and takes it back a moment later.
+    //
+    // One scheduled item, rearmed rather than replaced: a second flash while the
+    // first is still up would otherwise leave two clocks running and the older one
+    // would put the newer light out early.
+    public void Flash(IEnumerable<GridPoint> cells)
+    {
+        _flashCells.Clear();
+        _flashCells.AddRange(cells);
+
+        _flashTimer ??= schedule.Execute(EndFlash);
+        _flashTimer.ExecuteLater(FlashMilliseconds);
+
+        _upper.MarkDirtyRepaint();
+    }
+
+    void EndFlash()
+    {
+        if (_flashCells.Count == 0) return;
+
+        _flashCells.Clear();
+        _upper.MarkDirtyRepaint();
     }
 
     // Input
@@ -679,8 +720,12 @@ public sealed class ScoreView : VisualElement
     readonly List<GridPoint> _dropCells = new();
     readonly List<TileElement> _lifted = new();
 
+    readonly List<GridPoint> _flashCells = new();
+    IVisualElementScheduledItem _flashTimer;
+
     const float DragThreshold = 4.0f;
     const float LiftedOpacity = 0.2f;
+    const long FlashMilliseconds = 220;
 
     PaintLayer AddLayer(Action<MeshGenerationContext> draw)
     {
