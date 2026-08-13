@@ -23,7 +23,11 @@ sealed class TileElement : VisualElement
     // apart: the terminator tile is one shared instance across every lane.
     public GridPoint Point { get; }
 
-    public TileElement(Tile tile, GridPoint point)
+    // off is for the one tile that has a state as well as a kind: a channel start that
+    // will not send a runner. It gives up the solid field for the grey one a lock or a
+    // gate sits on, which is the pair of colours this UI already says on and off with —
+    // Controls.SetActive dresses a switch in exactly these two.
+    public TileElement(Tile tile, GridPoint point, bool off = false)
     {
         (Tile, Point) = (tile, point);
 
@@ -41,7 +45,7 @@ sealed class TileElement : VisualElement
         SetBorderRadius(this, Style.Radius);
 
         // Anything that does not simply carry on to the right is a solid cell.
-        var inverted = tile is FlowTile;
+        var inverted = tile is FlowTile && !off;
 
         _color = inverted ? Style.Background : Style.NoteText;
 

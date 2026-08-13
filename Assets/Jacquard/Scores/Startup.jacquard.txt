@@ -1,4 +1,4 @@
-jacquard 15
+jacquard 16
 tempo 129
 meter 4 4
 fx rsize=0.38564 rdamp=0.5 rwidth=1 dbeats=0.5 dfb=0.61901 dtone=0.32649 dspread=1
@@ -13,21 +13,21 @@ patch 5 transpose=0 level=0.08218 pan=0 uni=0 gate=0.37875 mratio=4.09728 index=
 patch 6 transpose=0 level=0.22376 pan=0 uni=0 gate=1.2562 mratio=7.55495 index=4.38713 fb=2.57624 md=1 ca=0.001 cr=4 ps=0 pd=0.05 rsend=1 dsend=1
 patch 7 transpose=0 level=0.3 pan=0 uni=0 gate=1.1975 mratio=2.575 index=1.8 fb=0 md=0.37772 ca=0.02595 cr=0.36 ps=0 pd=0.05 rsend=0 dsend=0
 patch 8 transpose=0 level=0.3 pan=0 uni=0 gate=1.1975 mratio=2.575 index=1.8 fb=0 md=0.37772 ca=0.02595 cr=0.36 ps=0 pd=0.05 rsend=0 dsend=0
-lane 2 1 CHAN:1 div=16
+lane 2 1 CHAN:1 div=16 on=1
   step G1
   step
   step GPRB:28 PREL:level,-0.41386 C2
   step GPRB:22 PREL:level,-0.64802 C2
-lane 2 5 CHAN:2 div=16
+lane 2 5 CHAN:2 div=16 on=1
   step PREL:level,-0.45198 G#6
   step
   step G#6
   step PREL:level,-0.57723 A6
-lane 2 8 CHAN:3 div=16
+lane 2 8 CHAN:3 div=16 on=1
   step E2
   step
   step GPRB:50 E3
-lane 9 1 CHAN:4 div=16
+lane 9 1 CHAN:4 div=16 on=1
   step
   step GPRB:36 PREL:level,-0.07624,moddecay,0.01777 E3
   step
@@ -36,7 +36,7 @@ lane 9 1 CHAN:4 div=16
   step
   step
   step
-lane 9 8 CHAN:5 div=16
+lane 9 8 CHAN:5 div=16 on=1
   step A3 GPRB:50 G4
   step C4
   step D4
@@ -45,7 +45,7 @@ lane 9 8 CHAN:5 div=16
   step B4
   step GPRB:50 PABS:dsend,1 A5
   step GPRB:50 D3
-lane 2 12 CHAN:6 div=16
+lane 2 12 CHAN:6 div=16 on=1
   step GCYC:8,10000000 A5
   step
   step

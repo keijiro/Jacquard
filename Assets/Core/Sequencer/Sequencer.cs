@@ -26,6 +26,18 @@ namespace Jacquard {
 // the next lap starts on becomes a nearer horizon that the outgoing score is run out to.
 // The takeover then happens inside the same pass, which is what leaves nothing between
 // the two scores and nothing over them.
+//
+// The turn of the master lane is also when a lane starts. A CHAN switched off stops when
+// it reaches the end of its lane, and a CHAN switched on runs from the sample the next
+// master lap begins on — the same sample, so a lane comes back in step with the rest
+// rather than wherever the hand happened to land. A lane drawn while the sequence plays
+// waits for that moment too, since there is nothing else for it to be in step with.
+//
+// The master lane itself is never off. It is what hands out that moment, so a silent
+// master would leave every other lane with nothing to start on; its switch is taken and
+// kept, and ignored while it is the master. Everything here therefore leans on one
+// invariant: while the transport runs, the master runner is running, so a non-empty
+// runner list has at least one runner with a sample in it and time always advances.
 
 public sealed class Sequencer
 {
@@ -101,20 +113,50 @@ public sealed class Sequencer
         SettleIfIdle();
     }
 
-    // Puts a runner on every CHAN lane of the project, all starting on the same sample.
-    // A standing start and a score taking over from another one are the same act; what
-    // differs is only where that sample comes from.
+    // Puts a runner on every CHAN lane of the project, and starts the ones that are
+    // switched on — all on the same sample, since this is a lap beginning. A standing
+    // start and a score taking over from another one are the same act; what differs is
+    // only where that sample comes from.
+    //
+    // A lane switched off gets its seat and no sample, so it sits out until a lap turns
+    // over with it switched on. The master lane runs whatever its switch says.
+    //
+    // The master is read once rather than per lane, both because finding it sorts the
+    // lanes and because _master is not assigned until the seats exist.
     void Populate(double startSample)
     {
         _runners.Clear();
 
+        var master = Project.Score.MasterLane;
         var order = 0;
 
         foreach (var lane in Project.Score.ChannelLanes)
-            _runners.Add(new Runner(lane, order++, startSample));
+        {
+            var running = lane == master || lane.Channel.Enabled;
+            _runners.Add(new Runner(lane, order++,
+                                    running ? startSample : Runner.Never));
+        }
 
         _master = FindMaster();
         _playing = _runners.Count > 0;
+    }
+
+    // Puts a runner at the top of its own lane on the given sample. Everything about
+    // where it was is dropped, which is the whole difference between this and a lane
+    // that never stopped: a stopped runner's position is a sample in the past, so
+    // resuming from it would emit steps behind the clock, and its lap count belongs to
+    // a run that has ended. A lane coming back and a lane drawn a moment ago both
+    // arrive here, and they have to sound the same.
+    static void Start(Runner runner, double sample)
+      => (runner.Lane, runner.StepIndex, runner.Pass, runner.NextSample) =
+         (runner.OriginLane, 0, 0, sample);
+
+    // Starts every switched-on lane that is sitting out, on the sample a lap begins.
+    void StartPending(double sample)
+    {
+        foreach (var runner in _runners)
+            if (!runner.Running && runner.OriginLane.Channel.Enabled)
+                Start(runner, sample);
     }
 
     // The runner the lap is counted on: the one born from the master lane, and whoever
@@ -147,7 +189,13 @@ public sealed class Sequencer
 
     // Reconciles the runners with an edited score without interrupting the sound.
     // Runners whose CHAN lane survives keep their position and lap count; a new
-    // CHAN lane joins in step with whoever is already running.
+    // CHAN lane waits for a lap to turn over, since the turn of the piece is what a
+    // lane starts on and there is nothing else for a new one to be in step with.
+    //
+    // A lane switched off or on here is not touched at all. Off takes effect when the
+    // runner reaches the end of its lane and on when the master comes round, and both
+    // of those are read where they happen rather than mirrored onto the runner, so a
+    // hand that switches a lane off and back on inside one lap has changed nothing.
     public void Resync()
     {
         if (!_playing) return;
@@ -164,8 +212,11 @@ public sealed class Sequencer
 
             if (runner == null)
             {
-                var start = _previous.Count > 0 ? _previous[0].NextSample : 0.0;
-                runner = new Runner(lane, order, start);
+                // Never, so the new lane sits out until a lap begins. The one case
+                // that reads a sample here is a lane that is the master the moment it
+                // arrives — a channel one lane dropped above the others — and the
+                // repair in Schedule is what gives it one.
+                runner = new Runner(lane, order, Runner.Never);
             }
 
             // The lane the runner was visiting may be gone, or may have been
@@ -197,6 +248,15 @@ public sealed class Sequencer
 
         if (!_playing) return;
 
+        // The master runner has to be running, since it is what every other lane starts
+        // on, and two edits can leave one that is not: deleting the master lane hands the
+        // title to whichever lane is now topmost, which may be one that has stopped, and
+        // putting a project in outright reassigns it over the runners of the score going
+        // out. The repair is here rather than in Resync because it needs a sample and
+        // Resync has no clock — this is the same standing start Play uses, one lookahead
+        // ahead of the audio position so that the first step is not part way through.
+        if (!_master.Running) Start(_master, currentSample + lookaheadSamples);
+
         var horizon = (double)(currentSample + lookaheadSamples);
 
         // A slice can only ever consume time, so the bound is a safety net for a
@@ -218,10 +278,10 @@ public sealed class Sequencer
 
             if (next < limit)
             {
-                // Watched only while something is waiting on it, so a run with nothing
-                // pending is the run that was here before.
-                var watching = _incoming != null && !HasBoundary && _master != null;
-                var lap = watching ? _master.Pass : 0;
+                // The lap count is read across every slice now rather than only while a
+                // score waits, since the turn of the piece is also what starts a lane.
+                var watching = _incoming != null && !HasBoundary;
+                var lap = _master.Pass;
 
                 RunSlice(next, sampleRate, output);
 
@@ -229,7 +289,17 @@ public sealed class Sequencer
                 // next one starts on is now known. It could not have been worked out
                 // ahead of time: a gate decides how long a lap is, and one of them
                 // throws dice.
-                if (watching && _master.Pass != lap) _boundary = _master.NextSample;
+                //
+                // Two things want that sample and only one of them gets it. A score
+                // waiting to come in takes it as the line to stop on, and the lanes
+                // waiting to start would be started on the far side of that line — where
+                // the incoming score's own Populate is about to seat them anyway, so
+                // starting them here is work that is thrown away a moment later.
+                if (_master.Pass != lap)
+                {
+                    if (watching) _boundary = _master.NextSample;
+                    else if (!HasBoundary) StartPending(_master.NextSample);
+                }
 
                 continue;
             }
@@ -302,12 +372,37 @@ public sealed class Sequencer
         var destination = step == null ? null
           : Descend(step, runner, startSample, stepSeconds, output);
 
+        // A jump is taken here rather than in the descent, since the rest of the stack
+        // still belonged to this instant.
         if (destination != null)
+        {
             (runner.Lane, runner.StepIndex) = (destination, 0);
-        else
-            Advance(runner);
+            runner.NextSample += stepSeconds * sampleRate;
+            return;
+        }
 
-        runner.NextSample += stepSeconds * sampleRate;
+        var stopped = !Advance(runner);
+
+        // Where the step after this one would have fallen. Both branches want it: the one
+        // that goes on wants it as a position, and the one that stops wants it as the
+        // moment the lane falls silent.
+        var after = runner.NextSample + stepSeconds * sampleRate;
+
+        if (!stopped)
+        {
+            runner.NextSample = after;
+            return;
+        }
+
+        // The playhead is told where the lane ends rather than cleared, so that it goes
+        // out exactly when the last step is heard. Clearing would empty the queue of
+        // everything already scheduled and unheard, which is a lookahead of steps that
+        // still sound — the drawing would stop before the music did. The sample is the
+        // one after the last step and not this slice's own: a marker sharing a sample
+        // with the last step is dequeued in the same breath as it, and the final cell of
+        // the lane would never light.
+        runner.Record((long)after, null, -1);
+        runner.NextSample = Runner.Never;
     }
 
     // Walks one stack from the rail row down, which is the whole of a step's
@@ -371,15 +466,33 @@ public sealed class Sequencer
     // Moves one step right, or back to the origin channel when the terminator is
     // reached. The terminator takes no time of its own, so a lap lasts exactly as
     // many steps as the lane has.
-    static void Advance(Runner runner)
+    //
+    // False when the lane the runner was born from is switched off, which is where that
+    // switch takes effect: a lane plays out the lap it is on and stops at the end of it,
+    // never part way through. The reading is taken here rather than kept on the runner so
+    // that a switch thrown twice inside one lap has done nothing.
+    //
+    // The master is asked for by identity and not by position. Finding the master lane
+    // sorts every lane in the score, which is not a thing to do once a step, and between
+    // an edit and its Resync the answer would not be the runner the lap is actually
+    // counted on.
+    //
+    // A runner that stops is still wound back to the top of its own lane. A lap can end
+    // on a branch lane, and one left parked there would come back to a lane it was only
+    // visiting.
+    bool Advance(Runner runner)
     {
         runner.StepIndex++;
 
-        if (runner.StepIndex < runner.Lane.Steps.Count) return;
+        if (runner.StepIndex < runner.Lane.Steps.Count) return true;
 
         runner.Lane = runner.OriginLane;
         runner.StepIndex = 0;
+
+        if (runner != _master && !runner.OriginLane.Channel.Enabled) return false;
+
         runner.Pass++;
+        return true;
     }
 
     // A lock always reaches the whole channel and never more than this instant, so

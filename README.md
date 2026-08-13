@@ -32,6 +32,7 @@ Using it
 | Move a lane | Drag its `CHAN` or `JDST` cell |
 | Lengthen a lane | Put a tile on its `TERM` cell, or use Steps on its `CHAN` cell |
 | New lane | Select bare ground, then New lane; delete a lane from its `CHAN` cell |
+| Stop or start a lane | Double click its `CHAN` cell, or Play on the panel that cell opens |
 | Branch | The `JUMP` button, which brings its `JDST` lane with it |
 | Details of a tile | The panel on the right follows the cursor |
 | Set a number | Drag its bar right or up, shift for fine; double click to type one |
@@ -71,6 +72,29 @@ puts the last copy down. Only notes, gates and locks travel — a `JUMP` in a st
 is stepped over and a double click on one does nothing, since a jump is the thing
 its branch lane answers to and there cannot be two of it. What was taken lights
 up for a moment, and with nothing taken yet a double click does nothing at all.
+
+The `CHAN` cell is the exception, and it is one on purpose: a double click there
+stops the lane or starts it. That cell can be neither end of a copy — a `CHAN` has
+no copy of its own, and it is not ground a tile can go on — so the gesture had
+nothing to do on it, and what it does instead is the one control worth reaching for
+without looking while a piece is playing. A stopped lane goes grey and keeps its
+place; the master lane is drawn solid whatever its switch says, because it is the
+one lane that cannot be stopped.
+
+A lane stops at the end of its lane and never part way along one, so what is playing
+is played out. It starts again on the turn of the piece — the same lap of the same
+lane a score coming in waits for — so a lane switched back on is silent for up to a
+lap and then comes in exactly in step with the rest, rather than wherever the hand
+happened to land. A lane drawn while the sequence plays waits for that moment too.
+Between the cell and the playhead the three states are all visible: grey is stopped,
+solid with no playhead is about to come in, solid with one is playing.
+
+The master lane is the topmost channel one lane, the same one that says how long the
+piece is. Its switch can be thrown and it is saved, and the lane goes on playing
+anyway: it is what hands out the moment every other lane starts on, so a silent one
+would leave the rest with nothing to come in on. Which lane that is comes from where
+it sits rather than from anything written on it, so moving lanes about moves which
+switch is being ignored.
 
 What a note sounds as is decided twice over on the way out, and neither pass touches
 what is written: the channel's Transpose moves it, and then the Scale drops it onto the

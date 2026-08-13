@@ -23,6 +23,7 @@ static class SelfTest
         StartupScore(log);
         Plane(log);
         Playback(log);
+        Lanes(log);
         Switching(log);
         Stack(log);
         CopyStack(log);
@@ -266,6 +267,214 @@ static class SelfTest
         // patch level, since a lock is over when its instant is.
         Check(log, "a lock is gone by the next step", untouched > 0,
               untouched + " of " + notes.Count + " notes at the patch level");
+    }
+
+    // A lane that is not running.
+    //
+    // Everything here is about the two moments the switch is read at rather than about
+    // the switch itself: a lane stops at the end of the lane and never part way along
+    // one, and it starts on the turn of the piece and at no other instant. Both are
+    // measured in samples, since "it came back roughly in time" is exactly the failure
+    // this feature would have.
+    //
+    // The scores are the switching checks' own — a four step master on channel one and a
+    // two step lane on channel two — because a lane whose lap divides the master's is the
+    // one that shares an instant with it, and sharing an instant is where a stop and a
+    // start could tread on each other.
+    static void Lanes(System.Text.StringBuilder log)
+    {
+        // Four steps at 120bpm: 24000 samples to the master's lap, 12000 to the other
+        // lane's, so every figure below is exact.
+        const long lap = SwitchStep * 4;
+
+        // Switched off before there is anything to hear, which is the case a standing
+        // start has to get right by itself: the lane is seated and never started.
+        var quiet = SwitchScore(60, 4);
+        Second(quiet, 2);
+        Switch(quiet, 2, false);
+
+        var quietNotes = SwitchRun(new Sequencer { Project = quiet }, lap * 2, at => {});
+
+        Check(log, "a lane switched off before the start is never heard",
+              Count(quietNotes, 84) == 0 && quietNotes.Count == 8,
+              quietNotes.Count + " notes, " + Count(quietNotes, 84) + " from the lane");
+
+        // The master is what hands out the moment a lane starts on, so it cannot be the
+        // thing that stops. Its switch is taken and kept and ignored.
+        var master = SwitchScore(60, 4);
+        Switch(master, 1, false);
+
+        var masterNotes = SwitchRun(new Sequencer { Project = master }, lap * 2,
+                                    at => {});
+
+        Check(log, "the master lane runs with its switch off",
+              masterNotes.Count == 8,
+              masterNotes.Count + " notes over two laps");
+
+        // Switched off part way along its lap. It has to finish the lap — the note on its
+        // second step is still due — and stop at the end of it rather than where the hand
+        // landed, so the last thing heard is 85 and the lap that would start at 12000
+        // never does.
+        var cut = SwitchScore(60, 4);
+        Second(cut, 2);
+
+        var cutSeq = new Sequencer { Project = cut };
+        var cutNotes = SwitchRun(cutSeq, lap * 2, at =>
+        {
+            if (at != SwitchStep) return;
+            Switch(cut, 2, false);
+            cutSeq.Resync();
+        });
+
+        Check(log, "a lane switched off plays out its lap and stops at the end of it",
+              Count(cutNotes, 84) == 1 && Count(cutNotes, 85) == 1 &&
+              Last(cutNotes, 85) == SwitchStep,
+              Count(cutNotes, 84) + " of the first step, " + Count(cutNotes, 85) +
+              " of the second, last at " + Last(cutNotes, 85));
+
+        // A lane whose lap divides the master's stops on an instant they share, and the
+        // master turning over on that same instant must not start it again. This is the
+        // one ordering in the whole feature that could go wrong quietly: the stop and the
+        // lap line are the same sample.
+        var shared = SwitchScore(60, 4);
+        Second(shared, 2);
+
+        var sharedSeq = new Sequencer { Project = shared };
+        var sharedNotes = SwitchRun(sharedSeq, lap * 3, at =>
+        {
+            if (at != SwitchStep * 3) return;
+            Switch(shared, 2, false);
+            sharedSeq.Resync();
+        });
+
+        Check(log, "a lane stopping on the master's own line is not started by it",
+              Count(sharedNotes, 84) == 2 && Last(sharedNotes, 84) == SwitchStep * 2,
+              Count(sharedNotes, 84) + " of the first step, last at " +
+              Last(sharedNotes, 84));
+
+        // Switched back on, which waits: nothing at the sample the hand moved, and the
+        // first note exactly on the line the master draws. Half a lap of the other lane
+        // goes by in between, and it is not heard.
+        var back = SwitchScore(60, 4);
+        Second(back, 2);
+        Switch(back, 2, false);
+
+        var backSeq = new Sequencer { Project = back };
+        var backNotes = SwitchRun(backSeq, lap * 2, at =>
+        {
+            if (at != SwitchStep) return;
+            Switch(back, 2, true);
+            backSeq.Resync();
+        });
+
+        Check(log, "a lane switched on comes in on the turn of the piece",
+              Count(backNotes, 84) == 2 && First(backNotes, 84) == lap,
+              Count(backNotes, 84) + " of the first step, first at " +
+              First(backNotes, 84));
+
+        // A lane drawn while the sequence plays has nothing else to be in step with, so
+        // it waits for the same line. This and the check above have to agree — a lane
+        // coming back and a lane just written are the same arrival.
+        var grown = SwitchScore(60, 4);
+        var grownSeq = new Sequencer { Project = grown };
+
+        var grownNotes = SwitchRun(grownSeq, lap * 2, at =>
+        {
+            if (at != SwitchStep) return;
+            Second(grown, 2);
+            grownSeq.Resync();
+        });
+
+        Check(log, "a lane drawn while playing waits for the turn of the piece",
+              Count(grownNotes, 84) == 2 && First(grownNotes, 84) == lap,
+              Count(grownNotes, 84) + " of the first step, first at " +
+              First(grownNotes, 84));
+
+        // The lap count starts again, which is what a cycle gate on the lane reads: a lane
+        // that comes back has to fire on the lap it fires on from a standing start, rather
+        // than resuming at whatever phase it was left at.
+        //
+        // Off at 18000 leaves it stopped at 24000 with a lap behind it; on at 30000 brings
+        // it back on the master's line at 48000, and it runs two laps from there. So two
+        // if the count was reset and three if it was carried, which is the only reason the
+        // figures here are this far apart.
+        var counted = SwitchScore(60, 4);
+        Second(counted, 2);
+
+        var countedSeq = new Sequencer { Project = counted };
+
+        SwitchRun(countedSeq, lap * 3, at =>
+        {
+            if (at == SwitchStep * 3) { Switch(counted, 2, false); countedSeq.Resync(); }
+            if (at == SwitchStep * 5) { Switch(counted, 2, true); countedSeq.Resync(); }
+        });
+
+        var laps = -1;
+        foreach (var runner in countedSeq.Runners)
+            if (runner.Channel == 2) laps = runner.Pass;
+
+        Check(log, "a lane that comes back counts its laps from the start again",
+              laps == 2, "channel 2 has run " + laps + " laps");
+
+        // And the switch has to survive the file, which is what version 16 is for.
+        var saved = SwitchScore(60, 4);
+        Second(saved, 2);
+        Switch(saved, 2, false);
+
+        var reloaded = ProjectFormat.Read(ProjectFormat.Write(saved)).Score;
+
+        Check(log, "the switch round trips",
+              reloaded.Lanes[0].Channel.Enabled && !reloaded.Lanes[1].Channel.Enabled,
+              "ch1=" + reloaded.Lanes[0].Channel.Enabled +
+              " ch2=" + reloaded.Lanes[1].Channel.Enabled);
+
+        // A file from before the key existed reads as a score where every lane runs,
+        // which is what every lane in such a file did.
+        var legacy = ProjectFormat.Read(
+          "jacquard 15\ntempo 120\nlane 1 1 CHAN:1 div=16\n  step C4\n").Score;
+
+        Check(log, "a file without the key runs every lane",
+              legacy.Lanes[0].Channel.Enabled,
+              "ch1=" + legacy.Lanes[0].Channel.Enabled);
+    }
+
+    // A second lane on channel two, half the master's lap, with a note on every step so
+    // that where it stopped can be read off the last one heard. Divide puts one on the
+    // first step only, which cannot say whether the rest of a lap was played.
+    static Lane Second(Project project, int steps)
+    {
+        var lane = project.Score.AddLane(1, 3, new ChannelTile { Channel = 2 }, steps);
+
+        for (var i = 0; i < steps; i++)
+            lane.Steps[i].Tiles.Add(new NoteTile { Note = 84 + i });
+
+        return lane;
+    }
+
+    static void Switch(Project project, int channel, bool enabled)
+    {
+        foreach (var lane in project.Score.Lanes)
+            if (lane.Channel?.Channel == channel) lane.Channel.Enabled = enabled;
+    }
+
+    static int Count(System.Collections.Generic.List<FmNoteEvent> notes, int pitch)
+    {
+        var count = 0;
+        foreach (var note in notes) if (Sounds(note, pitch)) count++;
+        return count;
+    }
+
+    static long First(System.Collections.Generic.List<FmNoteEvent> notes, int pitch)
+    {
+        foreach (var note in notes) if (Sounds(note, pitch)) return note.startSample;
+        return -1;
+    }
+
+    static long Last(System.Collections.Generic.List<FmNoteEvent> notes, int pitch)
+    {
+        var last = -1L;
+        foreach (var note in notes) if (Sounds(note, pitch)) last = note.startSample;
+        return last;
     }
 
     // A score coming in at the turn of the piece.

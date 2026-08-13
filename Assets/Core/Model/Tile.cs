@@ -257,11 +257,23 @@ public abstract class FlowTile : Tile {}
 // The channel number picks the timbre as well as the stream: the patch bank holds
 // one patch per channel, which is why the number is bounded by the bank rather
 // than free to run away.
+//
+// Enabled is whether this stream is one that runs at all. Switched off, the lane
+// plays out the lap it is on and then stops, and it starts again only on the turn
+// of the piece — see the sequencer, which is where both of those moments are.
+//
+// This is not a mute. A muted channel goes on running and drops its notes on the
+// way out, so its laps keep counting and a hand taken off it is heard from where
+// the sequence has got to; a lane switched off is not running, so there is no
+// position to come back to and it starts from the top. Two switches that look
+// alike differ in exactly that.
 
 public sealed class ChannelTile : FlowTile
 {
     public int Channel { get => _channel; set => _channel = PatchBank.Clamp(value); }
     public int Division { get => _division; set => _division = Clamp(value); }
+
+    public bool Enabled { get; set; } = true;
 
     public override string Token => "CHAN:" + _channel;
 

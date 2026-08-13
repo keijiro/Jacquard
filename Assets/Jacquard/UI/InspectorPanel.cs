@@ -50,8 +50,14 @@ sealed class InspectorPanel
             // transpose from the keys, a load — so the bars still have to be pulled
             // back in line with it. The lap switches go the same way, and one of the
             // things that moves them is the Period bar standing over them.
+            //
+            // The Play switch above all, since the thing that moves it most is a double
+            // click on the very cell this panel is showing: the tile is the same tile, so
+            // nothing here is rebuilt, and a switch left as it was drawn would read On
+            // over a cell that had just gone grey.
             ValueBar.SyncAll(_body);
             _laps?.Sync();
+            SyncPlay();
             return;
         }
 
@@ -71,14 +77,15 @@ sealed class InspectorPanel
     Lane _lane;
     bool _place;
 
-    // The bars are found again by a query over the body; this one is held onto
-    // instead, and let go of whenever the body it stood in is cleared.
+    // The bars are found again by a query over the body; these two are held onto
+    // instead, and let go of whenever the body they stood in is cleared.
     LapSwitches _laps;
+    Button _play;
 
     void Build(Tile tile, Lane lane)
     {
         _title.text = Title(tile);
-        _laps = null;
+        (_laps, _play) = (null, null);
 
         // Free ground, whether that is a lane's own empty step or the terminator it
         // grows from. What such a cell is for is the tile that goes on it.
@@ -243,6 +250,28 @@ sealed class InspectorPanel
 
     void BuildChannel(VisualElement body, ChannelTile channel)
     {
+        // Whether the lane runs at all, which is also what a double click on the cell
+        // toggles — this is the same switch written down where a tile's settings are named.
+        //
+        // On the master lane it can still be thrown and it still saves, and the lane goes
+        // on running: which lane is the master is a position and not a property, so the
+        // switch belongs to the lane for whenever it stops being the one. The cell is what
+        // shows the difference, by staying solid.
+        // The state is written on it as well as shown by the fill, the way the Step row
+        // prints the division it is set to: one press instead of the chooser's two arrows,
+        // and the same reading either way.
+        //
+        // Pressed, it writes the switch and lets Touch bring the panel back into line, the
+        // same road a double click on the cell takes. Two roads into one control is exactly
+        // where the two would drift apart if each drew itself.
+        _play = Controls.Push("", () => { channel.Enabled = !channel.Enabled; Touch(); }, 44);
+        SyncPlay();
+
+        var row = Controls.Row();
+        row.Add(Controls.Caption("Play"));
+        row.Add(_play);
+        body.Add(row);
+
         body.Add(Controls.Bar("Channel", ChannelRange, () => channel.Channel,
                               value => { channel.Channel = Mathf.RoundToInt(value);
                                          Touch(); }));
@@ -255,6 +284,16 @@ sealed class InspectorPanel
                                                              channel.Division),
                                   index => { channel.Division = ChannelTile.Divisions[index];
                                              Touch(); }));
+    }
+
+    // Pulls the Play switch back onto whatever the tile now says, for the times the panel
+    // is not rebuilt: the cell it is showing is the cell a double click toggles.
+    void SyncPlay()
+    {
+        if (_play == null || _tile is not ChannelTile channel) return;
+
+        _play.text = channel.Enabled ? "On" : "Off";
+        Controls.SetActive(_play, channel.Enabled);
     }
 
     VisualElement BuildLane(Lane lane)

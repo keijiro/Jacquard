@@ -618,7 +618,7 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
     // Enough slack that a click with a shaky hand still counts as a click.
     const float DragThreshold = 2.0f;
 
-    const long DoubleClickMilliseconds = 400;
+    const long DoubleClickMilliseconds = Controls.DoubleClickMilliseconds;
 
     // Private members
 

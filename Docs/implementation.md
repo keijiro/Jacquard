@@ -911,6 +911,22 @@ Notes on the prototype
   overlay as the drop cells and saying the same kind of thing: these cells and not
   those. What was stepped over does not light, so what a copy left behind is visible
   without a word for it.
+
+  **The plane counts the clicks itself, because the event's own count goes by the
+  clock alone.** A press on one cell, one on its neighbour and one back on the first
+  arrives as a click count of three, and taking that at its word fired the gesture on
+  a cell nobody had pressed twice running — which for a copy is a wrong cell copied
+  and for a lane is a part stopping mid-piece. What the gesture means is *this cell
+  and then this cell*, so `ScoreView` keeps the last cell pressed beside the time and
+  asks for both. The cell is the half that matters: the copy this usually stands for
+  is a question about a position and never about a rhythm. The interval is forgotten
+  once it has been spent, so a third press starts a new pair rather than making a
+  second double out of the same click.
+
+  `ValueBar` already hand-rolled this for the same shape of reason — there a press
+  that scrubbed must not count as the first of two — so the length of the interval
+  lives on `Controls` and both read it. Two gestures on one screen disagreeing about
+  how quick a double click is would be a hand that could learn neither.
 - **A drag means whatever the cell under it holds.** A tile or a lane head has
   something to carry, so a drag there carries it; free ground has nothing to carry,
   so a drag there moves the plane instead. Panning used to ask for a wheel event or
@@ -1060,6 +1076,64 @@ Notes on the prototype
   turns over rather than a tenth of a second early. What it costs is that for that
   fraction of a second the app's project is one behind the sequencer's, so a mute
   pressed inside the window is written to the score that is leaving.
+- **A lane starts on the turn of the piece, which is the second thing to want that
+  moment.** The item above left a slot for one, and this is it: a `CHAN` carries a
+  switch, a lane switched off stops when its runner reaches the end of the lane, and a
+  lane switched on runs from the sample the next master lap begins on. The lap line
+  needed no new machinery at all — `Sequencer.Schedule` already read `_master.Pass`
+  across each slice, and the change is that it reads it always rather than only while a
+  score waits. What it costs is one branch: a lap that a load is waiting on belongs to
+  the load, since the score arriving seats its own runners a moment later and starting
+  a lane on the far side of that line is work thrown away by `TakeOver`.
+
+  **Not running is said by the sample and not by a flag beside it.** A stopped runner's
+  `NextSample` is `Runner.Never`, which is `double.MaxValue`, so the two loops that
+  decide who plays — the scan for the earliest sample and the gather of everything
+  within half a sample of it — exclude it with nothing written in either of them for
+  the purpose. A `bool` would have to be read in both, and the failure it invites is
+  the one that would be worst here: a flag saying running with a sample that says
+  otherwise. `Runner.Running` is a reading of the number rather than a second copy of
+  it. `NoBoundary` is the same trick on the lap line, and the invariant that keeps the
+  loops from stalling is that the master runner is always running — which is also why
+  the master lane cannot be switched off, since a silent one would leave every other
+  lane with nothing to come in on.
+
+  Two edits can leave a master that is not running: deleting the master lane hands the
+  title to whatever lane is topmost now, which may be one that has stopped, and putting
+  a project in outright reassigns `_master` over the runners of the score going out. The
+  repair is in `Schedule` rather than in `Resync` because it needs a sample and `Resync`
+  has no clock — it is the standing start `Play` uses, one lookahead ahead.
+
+  **A lane that comes back counts its laps from zero**, so a cycle gate on it fires on
+  the lap it fires on from a standing start. The argument is not about cycle gates
+  though: a lane switched back on and a lane drawn a moment ago both wait for the same
+  line and both then start, so they have to sound the same, and a lane that has just
+  been written has run no laps. It also parts company with the mute here, deliberately —
+  a muted channel is heard from wherever the sequence has got to because it never stopped
+  running, and this one stopped. The two switches look alike and that is the whole
+  difference between them, so both say so in their own comments.
+
+  **The playhead is told where the lane ends rather than cleared.** A stopping runner
+  records a marker with no lane on it at the sample after its last step, and
+  `AdvancePlayhead` dequeues it when the clock arrives — so the light goes out exactly
+  as the last step is heard. `ClearPlayhead` empties the queue instead, which would
+  throw away a lookahead of steps that are scheduled and still to sound, and the drawing
+  would stop before the music did. The sample matters as much as the method: a marker
+  sharing a sample with the last step is dequeued in the same breath as it, and the
+  final cell of the lane would never light.
+
+  **The cell is drawn from what will happen and the switch from what is written.** A
+  stopped lane's `CHAN` gives up its solid field for the grey one a lock sits on, which
+  is the pair of colours `Controls.SetActive` already dresses a switch in; the master
+  lane stays solid whatever its switch says. So the two disagree on exactly one lane, and
+  that is the lane where the specification disagrees with itself on purpose. What the
+  cell does not say is whether a lane switched on has come in yet — up to a lap goes by
+  first — and the playhead already says that, so between them there are three states and
+  two drawings and no third look to invent.
+
+  The plane still says nothing about *which* lane is the master. It can be read off the
+  one lane whose switch and cell disagree, which is a poor way to say it; a mark for it
+  is a change of its own, and this one does not need it.
 - **The score the app opens on is a file, not code.** `Project.CreateSample()` built one
   by hand, which was right while the demonstration case was small and wrong the moment
   it became a real piece of work: what is wanted now is eight patches and seven lanes,

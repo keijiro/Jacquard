@@ -167,9 +167,36 @@ public sealed class ScoreEditor
     // One gesture reading two ways depending on what was done ten minutes ago is a
     // gesture nobody can aim.
 
+    // A third reading on the one cell that could not take either of the other two, for
+    // which see ToggleChannel. A JDST head has no channel and falls through to the paste,
+    // which refuses a head cell, so it goes on doing nothing.
     public void DoubleClick()
     {
-        if (Cell.Kind == CellKind.Tile) CopyStack(); else PasteStack();
+        if (Cell.Kind == CellKind.Head && Cell.Lane?.Channel != null) ToggleChannel();
+        else if (Cell.Kind == CellKind.Tile) CopyStack();
+        else PasteStack();
+    }
+
+    // Starts or stops a lane, which is the one thing on the plane that is played rather
+    // than written, and the reason this gesture reads a third way on the CHAN cell.
+    //
+    // The consistency being spent is real and it is being spent knowingly. What the
+    // gesture asks everywhere else is "this cell, then that one" — a copy and the place
+    // it lands — and a CHAN head can be neither end of that: a flow tile has no copy, and
+    // a head is not ground a tile can go on. So the gesture does nothing at all here
+    // today, and what goes in the empty hand is the one control worth reaching for
+    // without looking, at the speed a hand works while a piece is playing.
+    //
+    // Nothing about when it takes effect is decided here. The switch is written and the
+    // sequencer reads it where it matters — at the end of the lane for a stop, on the turn
+    // of the piece for a start — so this is only ever the writing down.
+    public void ToggleChannel()
+    {
+        var channel = Cell.Lane?.Channel;
+        if (Locked || channel == null) return;
+
+        channel.Enabled = !channel.Enabled;
+        Commit();
     }
 
     public void CopyStack()

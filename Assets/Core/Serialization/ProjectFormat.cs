@@ -13,7 +13,7 @@ namespace Jacquard {
 // answers to it, which is the same trick the mockup uses: there is nowhere to
 // write a second jump, so one to one holds by construction.
 //
-//   jacquard 3
+//   jacquard 16
 //   tempo 132
 //   meter 4 4
 //   fx rsize=0.5 rdamp=0.5 ...
@@ -21,7 +21,7 @@ namespace Jacquard {
 //   mutes muted=01000000 soloed=00000000
 //   scale notes=101011010101
 //   patch 1 transpose=0 level=0.8 index=3 ...
-//   lane 1 1 CHAN:1 div=16
+//   lane 1 1 CHAN:1 div=16 on=1
 //     step C4/4 E4 G4
 //     step
 //     step GCYC:4,0001 JUMP
@@ -30,6 +30,16 @@ namespace Jacquard {
 
 public static class ProjectFormat
 {
+    // Version 16 gives a channel start a switch: an on= on the lane line, saying whether
+    // that lane runs at all. A file without one reads as a score where every lane runs,
+    // which is what every lane in such a file did, so nothing about an older piece plays
+    // differently for being read here.
+    //
+    // This bump matters more than most in the other direction. An older build skips an
+    // unknown key on a lane line without a word, so it would read on=0 and play the lane
+    // anyway — a file saying a part is silent, played with the part in it. Refusing the
+    // file as being from a newer version is the only honest answer to that.
+    //
     // Version 15 adds a unison to every patch: a uni= on the patch line, and a fourth
     // target a lock can name before the ones that shape the tone. An older file has
     // none and reads as a project where every note is a single voice, which is what
@@ -132,7 +142,7 @@ public static class ProjectFormat
     // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
     // reads, since a token nothing answers to is skipped, but the parameters that
     // no longer exist fall back to the default patch rather than being converted.
-    public const int Version = 15;
+    public const int Version = 16;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -166,7 +176,8 @@ public static class ProjectFormat
 
         if (lane.Channel is ChannelTile channel)
             text.Append("CHAN:").Append(channel.Channel)
-                .Append(" div=").Append(channel.Division);
+                .Append(" div=").Append(channel.Division)
+                .Append(" on=").Append(channel.Enabled ? 1 : 0);
         else
         {
             text.Append("JDST");
@@ -401,6 +412,10 @@ public static class ProjectFormat
 
             if (key == "div" && tile is ChannelTile ch)
                 ch.Division = ReadInt(value);
+            // A file from before this key says nothing, and a lane that says nothing
+            // runs — which is what every lane in such a file did.
+            else if (key == "on" && tile is ChannelTile on)
+                on.Enabled = ReadInt(value) != 0;
             else if (key == "from")
                 links.Add((lane, ReadPoint(value, number)));
         }

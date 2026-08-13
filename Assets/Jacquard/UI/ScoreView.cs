@@ -128,9 +128,21 @@ public sealed class ScoreView : VisualElement
 
         _tiles.Clear();
 
+        // A channel start says whether its lane runs, and the master lane always runs
+        // whatever its switch says, so the cell is drawn from what will happen rather than
+        // from what is written on it. Read once: finding the master sorts the lanes.
+        //
+        // What the cell does not say is whether the lane is running yet — a lane switched
+        // on waits for the turn of the piece. The playhead says that, so between them a
+        // solid cell with no playhead is a lane about to come in and one with a playhead is
+        // a lane playing, and there is no third look to draw.
+        var master = Score.MasterLane;
+
         foreach (var lane in Score.Lanes)
         {
-            _tiles.Add(new TileElement(lane.Head, lane.HeadPoint));
+            _tiles.Add(new TileElement(
+              lane.Head, lane.HeadPoint,
+              lane.Channel is { Enabled: false } && lane != master));
             _tiles.Add(new TileElement(Score.Terminator, lane.TermPoint));
 
             for (var i = 0; i < lane.Steps.Count; i++)
@@ -514,7 +526,25 @@ public sealed class ScoreView : VisualElement
 
         var point = Style.CellAt(evt.localPosition);
         SetCursor(point);
-        if (evt.clickCount >= 2) DoubleClicked?.Invoke();
+
+        // Double click detection of its own, rather than the event's clickCount, which
+        // counts presses by the clock alone. A press here, one on the cell beside it and
+        // one back here again arrives as a click count of three, and the plane would read
+        // that as a double click on a cell nobody pressed twice running. What the gesture
+        // means is this cell and then this cell, so the cell is half the test — and the
+        // half that matters, since the copy it usually stands for is a question about a
+        // position and never about a rhythm.
+        //
+        // The interval is forgotten once it has been spent, so a third press starts a new
+        // pair rather than making a second double out of the same click. ValueBar hand
+        // rolls this the same way and for the neighbouring reason: there a click that
+        // scrubbed must not count as the first of two.
+        var doubled = point == _lastPress &&
+                      evt.timestamp - _lastPressTime < Controls.DoubleClickMilliseconds;
+
+        (_lastPress, _lastPressTime) = (point, doubled ? 0L : evt.timestamp);
+
+        if (doubled) DoubleClicked?.Invoke();
 
         // A cell that holds something can be carried: a tile on a lane to another
         // cell, a lane's own head to take the whole lane with it. The terminator is
@@ -708,6 +738,13 @@ public sealed class ScoreView : VisualElement
     bool _arrived;
 
     bool _locked;
+
+    // The last press, for telling a double click from two single ones. Held as the cell
+    // rather than as the pixel, since a hand that wobbles across a cell boundary between
+    // two presses meant the same cell both times, and one that hits the same pixel of two
+    // different cells cannot.
+    GridPoint _lastPress = new GridPoint(-1, -1);
+    long _lastPressTime;
 
     // What is in hand. An empty cell means nothing is: the kind of the grabbed
     // cell is also what kind of drag it is, a tile being carried to another cell

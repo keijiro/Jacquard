@@ -132,6 +132,13 @@ static class Controls
     // two things rather than as one with a line drawn across it.
     public const float PanelGap = 12.0f;
 
+    // How long after a press a second one still reads as the same gesture. Both places
+    // that ask — a bar being opened to be typed into, a cell being copied or a lane
+    // started — count it themselves rather than take the event's own clickCount, so the
+    // number has to be one number: two gestures on one screen that disagree about how
+    // quick a double click is would be a hand that cannot learn either.
+    public const long DoubleClickMilliseconds = 400;
+
     // A width given in the mouse profile's terms, stretched to hold the same words at
     // the other's larger type. Never narrower than a row is tall, which is what turns
     // the one-glyph buttons — the arrows either side of a figure, the plus and minus of
