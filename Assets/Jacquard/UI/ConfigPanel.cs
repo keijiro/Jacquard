@@ -59,6 +59,40 @@ sealed class ConfigPanel
         row.Add(_visualizer);
         Root.Add(row);
 
+        // Under it because that is the order the two are met in: one is what the screen
+        // is doing and the other is what the machine underneath it can keep up with.
+        //
+        // A bar rather than the arrows a choice out of a list gets, because this is not
+        // a list: it is one number with a low end and a high end, and which end it is
+        // near is the whole of what a hand setting it wants to know — a short buffer is
+        // an instrument that answers immediately and drops out on a busy frame, a long
+        // one is the other bargain, and everything between them is a position on that
+        // trade rather than a name.
+        if (DspBuffer.Supported)
+        {
+            Root.Add(Controls.Bar("Buffer size", BufferRange,
+                                  () => DspBuffer.Requested,
+                                  value => { DspBuffer.Requested = Mathf.RoundToInt(value);
+                                             SyncRestart(); },
+                                  // A drag crosses every stop on the way, and each one
+                                  // would be a write to disk. The hand coming off is
+                                  // what commits it; a typed number settles at once.
+                                  DspBuffer.Flush));
+
+            // What the bar cannot say for itself: the audio system takes its figure at
+            // boot, so a number chosen here is a number the next launch will use. It
+            // stands under the row it is about and only while it is true — a line that
+            // is always there is a line nobody reads by the second session.
+            _restart = Controls.Caption("Applies at the next launch.");
+            _restart.style.width = StyleKeyword.Auto;
+            _restart.style.height = StyleKeyword.Auto;
+            _restart.style.whiteSpace = WhiteSpace.Normal;
+            _restart.style.marginBottom = Controls.Gap;
+            Root.Add(_restart);
+
+            SyncRestart();
+        }
+
 #if UNITY_EDITOR || UNITY_STANDALONE
         // At the foot, since it is not one of the settings above it and does not want to
         // be read as the end of that list: what it does is leave the app for a moment.
@@ -91,6 +125,7 @@ sealed class ConfigPanel
     readonly Action<bool> _apply;
     readonly Action _refocus;
     readonly Button _visualizer;
+    readonly Label _restart;
 
     bool _visualizerOn;
 
@@ -119,6 +154,19 @@ sealed class ConfigPanel
         _visualizer.text = _visualizerOn ? "On" : "Off";
         Controls.SetActive(_visualizer, _visualizerOn);
     }
+
+    // The note under the buffer row, up exactly while the setting has moved since the
+    // app started — which is what *applies at the next launch* means and all it means.
+    // See DspBuffer.Applied for why it is not measured against the buffer in force.
+    void SyncRestart()
+      => _restart.style.display = DspBuffer.Requested == DspBuffer.Applied
+                                  ? DisplayStyle.None : DisplayStyle.Flex;
+
+    // Whole frames, in the steps DspBuffer settles on. No unit on the readout — the
+    // caption has already said what the number is, and there is no shorter word for a
+    // frame than the figure itself.
+    static readonly ValueBar.Range BufferRange =
+      new ValueBar.Range(DspBuffer.Min, DspBuffer.Max, snap: DspBuffer.Step, digits: 0);
 
 #if UNITY_EDITOR || UNITY_STANDALONE
     // Handed to the desktop as a URL, which is all Application.OpenURL takes and is

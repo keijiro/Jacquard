@@ -751,6 +751,46 @@ Notes on the prototype
   tablet and the browser it is not built at all rather than built and dimmed — a dimmed
   control says *not now*, and this one is *not here*.
 
+  **The DSP buffer is the second setting, and the first one that is about the machine
+  rather than about taste.** The audio thread has exactly one buffer's worth of time to
+  render one, and what happens when it misses is a hole in the music with a hard edge at
+  either end — `FmSynthPipeline.Pump` watches for exactly that and now sends whoever is
+  listening here instead of to Project Settings. A longer buffer buys tolerance and costs
+  latency: 256 frames is 5.3ms at 48kHz and 1024 is 21.3ms, which is the whole distance
+  between a live effect that answers the hand and one that answers a moment later. A bar
+  rather than a chooser, because this is one number with two ends and which end it is
+  near is the whole of what a hand setting it wants to know. It moves in half buffers,
+  which is 2.7ms of deadline and the smallest move worth making: seven stops, enough that
+  the bar is read as a bar rather than as four positions and few enough that every one of
+  them is a different answer.
+
+  **It is applied once, before the synth is built, and the panel says so.** Unity takes
+  its own figure from `AudioManager.asset` at boot, so a stored number does nothing until
+  something asks: `AudioSettings.Reset` is that ask, and `JacquardApp.Start` makes it on
+  the line before `new FmSynth`, while nothing has been allocated against the figure it
+  replaces. In the ordinary case — the stored number being the one Unity booted with — it
+  does nothing at all. Reset *does* work with the pipeline running: the audio system
+  renegotiates the format, `FmSynthControl.Configure` runs again and the mix buffer is
+  reallocated, which was measured by watching the scope advance in lockstep with the DSP
+  clock across a change from 256 to 1024. What is not measured is the two numbers
+  `FmSynthPipeline`'s constructor reads once — the sample rate and the slip tolerance the
+  dropout detector judges by — so applying it live would leave the detector calibrated for
+  the buffer that is gone. A setting that is honest about when it lands beats one that is
+  nearly right, so the note under the row reads *Applies at the next launch*, and it is up
+  only while the setting has moved since the app started.
+
+  **Measured against what this launch asked for, not against what is in force.** The two
+  are the same number on a device that gives exactly what it is handed, and on one that
+  rounds they are not: comparing against the buffer actually running would leave that note
+  standing after the launch that applied it, which is the one thing a note about
+  restarting must never say. Rounding is real and worth knowing about, so it is said once
+  in the console instead — as is a device refusing the figure outright. Neither stops
+  anything: the mix is rendered to whatever length the audio system reports, so what is
+  lost is only that the thread's deadline is not the one that was chosen. Arbitrary
+  figures do work, incidentally — the three names in Project Settings are an editor
+  inspector's enum over a plain int, and 768, 400, 333 and 300 were each granted exactly
+  and rendered in lockstep on macOS.
+
   **The status line went with them.** It was a paragraph of diagnostics written across the
   widest part of the row — the cursor position, the voice count, each runner's step and
   lap — and it was read by nobody while the row grew five switches that have to be

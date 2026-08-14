@@ -60,6 +60,13 @@ for the machine it was set on, and is there again the next time the app is opene
 desktop it also carries Open score folder, which shows the directory the files below are
 written to.
 
+Buffer size is on the same panel, and it is the one to reach for if the sound bangs or
+drops out: it is how long a buffer the audio thread has to fill, from 256 frames — 5.3ms
+at the usual rate, which is what the app ships with — up to 1024. A longer buffer
+survives a busy moment, and costs that much delay between a Live FX button and what
+comes out. It is taken up at the next launch, which the panel says while the two
+disagree.
+
 A tile goes on free ground only: a lane's empty step, the cell under a stack, or
 the `TERM` cell, which grows the lane by a step. A stack is therefore built from
 the top down, the gate first and the note it governs in the cell underneath it,

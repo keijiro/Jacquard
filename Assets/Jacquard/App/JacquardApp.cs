@@ -252,6 +252,14 @@ public sealed class JacquardApp : MonoBehaviour
 
         Project = ReadStartupScore();
 
+        // Before the synth and not after it. What this may do is reinitialize the audio
+        // system, and the moment for that is while nothing has been allocated against
+        // the figure it is replacing: the pipeline sizes its mix buffer from the format
+        // it is handed and reads the buffer length once for the dropout detector, both
+        // of which happen in the constructor on the next line. In the ordinary case —
+        // the stored number being the one Unity booted with — it does nothing at all.
+        DspBuffer.Apply();
+
         Synth = new FmSynth(MaxVoices);
         Sequencer = new Sequencer { Project = Project };
         Live = new LiveFx();
