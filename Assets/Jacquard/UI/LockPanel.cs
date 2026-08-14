@@ -78,7 +78,6 @@ sealed class LockPanel
         // the only place the number appears for one: the tile itself does not carry it,
         // and a branch lane borrows it from the jump that reaches it.
         _title.text = "Channel " + _channel + " Lock";
-        _body.Add(Controls.Divider());
 
         for (var target = 0; target < ParamTargets.Count; target++)
             _body.Add(new LockRow(this, target));

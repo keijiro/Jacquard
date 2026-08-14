@@ -53,8 +53,6 @@ sealed class LivePanel
         // equal on both sides without this having to know what a border costs.
         Root.style.width = StyleKeyword.Auto;
 
-        Root.Add(Controls.Divider());
-
         Root.Add(Buttons(LiveEffect.Reverb, LiveEffect.Stab, LiveEffect.OctaveDown,
                          LiveEffect.Fall, LiveEffect.Roll1, LiveEffect.Roll3));
 

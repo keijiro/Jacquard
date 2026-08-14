@@ -40,7 +40,6 @@ sealed class ChannelsPanel
         _editor = editor;
 
         Root = Controls.Panel("Channels");
-        Root.Add(Controls.Divider());
 
         _rows = new Row[PatchBank.Channels];
 

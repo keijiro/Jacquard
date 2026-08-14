@@ -81,10 +81,6 @@ sealed class SoundPanel
         // is no chooser.
         _title.text = "Channel " + _channel + " Sound";
 
-        // The rule stays where the caption's was: it is what separates the header from
-        // the rows, which the Tile panel puts above its first section too.
-        _body.Add(Controls.Divider());
-
         for (var target = 0; target < ParamTargets.Count; target++)
         {
             var index = target;
@@ -94,12 +90,11 @@ sealed class SoundPanel
                                    Audition));
         }
 
-        _body.Add(Controls.Divider());
-
         // On a row of its own rather than loose in the column, so that it leaves the
         // gap under it that every other row does and the panel closes on the same
-        // inset it opened with.
-        var row = Controls.Row();
+        // inset it opened with — and on a foot rather than a plain row, since a button
+        // that sounds a note is not the last of the parameters above it.
+        var row = Controls.Foot();
         row.Add(Controls.Push("Audition", Audition, 70));
         _body.Add(row);
     }

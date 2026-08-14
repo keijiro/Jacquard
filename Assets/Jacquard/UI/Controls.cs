@@ -102,18 +102,16 @@ static class Controls
 
     // Spacing
     //
-    // Two numbers and one rule. Gap is the space between any two things standing next
+    // Three numbers and one rule. Gap is the space between any two things standing next
     // to each other in a panel — two rows, two buttons, a heading and what it heads.
-    // Inset is the panel's own, from its edge to everything it holds.
+    // Inset is the panel's own, from its edge to everything it holds. GroupGap is what
+    // is added where one group of rows ends and the next thing begins.
     //
     // The rule is that a gap is carried underneath and to the right, by the thing
-    // above and to the left of it. Anything that comes between two others therefore
-    // adds only what is missing rather than a gap of its own: a rule takes its space
-    // underneath and lets the row above supply the space over it, which is what keeps
-    // the air either side of it equal without either of them having to know what it is
-    // standing between. The panel's bottom inset is short by a gap for the same
-    // reason — the last row already laid one down — so the inset reads the same on
-    // all four sides.
+    // above and to the left of it, and that anything wanting more than a gap adds only
+    // what is missing rather than a gap of its own. The panel's bottom inset is short
+    // by a gap for the same reason — the last row already laid one down — so the inset
+    // reads the same on all four sides.
     //
     // Nothing here is emphasis. A header is a line of the panel like any other, spaced
     // like any other, because which panel it is was never the question the eye is
@@ -125,6 +123,13 @@ static class Controls
     // of the shortest screen this runs on.
     public const float Gap = 3.0f;
     public const float Inset = 10.0f;
+
+    // What parts one group of rows from the next. Twice a gap, which is as much as a
+    // break can take before the panel reads as a stack of separate things — the
+    // grouping is said by the heading and the rule under it, and this is only what
+    // stops the last row of one group from sitting as close to the next heading as it
+    // does to its own neighbours.
+    public const float GroupGap = Gap * 2;
 
     // The space a panel keeps under it, and the same distance the column of them is
     // held off the edges of the screen: the gap around the panels reads as one gap
@@ -177,11 +182,33 @@ static class Controls
     // text between two of them is short by the air the boxes hold: measured between
     // the boxes every gap here is a gap, and measured between the words the line
     // would hug whatever is over it.
-    public static Label Heading(string text)
+    //
+    // The rule under it is the only rule left in a panel, and it is the heading's
+    // rather than a divider standing between two groups. A line between them said only
+    // that something ends here and something begins, which left the first row of a
+    // group looking as much like the end of the one above as the start of its own; a
+    // line under the name ties the name to what it names, and what parts one group from
+    // the next is then the air above the heading rather than a second mark.
+    //
+    // follows is whether anything already stands above it in the panel, which is what
+    // that air is for. The first heading in a panel has the header over it and needs
+    // none: the header is already a line of its own with a gap under it.
+    public static Label Heading(string text, bool follows = false)
     {
         var label = Caption(text);
         label.style.height = RowHeight;
+        label.style.marginTop = follows ? GroupGap : 0.0f;
         label.style.marginBottom = Gap;
+
+        // Across the panel and not across the word. A caption is as wide as the caption
+        // column so that a column of them lines up with the controls beside them, and a
+        // heading has no control beside it: left at that width the rule would stop a
+        // third of the way over, under the name rather than over the rows.
+        label.style.width = StyleKeyword.Auto;
+
+        label.style.borderBottomWidth = 1.0f;
+        label.style.borderBottomColor = Style.PanelLine;
+
         return label;
     }
 
@@ -195,16 +222,18 @@ static class Controls
         return row;
     }
 
-    // No margin over it: whatever it follows has already left a gap there, and a rule
-    // that added one of its own would sit low in the space it is dividing.
-    public static VisualElement Divider()
+    // A row that stands at the foot of a panel, away from the rows above it.
+    //
+    // What ends up here is the one button the panel has and the panel's whole point is
+    // not — Audition, Delete — so what it wants is to be told apart from the list it
+    // follows rather than to be the end of it. It used to be told apart by a rule,
+    // which is now the heading's mark and would say the wrong thing here: there is
+    // nothing under this to head.
+    public static VisualElement Foot()
     {
-        var line = new VisualElement();
-        line.style.height = 1;
-        line.style.flexShrink = 0;
-        line.style.backgroundColor = Style.PanelLine;
-        line.style.marginBottom = Gap;
-        return line;
+        var row = Row();
+        row.style.marginTop = GroupGap;
+        return row;
     }
 
     // Buttons
@@ -455,9 +484,10 @@ static class Controls
         TileElement.SetBorderColor(panel, Style.PanelLine);
         TileElement.SetBorderRadius(panel, 6.0f);
 
-        // Spaced like any other row, and as tall as one, so that the rule under it
-        // falls where a rule between two groups of rows falls. What the header says
-        // changes; that it is a header is not worth a band of air to announce.
+        // Spaced like any other row, and as tall as one. What the header says changes;
+        // that it is a header is not worth a band of air to announce, and it needs no
+        // mark under it either — it is the one line on the panel in the bright text
+        // every caption below it is not.
         var row = Row();
         row.style.height = RowHeight;
 

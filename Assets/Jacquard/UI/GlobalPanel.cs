@@ -14,10 +14,10 @@ namespace Jacquard.App {
 //
 // So the panel is named for the answer to that and each group inside it is headed. This
 // was the one panel built that way, against an argument that a panel already says what a
-// heading would; the send effects are now grouped the same way, and the shape here — a
-// rule, a heading, its rows — is the one they took. What is left of the distinction is
-// that the groups here have nothing in common but being global, while a reverb and a
-// delay are two of a kind.
+// heading would; the send effects are now grouped the same way, and the shape — a
+// heading, the rule under it, its rows — is the one every panel here groups by. What is
+// left of the distinction is that the groups here have nothing in common but being
+// global, while a reverb and a delay are two of a kind.
 //
 // The scale comes first because that is the order a note meets the two: it is decided
 // as the note is made, and the limiter is what the sum of every note is held under.
@@ -76,9 +76,6 @@ sealed class GlobalPanel
 
         _body.Clear();
 
-        // Under the header, where every panel here puts one.
-        _body.Add(Controls.Divider());
-
         // Ahead of the limiter because that is the order a note meets them: what it
         // is allowed to be, then what the sum of everything is held under.
         _body.Add(Controls.Heading("Scale"));
@@ -96,8 +93,7 @@ sealed class GlobalPanel
 
         _body.Add(_keys);
 
-        _body.Add(Controls.Divider());
-        _body.Add(Controls.Heading("Limiter"));
+        _body.Add(Controls.Heading("Limiter", follows: true));
 
         // Threshold first, because it is the one that is played. The other two are the
         // shape of what it does.

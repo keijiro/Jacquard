@@ -104,13 +104,17 @@ sealed class InspectorPanel
         Section(BuildDelete());
     }
 
-    // Adds a section under a rule of its own, unless it turned out to hold nothing:
-    // a lock keeps everything it owns on the Lock panel, and a rule with a gap under
-    // it would be a line with nothing to separate.
+    // Adds a section unless it turned out to hold nothing: a lock keeps everything it
+    // owns on the Lock panel, so what would go here is an empty box, and a section that
+    // carries air over it would leave that air behind.
+    //
+    // Nothing is drawn between two of them. What ends up on this panel is a list of
+    // rows and a button under it, so the only break is the air the foot row carries;
+    // a rule between the sections would be marking a seam the eye has no use for, now
+    // that a rule belongs to a heading rather than to the seam between two groups.
     void Section(VisualElement content)
     {
         if (content.childCount == 0) return;
-        _body.Add(Controls.Divider());
         _body.Add(content);
     }
 
@@ -189,7 +193,7 @@ sealed class InspectorPanel
         // better say rather than leave to be found out.
         var head = _editor.Cell.Kind == CellKind.Head;
 
-        var row = Controls.Row();
+        var row = Controls.Foot();
         row.Add(Controls.Push(head ? "Delete lane" : "Delete",
                               () => Act(_editor.Delete), head ? 74 : 54));
         return row;
@@ -237,7 +241,7 @@ sealed class InspectorPanel
                               value => { cycle.Period = Mathf.RoundToInt(value);
                                          Touch(); }));
 
-        body.Add(Controls.Heading("Fires on"));
+        body.Add(Controls.Heading("Fires on", follows: true));
 
         _laps = new LapSwitches(cycle, lap => Act(() =>
                   { cycle.SetFires(lap, !cycle.Fires(lap)); Touch(); }));
@@ -257,9 +261,9 @@ sealed class InspectorPanel
         // on running: which lane is the master is a position and not a property, so the
         // switch belongs to the lane for whenever it stops being the one. The cell is what
         // shows the difference, by staying solid.
-        // The state is written on it as well as shown by the fill, the way the Step row
-        // prints the division it is set to: one press instead of the chooser's two arrows,
-        // and the same reading either way.
+        // The state is written on it as well as shown by the fill, the way the step
+        // length row prints the division it is set to: one press instead of the chooser's
+        // two arrows, and the same reading either way.
         //
         // Pressed, it writes the switch and lets Touch bring the panel back into line, the
         // same road a double click on the cell takes. Two roads into one control is exactly
@@ -279,7 +283,11 @@ sealed class InspectorPanel
         var divisions = new List<string>();
         foreach (var d in ChannelTile.Divisions) divisions.Add("1/" + d);
 
-        body.Add(Controls.Chooser("Step", divisions,
+        // "Step length" and not "Step", which named the thing rather than what is being
+        // set about it: what the row holds is how long one step of this lane lasts, and
+        // it stands two rows above a count of those steps. One of them says how long and
+        // the other says how many, and neither can be read as the other now.
+        body.Add(Controls.Chooser("Step length", divisions,
                                   () => System.Array.IndexOf(ChannelTile.Divisions,
                                                              channel.Division),
                                   index => { channel.Division = ChannelTile.Divisions[index];
@@ -296,16 +304,24 @@ sealed class InspectorPanel
         Controls.SetActive(_play, channel.Enabled);
     }
 
+    // What the head cell sets about the lane hanging off it, which is one row.
+    //
+    // No heading over it. A heading is for a group, and a group of one is a line of
+    // chrome saying what the row under it could say itself: named "Lane steps" the row
+    // is already the lane's, and on a jump target — where there is nothing else on the
+    // panel at all — the heading was a title over a single stepper.
+    //
+    // So it joins the rows above it rather than standing apart from them, which is also
+    // the truth of the thing: how long a step lasts is on the head cell and how many of
+    // them there are is the lane, and a hand setting one is usually setting the other.
     VisualElement BuildLane(Lane lane)
     {
         var body = new VisualElement();
 
-        body.Add(Controls.Heading("Lane"));
-
         // The one number here that is still stepped rather than scrubbed: a step is a
         // cell, growing only happens where there is free ground for one, and a refused
         // step is something to see one at a time rather than to drag through.
-        body.Add(Controls.Stepper("Steps", () => lane.Steps.Count,
+        body.Add(Controls.Stepper("Lane steps", () => lane.Steps.Count,
                                   value => _editor.ResizeLane(
                                     value > lane.Steps.Count ? 1 : -1), 1, "0"));
 

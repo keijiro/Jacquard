@@ -17,9 +17,11 @@ namespace Jacquard.App {
 //
 // What the old argument was really about is that the first row of a group sat against a
 // rule and the last sat against nothing, which made a run of them read as one loose
-// list. The answer to that is the rule above each heading rather than a panel around
-// each group: it is the shape the Global panel already stands its Scale and its Limiter
-// in, and this is now the second place it is used rather than the exception it was.
+// list. The answer to that is a heading with the rule under it and air over it, which is
+// the shape every panel here now groups by — see Controls.Heading. A rule that stood
+// between two groups belonged to neither of them and said only that something changes
+// here; under the name it belongs to the name, and the group it heads is everything down
+// to the next patch of air.
 //
 // Grouping inside a panel is affordable in a way it was not, because a panel is about to
 // stop being bounded by the shortest screen this runs on: once a panel scrolls, height
@@ -100,15 +102,9 @@ sealed class SendPanel
 
         _body.Clear();
 
-        // Under the header, where every panel here puts one.
-        _body.Add(Controls.Divider());
-
         // The reverb first, because that is the order the two are read in on the Sound
         // panel, where the amount feeding each of them is set.
         BuildReverb();
-
-        _body.Add(Controls.Divider());
-
         BuildDelay();
     }
 
@@ -126,7 +122,7 @@ sealed class SendPanel
 
     void BuildDelay()
     {
-        _body.Add(Controls.Heading("Delay"));
+        _body.Add(Controls.Heading("Delay", follows: true));
 
         // The one control here that is not a bar. A delay time is a note value rather
         // than a number, so what it needs is a list to step through: sequencer.md
