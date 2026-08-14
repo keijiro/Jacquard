@@ -34,21 +34,22 @@ Using it
 | New lane | Select bare ground, then New lane; delete a lane from its `CHAN` cell |
 | Stop or start a lane | Double click its `CHAN` cell, or Play on the panel that cell opens |
 | Branch | The `JUMP` button, which brings its `JDST` lane with it |
-| Details of a tile | The panel on the right follows the cursor |
+| Details of a tile | The panel on the right follows the cursor; drag it up and down when it is longer than the screen |
 | Set a number | Drag its bar right or up, shift for fine; double click to type one |
-| Timbre | Select a `CHAN` cell, which brings up the Sound panel for its channel |
-| Move a channel in pitch | Transpose, the first row of its Sound panel, in semitones |
-| Thicken a channel | Unison, under Pan on its Sound panel: above zero every note sounds twice, detuned apart and spread across the image. The image opens over the first three tenths and the rest of the bar goes on detuning, up to just past being out of tune. A note already panned to one side keeps its position and spreads by whatever room is left |
+| Timbre | Select a `CHAN` cell, which puts its channel's sound on the Tile panel, under the lane |
+| Move a channel in pitch | Transpose, the first row of its sound, in semitones |
+| Thicken a channel | Unison, under Pan in its sound: above zero every note sounds twice, detuned apart and spread across the image. The image opens over the first three tenths and the rest of the bar goes on detuning, up to just past being out of tune. A note already panned to one side keeps its position and spreads by whatever room is left |
 | Hold the piece to a key | The Global button opens the panel the Scale is set on, a switch per semitone laid out as a keyboard |
 | Silence a channel, or hear one alone | The Channels button opens a row per channel, with a Mute and a Solo switch on each; a solo overrules every mute, and both are saved with the score |
 | Go to a channel | Select on its row, which puts the cursor on the `CHAN` tile that names it |
-| Reverb and delay | The Send FX button opens the panel they are set on; how much of a channel reaches each is the last two rows of its Sound panel |
+| Reverb and delay | The Send FX button opens the panel they are set on; how much of a channel reaches each is the last two rows of its sound |
 | Play the sequence by hand | The Live FX button opens a row of buttons that act while they are held |
 | Loudness and punch | The same Global panel holds the limiter; Threshold is the one that is played, and the make-up gain follows it so the mix gets louder as it gets harder; the bottom of that bar is the whole mix through the soft clip |
-| What a lock holds | Select it, then move a bar on the Lock panel; click a name to let go |
+| What a lock holds | Select it, then move a bar on the Tile panel; click a name to let go |
 | Play | Space, or the Play button |
 | Tempo | The bpm bar beside Play, which the delay is in time with |
 | Pan the plane | Drag from an empty cell, two finger swipe, or command+drag |
+| Reach a control off the edge | Drag the row or the panel it is on: the transport slides sideways and a column of panels slides up and down whenever it holds more than the screen does |
 
 The Visualizer button puts the synth behind the score, in a wash the eye can ignore:
 the output as a trace across the middle and the twenty-four voice slots as a row along
@@ -152,7 +153,7 @@ the site's data.
 Loading while the sequence is running does not stop it. The score waits for the turn
 of the piece — the lap of the topmost channel one lane — and then the music carries
 straight on into it, with nothing between the two and whatever was sounding left to
-ring out. While it waits, the plane and the two panels that edit the score are dimmed
+ring out. While it waits, the plane and the panel that edits the score are dimmed
 and take no presses, since an edit could move the line the switch is measured on; the
 mix and the live effects go on working, and the plane comes back the moment the music
 turns over. A request cannot be taken back — Stop is what ends the wait, and the score
@@ -173,6 +174,11 @@ Documentation
 | [Docs/mockup.html] | The static mockup the look comes from |
 | [Docs/implementation.md] | How it is built, and the decisions behind it |
 | [Branding/README.md] | The marks, and how they are cut from the type |
+
+The interface is set in [Antic Didone], under the SIL Open Font License; the licence
+is kept beside the font at `Assets/UI/Fonts/`.
+
+[Antic Didone]: https://fonts.google.com/specimen/Antic+Didone
 
 [Docs/prototype.md]: Docs/prototype.md
 [Docs/sequencer.md]: Docs/sequencer.md

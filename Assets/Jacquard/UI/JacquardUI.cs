@@ -72,13 +72,11 @@ sealed class JacquardUI
         _view.TilesDropped += _editor.DropTiles;
         _view.LaneDropped += _editor.DropLane;
 
+        // The one panel the cursor answers to. What used to stand under it — the sound
+        // of the channel a CHAN tile names, the hold a lock has on one — are groups of
+        // it now: a panel that can only be up while this one is showing a particular
+        // kind of tile was a group of this one wearing a frame.
         _inspector = new InspectorPanel(_editor);
-
-        // These two share the slot under the inspector. Only one of them ever
-        // answers to the tile under the cursor, so neither has to know about the
-        // other.
-        _sound = new SoundPanel(_editor);
-        _lock = new LockPanel(_editor);
 
         // The effects are the project's, not a cell's, so they get a column of their
         // own rather than a slot in the cursor's. One panel with a heading over each
@@ -86,8 +84,7 @@ sealed class JacquardUI
         _send = new SendPanel(_editor);
 
         body.Add(PanelEdge(false, PanelColumn(_send.Root),
-                                  PanelColumn(_inspector.Root, _sound.Root,
-                                              _lock.Root)));
+                                  PanelColumn(_inspector.Root)));
         ShowSend(false);
 
         // The other edge, which is the one place a column is never covered by the
@@ -154,7 +151,6 @@ sealed class JacquardUI
 
         _view.Locked = _locked;
         Controls.SetLocked(_inspector.Root, _locked);
-        Controls.SetLocked(_lock.Root, _locked);
         _load.style.opacity = _locked ? Style.DimmedOpacity : 1.0f;
     }
 
@@ -275,16 +271,29 @@ sealed class JacquardUI
     // never as tall as the screen; a column that grows downwards costs only what it is
     // using.
     //
-    // A column is transparent to the pointer and only as tall as what is on it, so the
-    // plane stays reachable everywhere a panel is not actually drawn.
+    // A column is transparent to the pointer, so the plane stays reachable everywhere a
+    // panel is not actually drawn: it reaches the bottom of the screen whether or not
+    // anything is standing that far down it.
+    //
+    // It is a strip and not a plain box because what it holds can be taller than the
+    // screen — a channel start puts a lane and a whole patch on the Tile panel — and a
+    // parameter under the bottom edge is a parameter that cannot be set. Dragged, the
+    // column travels; on a screen it fits, nothing about it moves and a press on a
+    // panel is a press on a panel. See ScrollStrip.
+    //
+    // The width has to be said here, since the strip's content is positioned rather
+    // than laid out and a positioned box has no width of its own to give back. Every
+    // panel that stands in a column is this wide.
     static VisualElement PanelColumn(params VisualElement[] panels)
     {
-        var column = new VisualElement();
+        var column = new ScrollStrip(vertical: true);
+        column.style.width = Controls.PanelWidth;
         column.style.flexShrink = 0;
         // The gap to whatever stands to the right of it, by the same rule the rest of
         // this file follows. The last column on an edge gives its own back below.
         column.style.marginRight = Controls.PanelGap;
         column.pickingMode = PickingMode.Ignore;
+        column.contentContainer.pickingMode = PickingMode.Ignore;
 
         foreach (var panel in panels) column.Add(panel);
 
@@ -315,8 +324,13 @@ sealed class JacquardUI
         var edge = new VisualElement();
         edge.style.position = Position.Absolute;
         edge.style.top = Controls.PanelGap;
+        // Down to the far corner, and stretched, which is what gives a column a height
+        // to be longer than. Held off the bottom by the gap it is held off the top and
+        // the side by, so a column that runs the whole way reads as one that carries on
+        // rather than as one that has hit the edge of the screen.
+        edge.style.bottom = Controls.PanelGap;
         edge.style.flexDirection = FlexDirection.Row;
-        edge.style.alignItems = Align.FlexStart;
+        edge.style.alignItems = Align.Stretch;
         edge.pickingMode = PickingMode.Ignore;
 
         if (onLeft)
@@ -388,10 +402,10 @@ sealed class JacquardUI
     // A row that can be dragged sideways, since what is on this one is not a list that
     // can be shortened: every switch on it raises something no cell can ask for, so a
     // narrow screen has to be able to reach all of them rather than the first few. See
-    // ScrollRow — on a screen the row fits, it is a row.
+    // ScrollStrip — on a screen the row fits, it is a row.
     static VisualElement Bar()
     {
-        var row = new ScrollRow();
+        var row = new ScrollStrip(vertical: false);
         row.style.flexShrink = 0;
         row.style.height = Controls.ToolbarHeight;
         // The one part of the chrome that paints its own ground. It took it from the
@@ -479,10 +493,6 @@ sealed class JacquardUI
     {
         _view.Rebuild();
         _inspector.Refresh();
-        // A renumbered CHAN tile changes which sound the cursor is standing over,
-        // and moving a lane can change which channel a lock colours.
-        _sound.Refresh();
-        _lock.Refresh();
         // Not in OnCursorMoved, since nothing on the send panel answers to a cell. This
         // is for the one change that does reach it: a load, which arrives with effect
         // settings of its own.
@@ -495,14 +505,9 @@ sealed class JacquardUI
         _global.Refresh();
     }
 
-    // Every panel on the right shows whatever the cursor is on: the inspector the
-    // tile, and beside it either the timbre of a channel or the hold a lock has on one.
-    void OnCursorMoved()
-    {
-        _inspector.Refresh();
-        _sound.Refresh();
-        _lock.Refresh();
-    }
+    // The one panel that shows whatever the cursor is on: the tile, the lane it heads,
+    // the sound it names and the hold it has on one, whichever of those the cell has.
+    void OnCursorMoved() => _inspector.Refresh();
 
     // The one thing that raises and lowers the send effects. It is the transport button
     // and nothing else, so the button's own look and what it shows are set in the same
@@ -660,8 +665,6 @@ sealed class JacquardUI
     readonly ScoreView _view;
     readonly ScrollArea _scroll;
     readonly InspectorPanel _inspector;
-    readonly SoundPanel _sound;
-    readonly LockPanel _lock;
     readonly SendPanel _send;
     readonly ChannelsPanel _channels;
     readonly GlobalPanel _global;

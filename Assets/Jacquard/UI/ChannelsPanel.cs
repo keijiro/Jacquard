@@ -95,7 +95,7 @@ sealed class ChannelsPanel
 
     // A channel
     //
-    // An element of its own for the reason LockPanel's row is one: what a row shows is
+    // An element of its own for the reason a lock's row is one: what a row shows is
     // read off the model every time it is asked, so there is nothing to keep in step by
     // hand and no list of closures standing in for the tree.
 

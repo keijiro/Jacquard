@@ -16,6 +16,14 @@ namespace Jacquard.App {
 // description of nothing, ground with no lane on it offers a lane, and everything
 // else offers what it is and a way to remove it. There is no palette elsewhere on
 // the screen, so a button that is not on this panel cannot apply to this cell.
+//
+// Everything the cell decides is here, which is why the panel runs long: a channel
+// start carries the lane it heads and the sound that channel is voiced in as well as
+// its own three rows, and a lock carries a row for every parameter it could take hold
+// of. Those were panels of their own stacked under this one, each up only while this
+// one was showing a particular kind of tile — which is a group of this panel wearing a
+// frame, and a second header saying what the cursor had already said. What pays for the
+// length is that a column of panels scrolls.
 
 sealed class InspectorPanel
 {
@@ -43,8 +51,13 @@ sealed class InspectorPanel
         // Two empty cells are not the same cell: one may take a tile and the other
         // only a lane, and neither has a tile to tell them apart by.
         var place = _editor.CanPlace;
+        // And a lock can change channels without moving: renumbering the CHAN above it
+        // does that, and so does dragging the lane under a different jump. Asked only
+        // for a lock, since nothing else here is built out of it.
+        var channel = tile is ParamTile ? _editor.Score.ChannelOf(lane) : 0;
 
-        if (!force && tile == _tile && lane == _lane && place == _place)
+        if (!force && tile == _tile && lane == _lane && place == _place &&
+            channel == _channel)
         {
             // The same tile, but its values may have changed from elsewhere — a
             // transpose from the keys, a load — so the bars still have to be pulled
@@ -58,10 +71,14 @@ sealed class InspectorPanel
             ValueBar.SyncAll(_body);
             _laps?.Sync();
             SyncPlay();
+            // A lock row shows a bar and whether the lock is holding it, and the second
+            // of those is not a bar. Everything it shows can change without the row
+            // changing, which is why they are synced rather than built again.
+            foreach (var row in _body.Query<LockRow>().Build()) row.Sync();
             return;
         }
 
-        (_tile, _lane, _place) = (tile, lane, place);
+        (_tile, _lane, _place, _channel) = (tile, lane, place, channel);
 
         _body.Clear();
         Build(tile, lane);
@@ -76,6 +93,7 @@ sealed class InspectorPanel
     Tile _tile;
     Lane _lane;
     bool _place;
+    int _channel;
 
     // The bars are found again by a query over the body; these two are held onto
     // instead, and let go of whenever the body they stood in is cleared.
@@ -100,6 +118,10 @@ sealed class InspectorPanel
         // The head is the one cell that is the lane rather than something standing
         // on it, so it is where the lane itself is worked on.
         if (_editor.Cell.Kind == CellKind.Head && lane != null) Section(BuildLane(lane));
+
+        // And under the lane, for the one head that names a channel, the sound that
+        // channel is voiced in.
+        if (tile is ChannelTile sound) Section(BuildSound(sound));
 
         Section(BuildDelete());
     }
@@ -169,9 +191,8 @@ sealed class InspectorPanel
         return row;
     }
 
-    // The controls belonging to the tile itself. A lock has none: which parameters
-    // it holds is a list of every target rather than a row or two, so it is the Lock
-    // panel's, and a jump has nothing to set at all.
+    // The controls belonging to the tile itself. A jump has none: there is nothing to
+    // set on one, since where it goes is drawn on the plane.
     VisualElement BuildTile(Tile tile)
     {
         var body = new VisualElement();
@@ -182,10 +203,96 @@ sealed class InspectorPanel
             case CycleGateTile cycle: BuildCycle(body, cycle); break;
             case ProbGateTile prob: BuildProb(body, prob); break;
             case ChannelTile channel: BuildChannel(body, channel); break;
+            case ParamTile param: BuildLock(body, param); break;
         }
 
         return body;
     }
+
+    // What one parameter lock takes hold of.
+    //
+    // The same list the sound group shows, in the same order and over the same ranges,
+    // because it is the same set: every field of the patch is a lock target. Reading a
+    // lock against the timbre it colours only works if the two are laid out alike.
+    //
+    // A row starts released and greyed, and reads out what the channel does without it.
+    // Moving its bar is what takes hold of that parameter — there is no separate step
+    // for arming one, since a value nobody set is not a lock — and clicking its name
+    // lets go again. Whatever is left grey is untouched by this tile, so a lock holding
+    // nothing at all does nothing at all, which is what a freshly placed one is.
+    //
+    // The heading carries the channel, which is the one thing here a lock cannot say for
+    // itself: the tile does not hold a number, and a branch lane borrows one from the
+    // jump that reaches it. It was the header of a panel of its own, standing under this
+    // one and up only while this one was showing a lock — a group of this panel wearing
+    // a frame, the same as the sound was.
+    void BuildLock(VisualElement body, ParamTile tile)
+    {
+        body.Add(Controls.Heading("Channel " + _channel));
+
+        for (var target = 0; target < ParamTargets.Count; target++)
+            body.Add(new LockRow(this, tile, target));
+    }
+
+    // What a lock row shows while nothing holds it: where the channel already stands for
+    // an absolute lock, and no shift at all for a relative one. Either way it is what the
+    // parameter does if this tile is left alone, which is also where a drag that takes
+    // hold of it starts from.
+    float Released(ParamTile tile, int target)
+      => tile is AbsoluteParamTile
+         ? ParamTargets.Get(_editor.Project.Patches[_channel], target) : 0.0f;
+
+    // One channel's timbre, under the tile that names the channel.
+    //
+    // It was a panel of its own standing under this one, which is a panel that could
+    // only ever be up while this one was showing a CHAN tile, headed with the number
+    // the row above it already gives. What it is instead is the last group of the tile
+    // it belongs to: the cursor is on the cell, and everything the cell decides is on
+    // the one panel, in the order the decisions are made — which lane, how it runs,
+    // how long it is, and then what it sounds like.
+    //
+    // What it lists is the parameter lock targets in their own order, and that is the
+    // whole patch: seeing what a lock can reach, and where the channel currently sits
+    // inside each range, is what makes a lock's amount mean something.
+    //
+    // The rows read the channel off the tile rather than off a number of their own, so
+    // renumbering the CHAN cell moves the whole group to the other channel with nothing
+    // rebuilt. A channel with no lane cannot be edited here, which costs nothing: it has
+    // no way of sounding either, and its patch is still saved and loaded with the rest.
+    VisualElement BuildSound(ChannelTile channel)
+    {
+        var body = new VisualElement();
+
+        body.Add(Controls.Heading("Sound", follows: true));
+
+        // Every bar sounds a note on the channel once its value has settled, which is
+        // the whole of the auditioning: a drag down a bar is one note rather than a
+        // burst of them, and a parameter is heard where it was left. There is no button
+        // beside it asking for the same note again — a bar that has just been moved has
+        // already played it, and one that has not is one nothing was asked about.
+        for (var target = 0; target < ParamTargets.Count; target++)
+        {
+            var index = target;
+            body.Add(Controls.Bar(ParamTargets.Name(index), ParamRanges.Of(index),
+                                  () => ParamTargets.Get(Patch(channel), index),
+                                  value => Set(channel, index, value),
+                                  () => Audition(channel)));
+        }
+
+        return body;
+    }
+
+    // The bank hands out a reference, which is what lets a field be written in place
+    // and a lock target be pointed at.
+    ref FmPatch Patch(ChannelTile channel)
+      => ref _editor.Project.Patches[channel.Channel];
+
+    // Nothing to tell the sequencer either way: it reads the bank afresh every instant,
+    // since a lock never outlives one.
+    void Set(ChannelTile channel, int target, float value)
+      => ParamTargets.Set(ref Patch(channel), target, value);
+
+    void Audition(ChannelTile channel) => _editor.Preview(60, channel.Channel);
 
     VisualElement BuildDelete()
     {
@@ -455,6 +562,144 @@ sealed class InspectorPanel
 
         readonly CycleGateTile _cycle;
         readonly Button[] _switches = new Button[CycleGateTile.MaxPeriod];
+    }
+
+    // A parameter of a lock, held or not.
+    //
+    // An element of its own rather than a row plus a list of closures, for the reason
+    // ValueBar.SyncAll gives: the tree already knows what is on screen.
+    sealed class LockRow : VisualElement
+    {
+        public LockRow(InspectorPanel panel, ParamTile tile, int target)
+        {
+            (_panel, _tile, _target) = (panel, tile, target);
+
+            style.flexDirection = FlexDirection.Row;
+            style.alignItems = Align.Center;
+            style.flexShrink = 0;
+            style.marginBottom = Controls.Gap;
+
+            _caption = Controls.Caption(ParamTargets.Name(target));
+
+            // Every label this UI builds is transparent to the pointer, so that the
+            // text on a cell does not eat the click meant for the cell and the readout
+            // on a bar does not eat the drag meant for the bar. This one is the
+            // exception: it is the control, not a label on one.
+            _caption.pickingMode = PickingMode.Position;
+
+            // And it is as tall as the bar beside it rather than as tall as its own
+            // line of text, so that what can be clicked is the row the name sits on
+            // and not a twelve pixel strip through the middle of it.
+            _caption.style.height = Controls.RowHeight;
+
+            _caption.RegisterCallback<PointerDownEvent>(OnCaptionDown);
+            _caption.RegisterCallback<PointerUpEvent>(OnCaptionUp);
+            _caption.RegisterCallback<PointerEnterEvent>(_ => SetHover(true));
+            _caption.RegisterCallback<PointerLeaveEvent>(_ => SetHover(false));
+            Add(_caption);
+
+            // An absolute lock holds a value the target could hold itself, so its bar
+            // is the target's own; a relative one holds a shift, and reads from the
+            // middle. Neither depends on whether the row is held, so taking hold of a
+            // parameter never rebuilds anything.
+            var range = tile is AbsoluteParamTile
+              ? ParamRanges.Of(target) : ParamRanges.Relative(target);
+
+            _bar = Controls.Bar(range, Get, Set);
+            _bar.style.flexGrow = 1;
+            Add(_bar);
+
+            Sync();
+        }
+
+        // Pulls the row back in line with the tile, in both of the things it shows: the
+        // number, and whether the lock is holding it.
+        public void Sync()
+        {
+            _bar.Sync();
+            UpdateAppearance();
+        }
+
+        // Private members
+
+        readonly InspectorPanel _panel;
+        readonly ParamTile _tile;
+        readonly int _target;
+        readonly Label _caption;
+        readonly ValueBar _bar;
+
+        bool _hover;
+
+        bool Engaged => _tile.IsEngaged(_target);
+
+        float Get() => Engaged ? _tile[_target] : _panel.Released(_tile, _target);
+
+        // Setting a value is what takes hold of the parameter. Nothing else does, which
+        // is what makes an untouched row mean untouched.
+        void Set(float value)
+        {
+            _tile.Engage(_target, value);
+            UpdateAppearance();
+            _panel._editor.Commit();
+        }
+
+        void OnCaptionDown(PointerDownEvent e)
+        {
+            if (e.button != 0) return;
+
+            // Letting go is the only thing the name does that the bar cannot. Taking
+            // hold from it as well is worth having anyway: a parameter is sometimes
+            // wanted exactly where it already is, and there is no drag that says so.
+            if (Engaged) _tile.Release(_target); else _tile.Engage(_target, Get());
+
+            Sync();
+            _panel._editor.Commit();
+
+            // The pointer is captured so that the release is seen here even if the hand
+            // slid off the name in between, which is what makes the keyboard handover
+            // below certain rather than merely likely.
+            _caption.CapturePointer(e.pointerId);
+
+            e.StopPropagation();
+        }
+
+        // The name is not focusable, so the press that reached it took the keyboard away
+        // from whatever had it and gave it to nothing. Handing it back is what every
+        // button on the toolbar does after being pressed, and for the same reason:
+        // letting go of a parameter must not quietly be the end of typing notes on the
+        // grid.
+        //
+        // It waits for the release because the focus controller settles the press
+        // itself, after this element has seen it — focusing from the press handler is
+        // simply undone. ValueBar returns the keyboard at the end of a drag for the same
+        // reason.
+        void OnCaptionUp(PointerUpEvent e)
+        {
+            if (!_caption.HasPointerCapture(e.pointerId)) return;
+
+            _caption.ReleasePointer(e.pointerId);
+            _panel._editor.View.Focus();
+
+            e.StopPropagation();
+        }
+
+        void SetHover(bool on)
+        {
+            _hover = on;
+            UpdateAppearance();
+        }
+
+        // A released row is dimmed whole, bar and all, the way the rails and a note's
+        // length label are dimmed: it is the same content, further back. The name lights
+        // under the pointer, since clicking it is the one thing here that a greyed
+        // control would otherwise say is not available.
+        void UpdateAppearance()
+        {
+            var engaged = Engaged;
+
+            style.opacity = engaged ? 1.0f : Style.DimmedOpacity;
+            _caption.style.color = engaged || _hover ? Style.NoteText : Style.Label;
+        }
     }
 }
 

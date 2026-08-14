@@ -144,8 +144,8 @@ Notes on the prototype
 - **Timbre belongs to the channel**, not to the project: the bank holds one patch
   per channel and a `CHAN` tile's number picks the sound as well as the stream, so
   lanes sharing a channel share a patch and a branch lane borrows the one of
-  whatever jumps into it. The Sound panel is where that patch is edited, and an
-  edit is heard from the next instant with nothing to undo.
+  whatever jumps into it. The sound group of the Tile panel is where that patch is
+  edited, and an edit is heard from the next instant with nothing to undo.
 - **A send is in the patch; what it feeds is in the project.** There is one reverb and
   one delay for the whole score, so their settings sit on `Project` beside the tempo —
   but *how much* of a note reaches each is two more fields of `FmPatch`, which makes
@@ -191,8 +191,8 @@ Notes on the prototype
   Two voices was the obvious alternative and it loses three ways. The pool is
   twenty-four slots, so a pair per note halves the polyphony, and slots are the scarce
   thing here where CPU is not — the mix costs 1.29ms of a 5.3ms buffer with all
-  twenty-four sounding. A note is made in three places — the sequencer, the Sound
-  panel's audition and `LiveFx`, which colours events after the fact — so a pair made
+  twenty-four sounding. A note is made in three places — the sequencer, a sound bar's
+  audition and `LiveFx`, which colours events after the fact — so a pair made
   upstream is a pair three call sites have to keep making correctly. And `Trigger`
   knows nothing about pairs, so stealing would take one half and leave the other
   sounding alone: a note that goes half out of tune exactly when the music is densest.
@@ -367,9 +367,14 @@ Notes on the prototype
   the sequencer may well be playing through the edit. `ValueBar.Bind`'s optional
   `settled` runs once the number has stopped moving instead: at the end of a drag, or
   immediately for anything that was never a drag, since a typed value arrives already
-  decided. The Sound panel's audition hangs off it, and so does the note the Tile
-  panel's pitch bar plays. Sounding a note per event turned a drag down a bar into a
-  burst of a hundred, none of which was the value being chosen.
+  decided. The audition of a sound row hangs off it, and so does the note a pitch bar
+  plays. Sounding a note per event turned a drag down a bar into a burst of a hundred,
+  none of which was the value being chosen.
+
+  That is now the whole of the auditioning. There was an *Audition* button under the
+  sound rows asking for the same note on demand, and it is gone: a bar that has just
+  been moved has already played it, and one that has not is one nothing was asked
+  about.
 
   **Travel is a ratio wherever the range spans decades**, and an exponent is the wrong
   shape for one. `Range.Curve` was the first answer, and on an envelope time it put
@@ -435,41 +440,74 @@ Notes on the prototype
 
   The panel grows by about a hundred points at the longest period, and it can afford
   to: eight switches to a line is a bar of sixteenths and puts thirty-two laps in four
-  lines, and a gate cell is not a `CHAN` cell, so this panel is never the one standing
-  over a fifteen row Sound panel.
-- **A panel shows what the cursor is on**, and nothing is toggled. The tile panel
-  keeps the corner and follows the cursor; beside it comes up either the Sound
-  panel, while a `CHAN` cell is selected, or the Lock panel, while a `PABS` or
-  `PREL` cell is. Those two are the same list of parameters read two ways — what a
-  channel sounds like, and what one step does to it — and they share a slot because
-  no cell is both. There is no window to open, and so no state on screen that the
-  score does not decide.
+  lines, and a gate cell is not a `CHAN` cell, so these switches never stand on the same
+  panel as the fifteen rows of a channel's sound.
+- **One panel shows what the cursor is on**, and nothing is toggled. The Tile panel
+  keeps the corner and follows the cursor, and everything the cell decides is on it as a
+  group of its own: the tile's own rows, the lane a head carries, the sound of the
+  channel a `CHAN` names, the parameters a `PABS` or `PREL` takes hold of. There is no
+  window to open, and so no state on screen that the score does not decide.
+
+  The sound and the lock were panels of their own, stacked under this one and sharing a
+  slot because no cell is both. Each could only ever be up while this panel was showing
+  one particular kind of tile — which is a group of this panel wearing a frame, paying a
+  header, an inset and a panel gap to repeat what the cursor had already said. They are
+  still the same list of parameters read two ways, what a channel sounds like and what
+  one step does to it, laid out alike so that one can be read against the other; what
+  changed is that reading one no longer means reading two headers.
 
   **A panel's header is its subject, not its name.** It reads *Note Tile*, *Cycle Gate
-  Tile*, *Channel 1 Sound*, *Channel 5 Lock* — the kind of panel and the thing it is
-  showing on one line, since which panel this is was never in doubt and the thing
-  changes under the cursor. Each of them used to say the kind in the header and repeat
-  the subject in a caption row underneath, which cost every panel a row to say half of
-  what one line says now. `Controls.Panel` hands the header label back for this, and
-  the panels that never change subject — Reverb and Delay — simply do not ask for it.
+  Tile*, *Channel Start Tile* — the kind of panel and the thing it is showing on one
+  line, since which panel this is was never in doubt and the thing changes under the
+  cursor. It used to say the kind in the header and repeat the subject in a caption row
+  underneath, which cost a row to say half of what one line says now. `Controls.Panel`
+  hands the header label back for this, and the panels that never change subject — Send
+  FX, Global, Channels, Live FX — simply do not ask for it.
 
-  **A panel is spaced out of two numbers.** `Controls.Gap` is the space between any two
-  things standing next to each other — two rows, two buttons, a heading and what it
-  heads, the header and the rule under it — and `Controls.Inset` is the panel's own
-  margin from its edge to everything it holds. Nothing in a panel is a number of its
-  own any more; what is not one of the two is a stated subtraction from one.
+  A group inside a panel is named by the same rule. *Sound* needs no number, because the
+  Channel row is two lines above it; a lock's group is headed *Channel 5*, because a
+  lock is the one thing here that cannot say which channel it colours — the tile holds
+  no number and a branch lane borrows one from the jump that reaches it.
+
+  **A panel draws no outline and cuts no corners.** It used to do both, in the grey its
+  own buttons are outlined in and to the same kind of radius they are cut to, which in
+  the only vocabulary this chrome has says that a panel is a control with smaller ones
+  inside it. What tells a panel from the plane is that it is a lighter ground with air
+  around it, which is enough on a screen where nothing else is a filled rectangle that
+  size. A corner radius now means one thing: a cell or a control, something a hand picks
+  up.
+
+  **A panel is spaced out of three numbers.** `Controls.Gap` is the space between any
+  two things standing next to each other — two rows, two buttons, a heading and what it
+  heads; `Controls.Inset` is the panel's own margin from its edge to everything it
+  holds; and `Controls.GroupGap`, twice a gap, is what parts one group of rows from the
+  next. Nothing in a panel is a number of its own; what is not one of the three is a
+  stated subtraction from one.
 
   The subtraction is always the same one. **A gap is carried below and to the right, by
-  the thing above and to the left of it**, so anything that comes between two others
-  adds only what is missing: a rule has no margin over it, because the row above has
-  already left one, and the panel's bottom inset is short by a gap because the last row
-  laid one down. That is what puts equal air on both sides of every rule without any of
-  them knowing what they are standing between.
+  the thing above and to the left of it**, so anything wanting more than a gap adds only
+  what is missing — a heading that follows anything carries the difference over it — and
+  the panel's bottom inset is short by a gap because the last row laid one down.
+
+  **The rule belongs to the heading, and it is the only rule left inside a panel.** A
+  line standing between two groups is owned by neither: it says that something ends here
+  and something begins, which leaves the first row of a group looking as much like the
+  end of the one above as the start of its own, so every group opened against a line and
+  closed against nothing. Under the name it belongs to the name, and the group it heads
+  runs from that line down to the next patch of air. A panel's own header carries no
+  mark at all now — it is the one line on a panel in the bright text every caption below
+  it is not — and a button at the foot of one, the *Delete* the Tile panel ends on, is
+  parted from the rows above it by the same air rather than by a rule that would be
+  heading nothing.
 
   The last piece is that **a heading is as tall as a row**, header included. A control
   is a twenty pixel box holding thirteen pixels of text, so a bare line of text between
   two of them is short by the air the boxes carry — every gap measures right and the
   words still crowd. Given the row height, the panels measure the same read either way.
+  The rule under a heading runs the width of the panel and not the width of the caption
+  column, which is the one thing a heading does not take from the captions it is set
+  in: a caption is that wide so that a column of them lines up with the controls beside
+  them, and a heading has no control beside it.
 
   **The send effects are the one exception, and they are the exception because they
   have to be.** One reverb and one delay for the whole project answer to no cell, so
@@ -484,22 +522,25 @@ Notes on the prototype
   right in a column of their own, on the inside of the cursor's: a panel that does not
   follow the cursor cannot queue up behind panels that do, and beside is where the two
   are read together — how much of a channel goes to the reverb is a row of that
-  channel's Sound panel, and this is what it goes to. They held the opposite corner
+  channel's sound group, and this is what it goes to. They held the opposite corner
   until the channels wanted it, which is the one place a column is never covered by the
   cursor's.
 
-  **One panel each, Reverb and Delay, and not one panel with two headings in it.** A
-  panel is already the thing that says *this group of rows is about that*, so a heading
-  inside one was a second answer to a question the panel had answered: the first row of
-  a group stood against a rule and the last against nothing, and the column read as one
-  loose list rather than as two settled ones. Split, each effect gets the header, the
-  rule and the inset every other group of rows on screen gets, and their column stacks
-  two panels the way the cursor's stacks its own. They are raised and lowered together,
-  since they are one setting of the project in two boxes rather than two things to
-  arrange.
+  **One panel with a heading over each effect, and not a panel each.** It was a panel
+  each, on the argument that a panel is already the thing that says *this group of rows
+  is about that*, so a heading inside one was a second answer to a question the panel had
+  answered. What that left out is what the second panel costs to say it: a header, a
+  rule, an inset above and below and the gap to the panel under it, paid over again for
+  something raised by one switch and set in one sitting. Two headings come to about what
+  that frame did — four units under it on the mouse profile and about as far over it on
+  the touch one, since a heading is a row and both a row and a frame grow with the
+  pointer — so the height was never what the split was buying. What the merge buys is
+  that the column reads as the one thing the Send FX button raises rather than as two
+  boxes that always arrived together and always left together.
 
   The button that raises them says **Send FX** and not Send. A send is what a *channel*
-  does, and the amounts are on the Sound panel named after the effect each one feeds; a
+  does, and the amounts are rows of the sound group named after the effect each one
+  feeds; a
   button called Send would be named after the sending and raise none of it. What comes
   up is the receiving end — which is why the button names the pair and each panel names
   an effect.
@@ -591,9 +632,11 @@ Notes on the prototype
   it. A Limiter panel would have been the right name for exactly as long as the limiter
   was the only setting of its kind, and a panel per setting is a row of switches on the
   transport for what is really one question — *what is set for the whole thing?* So the
-  panel answers that and each group inside it is headed, which makes it the one panel
-  here that needs headings; every other one holds a single kind of thing, which is the
-  argument that split the send effects into two panels in the first place. The scale
+  panel answers that and each group inside it is headed. It was the one panel built
+  that way, against an argument that a panel already says what a heading would; the send
+  effects and the cursor's panel are grouped the same way now, and what is left of the
+  distinction is that the groups here have nothing in common but being global. The
+  scale
   stands above the limiter in the order a note meets them: what it is allowed to be,
   and then what the sum of everything is held under.
 
@@ -800,8 +843,8 @@ Notes on the prototype
   that can press the switch first. It shows all eight channels at once because that is
   what it is for — a mute is only pressed against what the rest of the mix is doing. *Select* is the row's way onto the plane rather than
   a second way of opening a panel — it moves the cursor to the `CHAN` tile that names the
-  channel, and the Sound panel comes up because the cursor is on it, the same rule as
-  ever. A channel with no lane has nowhere to go and greys out, which is also the only
+  channel, and the Tile panel comes up showing that channel's sound because the cursor
+  is on it, the same rule as ever. A channel with no lane has nowhere to go and greys out, which is also the only
   place on screen that says which of the eight are in use.
 - **The Live FX panel is the one that is played rather than read**, so it is the one in
   neither column. The columns are where the eye goes — the cursor's panels and the send
@@ -816,8 +859,8 @@ Notes on the prototype
   and then the four rolls in length order, read down each column and then across. So
   where a button is says what it does before the word on it does.
 
-  **The names are a player's and not the code's**, the same split the Sound panel's
-  captions make. *Stab* is a gate of a tenth of a step with the tail cut back to match
+  **The names are a player's and not the code's**, the same split the sound captions
+  make. *Stab* is a gate of a tenth of a step with the tail cut back to match
   and *Sustain* is both doubled; *Rise* and *Fall* name what is heard where *Ramp* names
   the shape; *Reverb* and *Delay* name what receives, for the reason the Send FX button
   gives. The rolls are named by their length — *Roll 1/16*, *Roll 1/8*, *Roll 3/16*,
@@ -938,6 +981,32 @@ Notes on the prototype
   whatever nobody claimed; neither has to know what the other is for. Four pixels of
   travel separate a pan from a tap, since a fingertip does not hold still, and a
   click on bare ground still moves the cursor as it always did.
+- **The chrome scrolls the way the plane does, and takes its presses the other way
+  round.** A transport row is as wide as the words on its switches and a column of
+  panels is as long as whatever the cursor is standing on, so both run past a small
+  screen — and a switch off the edge cannot be pressed, a parameter under the bottom of
+  the screen cannot be set. `ScrollStrip` moves either of them under a drag along its
+  one axis, with the content translated rather than laid out again, which is the trick
+  `ScrollArea` uses on the plane.
+
+  What it cannot do is pan whatever press nobody claimed. There is no free ground on a
+  strip of chrome: three pixels between two switches, three between two rows. So the
+  press goes to the control it landed on as before, and is *taken away* from it once it
+  has travelled four pixels along the strip — the capture moves to the strip, which is
+  also what cancels the click that press was going to be. That cannot be left to the
+  release landing outside the button, the way a list usually decides, because the button
+  travels with the strip and stays under the pointer for the whole pan. A strip with
+  nowhere to go takes nothing from anything, so on a screen that fits, every control
+  behaves as it did before the strip existed.
+
+  Two things are the whole of the difficulty. **A held pointer is delivered to the
+  holder and to nothing else** — a `TrickleDown` handler on an ancestor sees nothing
+  from the moment a `Clickable` takes the press — so the strip registers a second copy
+  of its handlers on whatever the press landed on, for the length of that press, and a
+  test on who holds the pointer decides which of the two copies answers a move. And **a
+  control whose own gesture is a drag keeps it**: `ValueBar` is scrubbed with both axes,
+  so a bar handed the strip's rule would be a bar that cannot be set on exactly the
+  screens where the rule applies.
 - **A lane owns its whole row, written on or not.** What a lane occupies is the run
   it plays through — the rail from the head to the terminator, and whatever hangs
   under it — rather than the tiles that happen to be written on it so far. An empty
@@ -1060,8 +1129,8 @@ Notes on the prototype
   would run ahead of what is heard. `MasterRunner.PlayingStep` is the playhead-corrected
   answer to how far through the lap the music has got.
 - **The plane is held still while a score waits, and the screen follows the sound.**
-  `ScoreEditor.Locked` refuses every path into the score and the two panels that edit
-  one dim themselves and stop taking presses, because an edit that moved a lane would
+  `ScoreEditor.Locked` refuses every path into the score and the panel that edits one
+  dims itself and stops taking presses, because an edit that moved a lane would
   move the line the switch is measured on. Nothing about the mix is held — sound, sends,
   limiter, tempo, mutes and the live effects all go on working, since playing across the
   seam is the whole point of waiting for it. The plane takes the same 0.45 the mutes and
@@ -1194,27 +1263,33 @@ Notes on the prototype
   Two things deliberately do not move. `Style`'s cell pitch is untouched, because the
   score already read right on the iPad and only the chrome did not. And paddings,
   margins and dividers stay at their mouse values: the growth is spent on the targets
-  and not on the air between them, which a fifteen row Sound panel cannot afford.
+  and not on the air between them, which fifteen rows of sound cannot afford.
 
-  That row count is the number to watch. In the touch profile a row costs 33pt, and
-  the column — transport, Tile panel over a `CHAN` head, Sound panel — stands at
+  That row count used to be the number to watch. In the touch profile a row costs 33pt,
+  and the column — transport, Tile panel over a `CHAN` head, Sound panel — stood at
   roughly 919pt against 834 on an iPad Pro 11", 820 on an Air and 744 on a mini. The
-  column does not scroll, so the shortest screens genuinely lose their bottom rows,
-  and **every further lock target costs another 33pt off the same budget.** The
-  transpose is the row that took it from 853 to 886, and it was spent knowingly: what
-  it buys is a lock that moves a note rather than shapes one, which nothing else in the
-  list can do. The mouse profile measures 630pt of column at the same cursor, so this
-  is a tablet's problem and not a shape that is wrong everywhere.
+  column did not scroll, so the shortest screens genuinely lost their bottom rows, and
+  every further lock target cost another 33pt off the same budget. The transpose is the
+  row that took it from 853 to 886, and it was spent knowingly: what it buys is a lock
+  that moves a note rather than shapes one, which nothing else in the list can do. The
+  unison took it from 886 to 919 for the same kind of reason, and 886 was already over
+  every one of those screens — a second row in a row bought on credit, against a
+  statement here that the column needed somewhere to put a row before it could honestly
+  afford another.
 
-  The unison is the row that took it from 886 to 919, and it was spent for the same
-  kind of reason — what it buys is the one setting here that makes a channel sound
-  like more than one voice, which nothing else in the list can do at all. But 886 was
-  already over every one of those screens, so this row was not paid for out of a
-  budget that had anything left in it: it is the second one in a row bought on credit,
-  and **the column needs somewhere to put a row before it can honestly afford
-  another.** Which is the decision this section defers and should stop deferring —
-  a scroll on the cursor's column, or a Sound panel that groups its fifteen rows
-  behind something, since the metric profiles are not where the answer is.
+  **That is the debt the scrolling column pays off**, and it was paid in both of the
+  ways this section left open rather than in one. The cursor's column is a
+  `ScrollStrip`, so a row past the bottom of the screen is a row that has to be dragged
+  to rather than one that is gone. And the panels that used to stack in it were merged
+  into the one panel the cursor answers to, which gives back a header, two insets and a
+  panel gap per group — the sound and the lock each cost a frame to say what a heading
+  now says. A row still costs 33pt of travel, but it costs nobody a control they cannot
+  reach, which is what the budget was really counting.
+
+  The mouse profile measured 630pt of column at the same cursor, so this was always a
+  tablet's problem rather than a shape that is wrong everywhere. What is left of it is a
+  question of how far a hand has to drag before it sees the row it wants, which is a
+  thing to feel on glass and not a number to defend here.
 
   A scale on the panels was the alternative and it is ruled out by what is coming.
   Pinch zoom will put a continuous fractional scale on the plane's content, which
@@ -1222,6 +1297,24 @@ Notes on the prototype
   chrome has to stay the one place where **layout values are the real sizes and no
   transform is applied**, or 1px borders and corner radii sit permanently off the
   pixel grid beside a plane that is legitimately smeared only while it is pinched.
+- **The face is Antic Didone, and its weight is a decision rather than a detail.** It
+  is put on the root element and inherited from there, so a control that chose a font of
+  its own would be the only way this could go wrong; the font asset is built from the
+  `Font` at startup rather than checked in beside it, since what such an asset holds is
+  a glyph atlas and a material made from the one thing this project actually chose, and
+  saving them is committing a cache.
+
+  A Didone runs every stroke from a stem to a hairline. Reversed out in light on dark
+  the hairlines hold, because a bright shape on a dark ground gains at its edges; the
+  same glyph set dark on light does the opposite, and at the eleven and thirteen pixels
+  this chrome is set at the counters fill in and the thin strokes go to grey. Measured
+  on the lit Play switch, plain type carries a little over half the ink bold does — 1.8
+  times, over the same box. So `Style.SetInk` sets the colour and the weight together:
+  there is no light ground in this UI that takes plain type and no dark one that takes
+  bold, and the three places that ask are a lit switch, a bar opened to be typed into
+  and the solid `CHAN` cell, which is the only word the score itself sets on light.
+  Bold is the one cut dilated rather than a second one, since the family ships a single
+  weight.
 - **The interface is sized by the inch, and the asset is the only thing that says
   so.** `Assets/UI/DefaultSettings.asset` is a constant *physical* size at a
   reference DPI of 132, a fallback of 264 and a scale of one; there is no pixel
