@@ -418,8 +418,20 @@ static class Controls
     public static VisualElement Chooser(string caption, IReadOnlyList<string> options,
                                         Func<int> get, Action<int> set)
     {
+        var row = Chooser(options, get, set);
+        row.Insert(0, Caption(caption));
+        return row;
+    }
+
+    // The same without one, for a chooser that is not standing in a column of
+    // parameters. A caption is as wide as the longest name on a panel so that the rows
+    // line up, and a chooser on the transport row has nothing above or below it to line
+    // up with: the word would be width taken off the name being chosen, in the one place
+    // on this screen where a name is the whole of what is being read.
+    public static VisualElement Chooser(IReadOnlyList<string> options, Func<int> get,
+                                        Action<int> set)
+    {
         var row = Row();
-        row.Add(Caption(caption));
 
         var value = Value("");
         value.style.unityTextAlign = TextAnchor.MiddleCenter;
@@ -437,12 +449,78 @@ static class Controls
             Refresh();
         }
 
-        row.Add(Push("<", () => Move(-1), 22));
+        row.Add(Arrow(left: true, () => Move(-1)));
         row.Add(value);
-        row.Add(Push(">", () => Move(1), 22));
+        row.Add(Arrow(left: false, () => Move(1)));
 
         Refresh();
         return row;
+    }
+
+    // One of the two arrows a chooser is stepped with, drawn rather than typeset.
+    //
+    // An angle bracket is punctuation borrowed to point, and it shows: it is a pair of
+    // hairlines at the weight of the type, it sits where a glyph sits in its line box
+    // rather than in the middle of the button, and it is the same mark the readout
+    // between the two is set in. A filled triangle is the thing itself — solid, centred
+    // on the box it is drawn in, and unmistakably a control rather than a character.
+    //
+    // The stepper keeps its minus and plus. Those are not directions and there is no
+    // shape that says *one less* better than the word does; these two are nothing but a
+    // direction, which is all a triangle is.
+    public static Button Arrow(bool left, Action onClick)
+    {
+        var button = Push("", onClick, ArrowWidth);
+        // The air a word needs inside the box is what a drawn mark does not: the mark is
+        // centred on the box rather than laid out from its edges.
+        button.style.paddingLeft = 0;
+        button.style.paddingRight = 0;
+        button.style.alignItems = Align.Center;
+        button.style.justifyContent = Justify.Center;
+        button.Add(ArrowMark(left));
+        return button;
+    }
+
+    // As wide as the one-glyph buttons it replaces, which is also what the stepper's
+    // minus and plus are: a run of chrome should not change width because one mark in
+    // it stopped being a letter.
+    const float ArrowWidth = 22.0f;
+
+    // The mark. It is a box of its own rather than something painted on the button,
+    // because a Button draws its own text and everything else about it is a border and
+    // a ground — the same reason the sharp beside a note is an element and not a glyph.
+    static VisualElement ArrowMark(bool left)
+    {
+        // Sized from the type, so the pair grows with the touch profile the way every
+        // word beside them does. Even, so that the tip lands on a boundary rather than
+        // half way across a pixel: the base is a straight edge and the tip is a point,
+        // and the point is what the eye is following.
+        var height = 2.0f * Mathf.Round(FontSize * 0.35f);
+        var width = Mathf.Round(height * 0.6f);
+
+        var mark = new VisualElement();
+        mark.style.width = width;
+        mark.style.height = height;
+        mark.style.flexShrink = 0;
+        mark.pickingMode = PickingMode.Ignore;
+
+        mark.generateVisualContent += context =>
+        {
+            var painter = context.painter2D;
+            painter.fillColor = Style.NoteText;
+
+            // The tip on the side it points to, the base square on the other.
+            var tip = new Vector2(left ? 0.0f : width, height / 2);
+
+            painter.BeginPath();
+            painter.MoveTo(tip);
+            painter.LineTo(new Vector2(left ? width : 0.0f, 0.0f));
+            painter.LineTo(new Vector2(left ? width : 0.0f, height));
+            painter.ClosePath();
+            painter.Fill(FillRule.NonZero);
+        };
+
+        return mark;
     }
 
     // Panels

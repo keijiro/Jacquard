@@ -490,6 +490,17 @@ Notes on the prototype
   what is missing — a heading that follows anything carries the difference over it — and
   the panel's bottom inset is short by a gap because the last row laid one down.
 
+  A control that does not carry its gap is where this goes wrong, and the transport row
+  had the one case of it. A `ValueBar` is built for a panel, where it is the last thing
+  on its row and the row carries the gap under it, so it has no margin of its own; the
+  tempo bar stands in a *run* of controls, and the rule that follows it is short on its
+  left by exactly one gap because whatever precedes a separator has already laid one
+  down. With the bar carrying nothing, that subtraction came off air that was never
+  added, and the rule sat three pixels nearer the tempo than the switch after it — the
+  kind of thing that reads as *wrong* long before it can be named. The bar carries the
+  gap now, at the one place it stands in a run, rather than the separator learning what
+  is in front of it.
+
   **The rule belongs to the heading, and it is the only rule left inside a panel.** A
   line standing between two groups is owned by neither: it says that something ends here
   and something begins, which leaves the first row of a group looking as much like the
@@ -500,6 +511,19 @@ Notes on the prototype
   it is not — and a button at the foot of one, the *Delete* the Tile panel ends on, is
   parted from the rows above it by the same air rather than by a rule that would be
   heading nothing.
+
+  **A chooser's arrows are drawn, not typeset.** They were a `<` and a `>`, which is
+  punctuation borrowed to point: a pair of hairlines at the weight of the type, sitting
+  where a glyph sits in its line box rather than in the middle of the button, and set in
+  the same face as the name between them — so the two controls of the row read as more
+  of the row's text. A filled triangle is the mark itself. It is a `VisualElement` with a
+  `Painter2D` fill inside the button, the way the sharp beside a note name is an element
+  and not a glyph, sized off `Controls.FontSize` so the pair grows with the touch profile
+  and rounded to an even height so the tip lands on a boundary rather than half way
+  across a pixel. The buttons keep the width they had, since a run of chrome should not
+  change width because one mark in it stopped being a letter. The stepper keeps its minus
+  and plus: those are not directions, and there is no shape that says *one less* better
+  than the word does.
 
   The last piece is that **a heading is as tall as a row**, header included. A control
   is a twenty pixel box holding thirteen pixels of text, so a bare line of text between
@@ -681,14 +705,51 @@ Notes on the prototype
   that says a panel is not part of the arrangement around the plane, which is what a
   setting nobody visits twice a session should say. It covers the score while it is up,
   and the switch that raised it is the way back.
-- **Everything the transport row switches starts off.** Send FX, Live FX, Global, Channels
-  and the visualizer are five things a cell cannot ask for and so five switches, and none
-  of them is up until it is asked for: the plane is what the screen is for, and a switch
-  that starts on is a decision nobody made. The visualizer is the odd one, since what it
-  raises is not a panel — the switch moves the component's own `enabled` flag, which is
-  where a MonoBehaviour's on and off already live, so a visualizer nobody asked for costs
-  a frame nothing at all. It is also why that component wakes in `Awake` rather than
-  `Start`: `Start` never runs on something that ships disabled.
+- **Everything the transport row switches starts off.** Channels, Send FX, Live FX, Global
+  and Config are five things a cell cannot ask for and so five switches, and none of them
+  is up until it is asked for: the plane is what the screen is for, and a switch that
+  starts on is a decision nobody made. They stand in the order of how much each one
+  reaches — one channel of the mix, what those channels feed, what is played across the
+  whole of it, what is set across the whole of it, and then what is not about the piece at
+  all.
+
+  **Config is the row's own way of not growing.** Every switch up there raises a panel
+  except one: the visualizer's raised nothing, since what it moves is the component's own
+  `enabled` flag, which is where a MonoBehaviour's on and off already live — so a
+  visualizer nobody asked for costs a frame nothing at all, and it is also why that
+  component wakes in `Awake` rather than `Start`, which never runs on something that ships
+  disabled. That switch was a setting standing among the panels the project is made on,
+  and a second setting of its kind would have been a sixth switch on a row that already
+  has to be reachable on a tablet. `ConfigPanel` is where such a question goes now, and
+  the visualizer's on and off is the first of them: the panel keeps what was chosen, hands
+  it to a callback that knows what to do with it, and the next one arrives as a row rather
+  than as a button on the row.
+
+  **What is on it is the app's, not the project's.** Everything else on this screen is
+  written into the file and comes back with it; this outlasts one project being closed
+  and another being opened, and would mean nothing to anybody the file is handed to. So
+  it lives in `PlayerPrefs`, written through on every press rather than left for the quit
+  — a tablet app is not quit, it is put away and then killed off screen — and the panel
+  reads it once at construction and applies it, so there is no second place a default is
+  written down to disagree with. It comes up in the middle beside Global, since neither
+  is read against anything on the plane; two centred panels stack the way a column does
+  rather than take turns, so neither switch has to know what the other raised.
+
+  **The one button on it opens the folder the scores are in, and only where that means
+  anything.** Where a file lands is a fact about the machine rather than about the piece,
+  which is what puts it on this panel and at its foot — `Controls.Foot`, since it is not
+  one of the settings above it and should not read as the end of that list. It is handed
+  to `Application.OpenURL` as a file URL built through `System.Uri`, not by writing
+  `file://` in front of the path: `persistentDataPath` on macOS runs through *Application
+  Support*, and a raw space is where a URL handler stops reading. The directory is made
+  first, since it does not exist until the first save and a player who has saved nothing
+  should still be shown where the scores would go. The whole thing — the row, the handler
+  and the field it would need — is inside `#if UNITY_EDITOR || UNITY_STANDALONE`. Both
+  halves are meant: a standalone player is a machine with a file manager on it, and the
+  editor is one whatever it is currently building for, so the row does not vanish the
+  moment the target is set to iOS and leave the control untryable. On the phone, the
+  tablet and the browser it is not built at all rather than built and dimmed — a dimmed
+  control says *not now*, and this one is *not here*.
 
   **The status line went with them.** It was a paragraph of diagnostics written across the
   widest part of the row — the cursor position, the voice count, each runner's step and
@@ -1409,8 +1470,13 @@ Notes on the prototype
   wired to `JacquardApp.Logo` by the scene builder, and a bitmap rather than a
   Painter2D drawing like every other mark in the interface, since what would be
   drawn is the same grid of squares the texture already holds. Paying for its
-  width is why the File chooser's caption is held to the width of the word
-  instead of the caption column's: nothing on that row lines up with it.
+  width is what first cut the file chooser's caption down to the width of the
+  word, and then took it off altogether: a caption is as wide as the longest name
+  on a panel so that a column of rows lines up, and a chooser on that row has
+  nothing above or below it to line up with. The box gave back exactly what the
+  word took, so the slot name between the arrows is as long as it ever was — and
+  what the caption said is said by where the box stands, after the rule and
+  between Save and Load, and by the file name written in it.
 - Editor menu items: *Jacquard > Rebuild Main Scene* regenerates the scene, and
   *Jacquard > Run Self Test* checks the file format round trip, plays four laps of
   the sample score without a device, reads a stack whose gate sits between two

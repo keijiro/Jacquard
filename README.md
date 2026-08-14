@@ -51,10 +51,14 @@ Using it
 | Pan the plane | Drag from an empty cell, two finger swipe, or command+drag |
 | Reach a control off the edge | Drag the row or the panel it is on: the transport slides sideways and a column of panels slides up and down whenever it holds more than the screen does |
 
-The Visualizer button puts the synth behind the score, in a wash the eye can ignore:
-the output as a trace across the middle and the twenty-four voice slots as a row along
-the bottom. It is drawn by the camera rather than by the interface, which is transparent
-over it.
+The Config button opens what is set about the app rather than about the piece, and it
+holds one switch so far: Visualizer, which puts the synth behind the score in a wash the
+eye can ignore — the output as a trace across the middle and the twenty-four voice slots
+as a row along the bottom. It is drawn by the camera rather than by the interface, which
+is transparent over it. Nothing on that panel is saved with a project; it is remembered
+for the machine it was set on, and is there again the next time the app is opened. On a
+desktop it also carries Open score folder, which shows the directory the files below are
+written to.
 
 A tile goes on free ground only: a lane's empty step, the cell under a stack, or
 the `TERM` cell, which grows the lane by a step. A stack is therefore built from
@@ -146,9 +150,10 @@ hands back to whichever is still held. With a mouse only one button can be held 
 a time; a touch screen holds one per finger.
 
 Scores are saved under `Application.persistentDataPath/Scores` as plain text,
-one line per step; pick a slot with the File arrows. In a Web build that path is
-the browser's own storage, so a save keeps across a reload but not across clearing
-the site's data.
+one line per step; pick a slot with the arrows beside Save. On a desktop the Config panel
+has a button that opens that directory. In a Web build the path is the browser's own
+storage, so a save keeps across a reload but not across clearing the site's data — and
+there is nothing to open, so the button is not there.
 
 Loading while the sequence is running does not stop it. The score waits for the turn
 of the piece — the lap of the topmost channel one lane — and then the music carries

@@ -15,12 +15,13 @@ namespace Jacquard.App {
 // that applies to a cell is on the panel that follows the cursor, which is where the
 // cell already is, and the plane keeps the screen that a palette and a paragraph of
 // keys used to take. What is left on the row is a switch for each thing a cell cannot
-// ask for: the send effects, which belong to the project rather than to anything
-// written on the plane; the live effects, which belong to nothing at all — they are
-// held rather than set, and what they colour is gone as soon as the hand is off; what
-// is set for the whole mix, which is across everything and so under nothing; the
-// channels, which are the mix rather than the score; and the visualizer, which is not a
-// panel at all but the one thing drawn behind the plane.
+// ask for, and they stand in the order of how much each one reaches: the channels,
+// which are the mix rather than the score; the send effects, which are what a channel's
+// amounts feed and belong to the project rather than to anything written on the plane;
+// the live effects, which belong to nothing at all — they are held rather than set, and
+// what they colour is gone as soon as the hand is off; what is set for the whole mix,
+// which is across everything and so under nothing; and the configuration, which is not
+// about the piece at all but about the app it is being made in.
 //
 // Every one of them is down until it is asked for. The plane is what the screen is for,
 // and a switch that starts on is a decision nobody made.
@@ -94,10 +95,14 @@ sealed class JacquardUI
         ShowChannels(false);
 
         // In neither edge and not on the dock: what is set for the whole thing is read
-        // against nothing on screen, so it comes up in the middle.
+        // against nothing on screen, so it comes up in the middle. So does what is not
+        // set about the thing at all, which is the panel beside it here — the two are
+        // the same kind of thing to look at, and being in the same place says so.
         _global = new GlobalPanel(_editor);
-        body.Add(PanelCentre(_global.Root));
+        _config = new ConfigPanel(_app.Store, SetVisualizer, Refocus);
+        body.Add(PanelCentre(_global.Root, _config.Root));
         ShowGlobal(false);
+        ShowConfig(false);
 
         // Neither column, because this one is not read: it is played. The columns are
         // where the eye goes and the bottom edge is where the hands already are.
@@ -176,13 +181,28 @@ sealed class JacquardUI
         // Cut from 78 to pay for the wordmark. What it has to hold is three digits,
         // which is a good deal less than it had.
         _tempo.style.width = Controls.Width(62);
+        // The gap to whatever stands to its right, which every button on this row
+        // carries and a bar does not: a ValueBar is built for a panel, where it is the
+        // last thing on its row and the row carries the gap under it. Standing in a run
+        // of controls it has to carry its own, or the rule that follows it — which is
+        // short on the left by exactly this, because the thing before it has already
+        // laid one down — comes out closer to the tempo than to the switch after it.
+        _tempo.style.marginRight = Controls.Gap;
         row.Add(_tempo);
 
         row.Add(Separator());
 
-        // A switch, because no cell can ask for what it raises. It sits with the tempo
-        // rather than with the file controls: the delay is locked to the tempo, so the
-        // two things that decide how the sequence moves in time are next to each other.
+        // The first of the five, because it is the narrowest thing any of them reaches:
+        // one channel of the mix. A switch, because no cell can ask for what it raises —
+        // nothing on the plane names a channel's mute.
+        _channelsButton =
+          Controls.Push("Channels",
+                        () => { ShowChannels(!_channelsShown); Refocus(); }, 62);
+        row.Add(_channelsButton);
+
+        // Next, since it is what those channels feed. What a channel sends is a row of
+        // its Sound panel and what it is sent to is here, so the two switches stand in
+        // the order the signal takes.
         //
         // "Send FX" and not "Send", which would name the half of the arrangement that
         // is not here: what a channel sends is set on the Sound panel, and this is
@@ -202,35 +222,30 @@ sealed class JacquardUI
                                     () => { ShowLive(!_liveShown); Refocus(); }, 62);
         row.Add(_liveButton);
 
-        // The third of the same kind. What it raises is the panel for everything that
-        // is set for the whole project and answers to no cell, so anything else of that
-        // sort arrives as a group of rows on a panel that is already here rather than as
-        // a switch of its own.
+        // Wider again: what it raises is the panel for everything that is set for the
+        // whole project and answers to no cell, so anything else of that sort arrives as
+        // a group of rows on a panel that is already here rather than as a switch of its
+        // own.
         _globalButton = Controls.Push("Global",
                                       () => { ShowGlobal(!_globalShown); Refocus(); },
                                       62);
         row.Add(_globalButton);
 
-        // The mix rather than the score, and the same kind of switch for the same
-        // reason: no cell names a channel's mute, so nothing on the plane can raise it.
-        _channelsButton =
-          Controls.Push("Channels",
-                        () => { ShowChannels(!_channelsShown); Refocus(); }, 62);
-        row.Add(_channelsButton);
-
-        // The odd one out, since what it raises is not a panel: it is what the camera
-        // draws behind everything. It sits with the others anyway, because from the row
-        // they are all the same question — is this thing on screen or not.
-        _visualizerButton =
-          Controls.Push("Visualizer",
-                        () => { ShowVisualizer(!_visualizerShown); Refocus(); }, 74);
-        row.Add(_visualizerButton);
+        // Last, since it is the one switch here that reaches past the piece: what is on
+        // it is about the app rather than about anything that is saved. It is also what
+        // the row grows through from now on — a setting that answers to no cell used to
+        // mean another switch up here, and the visualizer's was the proof, since it was
+        // the only one that raised nothing at all.
+        _configButton = Controls.Push("Config",
+                                      () => { ShowConfig(!_configShown); Refocus(); },
+                                      62);
+        row.Add(_configButton);
 
         row.Add(Separator());
 
         _slots = _app.Store.Slots();
 
-        var chooser = Controls.Chooser("File", _slots,
+        var chooser = Controls.Chooser(_slots,
                                        () => Mathf.Max(0, _slots.IndexOf(_app.Store.Name)),
                                        index => _app.Store.Name = _slots[index]);
         // The widest thing on the row, and the first place to look when the row runs
@@ -241,13 +256,11 @@ sealed class JacquardUI
         // back inside an iPad mini's 917 units, and from 170 when the wordmark arrived
         // at the left of the row and had to be paid for from somewhere.
         //
-        // What paid for most of it is the caption beside it rather than the box: a
-        // caption is as wide as the longest parameter name on a panel so that a column
-        // of rows lines up, and this one stands on a row of switches with nothing to
-        // line up with. Held to the width of the word instead, the box gives back
-        // fifty units and the name between the arrows is as long as it ever was.
-        chooser.ElementAt(0).style.width = Controls.Width(20);
-        chooser.style.width = Controls.Width(114);
+        // The caption is gone rather than narrowed, and the box gives back exactly what
+        // it took: the name between the arrows is as long as it ever was. What the word
+        // said is said by where the box is standing — after the rule, between Save and
+        // Load — and by what is written in it, which is the name of a file.
+        chooser.style.width = Controls.Width(94);
         chooser.style.marginBottom = 0;
         row.Add(chooser);
 
@@ -347,8 +360,8 @@ sealed class JacquardUI
         return edge;
     }
 
-    // A panel in the middle of the screen, for the one that is read against nothing
-    // around it.
+    // The panels in the middle of the screen, for the ones that are read against nothing
+    // around them.
     //
     // The columns are all read against the plane — what a cell holds, what a channel's
     // sends feed, which channel is silent — and the dock is played over it. A limiter is
@@ -357,9 +370,15 @@ sealed class JacquardUI
     // that says a panel is not part of the arrangement around the plane, which is what a
     // setting nobody visits twice a session should say.
     //
-    // It covers the score while it is up, which is the price of the middle and is paid
-    // by the same switch that raised it.
-    static VisualElement PanelCentre(VisualElement panel)
+    // They stack the way a column does rather than take turns, and for the same reason:
+    // a panel that is down is display: none, which takes it out of the stack rather than
+    // leaving its gap behind. With one up the middle is where it always was; with both
+    // up they are centred as a pair, which is the whole of the rule — no switch here has
+    // to know what the other one raised.
+    //
+    // A panel covers the score while it is up, which is the price of the middle and is
+    // paid by the same switch that raised it.
+    static VisualElement PanelCentre(params VisualElement[] panels)
     {
         var centre = new VisualElement();
         centre.style.position = Position.Absolute;
@@ -370,7 +389,7 @@ sealed class JacquardUI
         centre.style.alignItems = Align.Center;
         centre.style.justifyContent = Justify.Center;
         centre.pickingMode = PickingMode.Ignore;
-        centre.Add(panel);
+        foreach (var panel in panels) centre.Add(panel);
         return centre;
     }
 
@@ -543,17 +562,30 @@ sealed class JacquardUI
         Controls.SetActive(_channelsButton, shown);
     }
 
-    // The one switch here that puts nothing on the panel. What it moves is the
-    // component's own enabled flag, which is where a MonoBehaviour's on and off already
-    // live: disabled, its LateUpdate does not run and nothing is handed to the renderer,
-    // so a visualizer nobody asked for costs a frame nothing at all.
-    void ShowVisualizer(bool shown)
+    // And for the panel that stands with it in the middle. What is on that one is not
+    // the project's, so nothing here refreshes it and a load goes past it.
+    void ShowConfig(bool shown)
     {
-        _visualizerShown = shown;
+        _configShown = shown;
 
+        _config.Root.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+
+        Controls.SetActive(_configButton, shown);
+    }
+
+    // The one setting on that panel, which is the one thing switched on this screen that
+    // puts nothing on it: what moves is the component's own enabled flag, which is where
+    // a MonoBehaviour's on and off already live. Disabled, its LateUpdate does not run
+    // and nothing is handed to the renderer, so a visualizer nobody asked for costs a
+    // frame nothing at all.
+    //
+    // It used to be a switch on the transport row, beside the ones that raise panels,
+    // and it was the only one up there that raised nothing. The Config panel is where a
+    // question about the app rather than about the piece belongs, and this is the first
+    // of them.
+    void SetVisualizer(bool shown)
+    {
         if (_app.Visualizer != null) _app.Visualizer.enabled = shown;
-
-        Controls.SetActive(_visualizerButton, shown);
     }
 
     // The same switch for the one panel that holds nothing. Lowering it does not lift
@@ -668,6 +700,7 @@ sealed class JacquardUI
     readonly SendPanel _send;
     readonly ChannelsPanel _channels;
     readonly GlobalPanel _global;
+    readonly ConfigPanel _config;
     readonly LivePanel _live;
 
     Button _play;
@@ -682,8 +715,8 @@ sealed class JacquardUI
     bool _globalShown;
     Button _channelsButton;
     bool _channelsShown;
-    Button _visualizerButton;
-    bool _visualizerShown;
+    Button _configButton;
+    bool _configShown;
     ValueBar _tempo;
     Button _load;
     List<string> _slots;
