@@ -143,8 +143,13 @@ sealed class FmSynthPipeline : IFmSynthBackend
 
     public void Dispose()
     {
+        // The scope is not freed here, and that is the whole of the fix for a crash at
+        // teardown that this reproduced about a third of the times the player was quit.
+        // Destroy only queues the processor's disposal — the audio thread may be part
+        // way through a mix when this returns, and the render job writes the scope. So
+        // the free belongs on the far side of that queue, and FmSynthControl.Dispose is
+        // where the audio side lets go of everything else for the same reason.
         if (_context.Exists(_rootOutput)) _context.Destroy(_rootOutput);
-        _scope.Dispose();
     }
 
     // Private members

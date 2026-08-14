@@ -70,8 +70,15 @@ struct FmSynthControl : RootOutputInstance.IControl<FmSynthRealtime>
         return Response.Unhandled;
     }
 
+    // The scope goes with the rest of it, even though the driver is what allocated it.
+    // What matters is not who owns the memory but when it stops being written, and this
+    // is the one place the audio side has said it is finished — see FmSynthPipeline's
+    // Dispose, where freeing it on the main thread instead was crashing the mix.
     public void Dispose(ControlContext context, ref FmSynthRealtime realtime)
-      => realtime.core.Release();
+    {
+        realtime.core.Release();
+        scope.Dispose();
+    }
 }
 
 } // namespace Jacquard.App
