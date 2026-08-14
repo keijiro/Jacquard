@@ -379,21 +379,30 @@ sealed class JacquardUI
         return dock;
     }
 
+    // A row that can be dragged sideways, since what is on this one is not a list that
+    // can be shortened: every switch on it raises something no cell can ask for, so a
+    // narrow screen has to be able to reach all of them rather than the first few. See
+    // ScrollRow — on a screen the row fits, it is a row.
     static VisualElement Bar()
     {
-        var row = new VisualElement();
-        row.style.flexDirection = FlexDirection.Row;
-        row.style.alignItems = Align.Center;
+        var row = new ScrollRow();
         row.style.flexShrink = 0;
         row.style.height = Controls.ToolbarHeight;
         // The one part of the chrome that paints its own ground. It took it from the
         // root until the root gave up painting, and a row of controls with a waveform
         // running behind them is a row that has to be read through something.
         row.style.backgroundColor = Style.Background;
-        row.style.paddingLeft = Controls.Inset;
-        row.style.paddingRight = Controls.Inset;
         row.style.borderBottomWidth = 1;
         row.style.borderBottomColor = Style.PanelLine;
+
+        // The row's own air goes on what travels rather than on the frame it travels
+        // in: it is the space before the first control and after the last one, so it
+        // belongs to them and leaves with them. Left on the frame it would be a margin
+        // the controls slide underneath, which is a row that looks like it has been cut
+        // off rather than one that has been pushed along.
+        row.contentContainer.style.paddingLeft = Controls.Inset;
+        row.contentContainer.style.paddingRight = Controls.Inset;
+
         return row;
     }
 
