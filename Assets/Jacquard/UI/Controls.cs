@@ -480,9 +480,14 @@ static class Controls
         panel.style.paddingTop = Inset;
         // Short by a gap, which the last row on the panel has already put there.
         panel.style.paddingBottom = Inset - Gap;
-        TileElement.SetBorderWidth(panel, 1.0f);
-        TileElement.SetBorderColor(panel, Style.PanelLine);
-        TileElement.SetBorderRadius(panel, 6.0f);
+
+        // No outline and no rounded corners. What tells a panel from the plane is that
+        // it is a lighter ground with air around it, which is enough on a screen where
+        // nothing else is a filled rectangle that size; the border was a second thing
+        // saying it, drawn in the same grey the controls inside are outlined in, so a
+        // panel read as one more control with controls in it. Square, because a corner
+        // radius is what a cell and a control have — they are the things a hand picks up
+        // — and the sheet they are laid on should not look pickable.
 
         // Spaced like any other row, and as tall as one. What the header says changes;
         // that it is a header is not worth a band of air to announce, and it needs no

@@ -50,7 +50,7 @@ sealed class LivePanel
         // As wide as the two rows it holds and no wider. Every other panel is one
         // column of rows, so PanelWidth is the answer for all of them; this one is
         // five buttons across, and letting it measure itself is what keeps the inset
-        // equal on both sides without this having to know what a border costs.
+        // equal on both sides without this having to count what is around them.
         Root.style.width = StyleKeyword.Auto;
 
         Root.Add(Buttons(LiveEffect.Reverb, LiveEffect.Stab, LiveEffect.OctaveDown,
