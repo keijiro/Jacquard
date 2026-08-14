@@ -12,10 +12,12 @@ namespace Jacquard.App {
 // the transport for what is really one question — *what is set for the whole thing?*
 // The scale is the first thing to arrive and prove it.
 //
-// So the panel is named for the answer to that and each group inside it is headed.
-// Every other panel here holds one kind of thing and needs no heading, which is the
-// argument that split the send effects into two panels; this one is the exception by
-// design, since being the place where the odd settings live is the whole of what it is.
+// So the panel is named for the answer to that and each group inside it is headed. This
+// was the one panel built that way, against an argument that a panel already says what a
+// heading would; the send effects are now grouped the same way, and the shape here — a
+// rule, a heading, its rows — is the one they took. What is left of the distinction is
+// that the groups here have nothing in common but being global, while a reverb and a
+// delay are two of a kind.
 //
 // The scale comes first because that is the order a note meets the two: it is decided
 // as the note is made, and the limiter is what the sum of every note is held under.

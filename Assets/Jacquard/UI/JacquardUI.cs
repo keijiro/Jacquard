@@ -75,12 +75,11 @@ sealed class JacquardUI
         _lock = new LockPanel(_editor);
 
         // The effects are the project's, not a cell's, so they get a column of their
-        // own rather than a slot in the cursor's. One panel each: a heading inside a
-        // panel was doing the work a panel does.
-        _reverb = new SendPanel(_editor, SendPanel.Effect.Reverb);
-        _delay = new SendPanel(_editor, SendPanel.Effect.Delay);
+        // own rather than a slot in the cursor's. One panel with a heading over each
+        // effect: what the switch raises is one thing, so it arrives as one thing.
+        _send = new SendPanel(_editor);
 
-        body.Add(PanelEdge(false, PanelColumn(_reverb.Root, _delay.Root),
+        body.Add(PanelEdge(false, PanelColumn(_send.Root),
                                   PanelColumn(_inspector.Root, _sound.Root,
                                               _lock.Root)));
         ShowSend(false);
@@ -293,7 +292,8 @@ sealed class JacquardUI
     // does not cannot share a column: standing the send effects under the Tile panel
     // would put a project setting in the queue behind whatever cell is selected, and
     // move it down the screen every time the Tile panel grew a line. So they get a
-    // column, and the column goes beside the cursor's rather than in the far corner.
+    // column of their own, and it goes beside the cursor's rather than in the far
+    // corner.
     //
     // Beside, because the two are read together. What a channel sends is a row of its
     // Sound panel and what it is sent to is here, so the amount and the effect it feeds
@@ -458,15 +458,14 @@ sealed class JacquardUI
         // and moving a lane can change which channel a lock colours.
         _sound.Refresh();
         _lock.Refresh();
-        // Not in OnCursorMoved, since nothing on the send panels answers to a cell.
-        // This is for the one change that does reach them: a load, which arrives with
-        // effect settings of its own.
-        _reverb.Refresh();
-        _delay.Refresh();
+        // Not in OnCursorMoved, since nothing on the send panel answers to a cell. This
+        // is for the one change that does reach it: a load, which arrives with effect
+        // settings of its own.
+        _send.Refresh();
         // And here for the one that reaches the channels: a lane arriving or leaving
         // is a channel becoming reachable or not.
         _channels.Refresh();
-        // The Global panel takes a load the same way the send panels do, and for the
+        // The Global panel takes a load the same way the send panel does, and for the
         // same reason: what is on it belongs to the project that was just replaced.
         _global.Refresh();
     }
@@ -482,15 +481,12 @@ sealed class JacquardUI
 
     // The one thing that raises and lowers the send effects. It is the transport button
     // and nothing else, so the button's own look and what it shows are set in the same
-    // place and cannot come apart — and the two panels move together, since they are
-    // one setting of the project in two boxes rather than two things to arrange.
+    // place and cannot come apart.
     void ShowSend(bool shown)
     {
         _sendShown = shown;
 
-        var display = shown ? DisplayStyle.Flex : DisplayStyle.None;
-        _reverb.Root.style.display = display;
-        _delay.Root.style.display = display;
+        _send.Root.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
 
         Controls.SetActive(_sendButton, shown);
     }
@@ -641,8 +637,7 @@ sealed class JacquardUI
     readonly InspectorPanel _inspector;
     readonly SoundPanel _sound;
     readonly LockPanel _lock;
-    readonly SendPanel _reverb;
-    readonly SendPanel _delay;
+    readonly SendPanel _send;
     readonly ChannelsPanel _channels;
     readonly GlobalPanel _global;
     readonly LivePanel _live;
