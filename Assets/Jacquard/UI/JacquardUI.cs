@@ -2,6 +2,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 
+// Spelled out, because UI Toolkit has a TextElement of its own and importing the
+// namespace this comes from would put two of them in scope.
+using FontAsset = UnityEngine.TextCore.Text.FontAsset;
+
 namespace Jacquard.App {
 
 // Assembles the screen: one row of chrome above a scrolling score plane, with columns
@@ -38,6 +42,8 @@ sealed class JacquardUI
         // the visualizer over it, so the panel is the layer above that and leaves the
         // ground to whoever is under it — which used to be nothing at all.
         root.style.backgroundColor = Color.clear;
+
+        SetFace(root, app.Font);
 
         root.Add(BuildTransportRow());
 
@@ -404,6 +410,25 @@ sealed class JacquardUI
         row.contentContainer.style.paddingRight = Controls.Inset;
 
         return row;
+    }
+
+    // The face every word on screen is set in, put on the root and inherited from there.
+    //
+    // The atlas is built here rather than kept as an asset beside the file it is cut
+    // from. A font asset is a texture of glyphs and a material to draw it with, and
+    // both are made from the one thing this project actually chose — the face — so
+    // saving them would be checking in a cache and then having to remember it is one.
+    // Dynamic is what such an asset would be set to anyway: the atlas fills with the
+    // glyphs that are asked for, and what this interface asks for is a few dozen of
+    // them.
+    static void SetFace(VisualElement root, Font font)
+    {
+        if (font == null) return;
+
+        var asset = FontAsset.CreateFontAsset(font);
+        if (asset == null) return;
+
+        root.style.unityFontDefinition = FontDefinition.FromSDFFont(asset);
     }
 
     // The wordmark on the row, one unit to a cell of the type it is set in.

@@ -27,6 +27,10 @@ static class SceneBuilder
     // README and the app icon; Branding/make_logo_png.py writes it.
     const string LogoPath = "Assets/Branding/Logo.png";
 
+    // The face the whole interface is set in. Antic Didone, under the Open Font
+    // License, which is kept beside it.
+    const string FontPath = "Assets/UI/Fonts/AnticDidone-Regular.ttf";
+
     [MenuItem("Jacquard/Rebuild Main Scene")]
     public static void Build()
     {
@@ -59,6 +63,7 @@ static class SceneBuilder
         var app = appObject.AddComponent<JacquardApp>();
         app.StartupScore = AssetDatabase.LoadAssetAtPath<TextAsset>(StartupScorePath);
         app.Logo = AssetDatabase.LoadAssetAtPath<Texture2D>(LogoPath);
+        app.Font = AssetDatabase.LoadAssetAtPath<Font>(FontPath);
 
         // Beside the app rather than on the camera: what it draws it reads off the
         // synth, and the shader is a reference because a shader nothing in a scene

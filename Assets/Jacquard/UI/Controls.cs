@@ -268,7 +268,8 @@ static class Controls
     public static void SetActive(Button button, bool active)
     {
         button.style.backgroundColor = active ? Style.NoteLine : Style.ControlBackground;
-        button.style.color = active ? Style.Background : Style.NoteText;
+        // Which also turns the word over to the weight a light ground takes.
+        Style.SetInk(button, active);
     }
 
     // A button that is on while it is held and off the moment it is let go, which is

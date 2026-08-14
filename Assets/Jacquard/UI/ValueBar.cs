@@ -504,7 +504,7 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
         // clearest thing on the row. The bar would be wrong anyway while it is being
         // typed over.
         _fill.style.display = DisplayStyle.None;
-        _input.style.color = Style.Background;
+        Style.SetInk(_input, true);
         UpdateBackground();
 
         // Focus has to wait for the element to be laid out, which it has not been

@@ -66,7 +66,13 @@ sealed class TileElement : VisualElement
         }
 
         if (tile is ChannelTile channel)
-            Add(Text("CH" + channel.Channel, Style.ControlSize, _color));
+        {
+            // The one cell with a word on it, and the only place the plane sets type
+            // on a light ground: a channel start that is running is a solid cell.
+            var label = Text("CH" + channel.Channel, Style.ControlSize, _color);
+            Style.SetInk(label, inverted);
+            Add(label);
+        }
         else if (TileIcons.HasIcon(tile))
             generateVisualContent += OnGenerateVisualContent;
     }

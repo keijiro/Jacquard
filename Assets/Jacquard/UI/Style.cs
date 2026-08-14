@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Jacquard.App {
 
@@ -82,6 +83,32 @@ static class Style
 
     public static readonly Color Cursor = Hex(0xf2f2ee);
     public static readonly Color Playhead = Hex(0xf2f2ee);
+
+    // Ink
+    //
+    // Which of the two text colours a word is in, and how heavily it is cut.
+    //
+    // The face is a Didone: every stroke runs from a stem to a hairline. Reversed out
+    // in light on dark the hairlines hold, because the glyph is the bright thing and a
+    // bright shape on a dark ground gains rather than loses at the edges. The same
+    // glyph set dark on light does the opposite — the hairlines thin to nothing and
+    // the counters fill in — and at the eleven and thirteen pixels this chrome is set
+    // at that is the difference between a word and a smudge.
+    //
+    // So the two grounds do not take the same weight. Dark ground is plain; light
+    // ground — a lit switch, a solid cell, a bar opened to be typed into — is bold,
+    // which here is the one cut dilated rather than a second one, since Antic Didone
+    // ships a single weight.
+    //
+    // The colour and the weight are set together and in one place because they are one
+    // decision: there is no light ground in this UI that takes plain type, and no dark
+    // one that takes bold.
+    public static void SetInk(VisualElement element, bool onLight)
+    {
+        element.style.color = onLight ? Background : NoteText;
+        element.style.unityFontStyleAndWeight =
+          onLight ? FontStyle.Bold : FontStyle.Normal;
+    }
 
     public static Color Hex(uint rgb)
       => new Color32((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb, 255);

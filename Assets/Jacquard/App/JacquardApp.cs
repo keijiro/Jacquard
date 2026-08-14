@@ -75,6 +75,16 @@ public sealed class JacquardApp : MonoBehaviour
     [field:SerializeField]
     public Texture2D Logo { get; set; }
 
+    // What every word on screen is set in, from the transport row down to the note
+    // names in the cells. It is put on the root and inherited from there rather than
+    // named by each control, since a control that chose its own face would be a place
+    // for this to go wrong one element at a time.
+    //
+    // Unassigned is the theme's own face, which is what this ran on until now, so a
+    // scene built without it still comes up.
+    [field:SerializeField]
+    public Font Font { get; set; }
+
     // How big a unit of this interface comes out is not settled here any more. It
     // belongs to the panel settings asset, which holds a constant physical size
     // against a reference of 132 dots to the inch — so a unit is a hundred and
