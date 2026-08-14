@@ -13,7 +13,7 @@ namespace Jacquard {
 // answers to it, which is the same trick the mockup uses: there is nowhere to
 // write a second jump, so one to one holds by construction.
 //
-//   jacquard 16
+//   jacquard 17
 //   tempo 132
 //   meter 4 4
 //   fx rsize=0.5 rdamp=0.5 ...
@@ -30,6 +30,26 @@ namespace Jacquard {
 
 public static class ProjectFormat
 {
+    // Version 17 stages the mix: the sum of the voices is scaled by a quarter on the way
+    // out where it used to be scaled by four fifths, so that full scale is four notes
+    // rather than one and there is room under it for a threshold to mean something. An
+    // older file is converted by StagedThreshold rather than being read as it stands,
+    // because a threshold is a level and everything reaching the limiter is now 10.1dB
+    // lower than it was — the same number read against a mix that is no longer the same
+    // size would be a different setting wearing the old one's spelling.
+    //
+    // Shifted by exactly that, the conversion is exact in both halves and an older piece
+    // does not move at all. The make-up is the inverse of the threshold, so the quarter
+    // is given straight back and the file returns at the level it had; and limiting
+    // begins where the mix used to cross the old threshold, so it begins on the same note
+    // of the same bar. That is the whole intent — the headroom is for what is written
+    // next, and nothing is owed by what was written already.
+    //
+    // The shift is applied once, to the project rather than to the limiter line, which is
+    // the one thing here worth being careful about: a file from before version 11 has no
+    // such line and would otherwise keep a threshold at full scale against a mix a
+    // quarter of the size, which is the one case where doing nothing is audible.
+    //
     // Version 16 gives a channel start a switch: an on= on the lane line, saying whether
     // that lane runs at all. A file without one reads as a score where every lane runs,
     // which is what every lane in such a file did, so nothing about an older piece plays
@@ -81,8 +101,10 @@ public static class ProjectFormat
     // Version 11 adds the limiter across the finished mix: a limiter line for the four
     // numbers it holds. An older file has none, and reads as a project whose limiter has
     // never been touched — which is a limiter with no drive under a ceiling at full
-    // scale, so the file sounds exactly as it did. The bump is for the other direction,
-    // as it has been for every line added here: an older build would refuse the keyword
+    // scale, so the file sounds exactly as it did. That promise now runs through version
+    // 17's shift rather than through doing nothing, since the mix under the ceiling
+    // changed size; what it means has not. The bump is for the other direction, as it
+    // has been for every line added here: an older build would refuse the keyword
     // outright, and this is what turns that into the message about a file from a newer
     // version.
     //
@@ -142,7 +164,7 @@ public static class ProjectFormat
     // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
     // reads, since a token nothing answers to is skipped, but the parameters that
     // no longer exist fall back to the default patch rather than being converted.
-    public const int Version = 16;
+    public const int Version = 17;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -379,6 +401,12 @@ public static class ProjectFormat
 
         foreach (var (branch, point) in links)
             if (score.At(point).Tile is JumpTile jump) branch.JumpSource = jump;
+
+        // Last, and to the project rather than to the line it usually came in on, so
+        // that a file with no limiter line is shifted along with one that has it. See
+        // version 17 above.
+        if (version < 17)
+            project.Limiter.ceiling = StagedThreshold(project.Limiter.ceiling);
 
         return project;
     }
@@ -683,6 +711,31 @@ public static class ProjectFormat
     // there is no number here that says so.
     static float LimiterSqueeze(float ceiling, float drive)
       => Math.Clamp(ceiling - drive, Limiter.MinCeiling, 0.0f);
+
+    // A version 16 threshold as the one this build would write.
+    //
+    // The whole of the conversion is that the mix in front of it shrank. Four fifths to
+    // a quarter is 10.1dB, and a threshold says where in a mix limiting begins, so it has
+    // to come down by precisely the same amount to go on meaning the same place. Two
+    // things follow and neither is a compromise: the make-up is derived from the
+    // threshold rather than set beside it, so the 10.1dB comes back and the piece is as
+    // loud as it was; and the gain reduction at every instant is what it was, so the
+    // shape is untouched as well. An older file is not approximated here — it is
+    // reproduced.
+    //
+    // A file that reached the bottom of the bar cannot come down any further and stays
+    // there. That is a real loss of squeeze and it takes a project already at 38dB of it,
+    // which is deep into the end of the travel where the gain has stopped articulating
+    // anything at all.
+    //
+    // The number is written down rather than derived from FmSynth.MasterGain, and has to
+    // be: it is the ratio between what that constant was at version 16 and what it became
+    // at 17, which is a fact about two builds and not about the current one. A later
+    // change to the staging is a later version with a shift of its own.
+    const float StagedHeadroom = 10.103f; // 20 log10(0.8 / 0.25)
+
+    static float StagedThreshold(float ceiling)
+      => Math.Clamp(ceiling - StagedHeadroom, Limiter.MinCeiling, 0.0f);
 
     // The one mutes line, read with the tolerance the two lines above it get. A key
     // nothing answers to is skipped, a missing one leaves its whole set where the

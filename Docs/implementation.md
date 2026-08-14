@@ -175,8 +175,9 @@ Notes on the prototype
   unity point in the centre is what makes a patch that never touches pan render
   exactly as it did before there was one — the same thing the silent sends bought —
   and it is paid for at the extremes, where a note is 3dB up on the one side it is
-  still on. The soft clip at the end of the mix is what a dense chord already relies
-  on.
+  still on. Which also means a note at level 1 arrives at the mix already at full scale
+  on both sides, so **the mix budget is counted in notes** — see the staging below,
+  which is the number that says how many.
 
   **The sends take the voice unpanned.** Each is a mono feed into an effect that
   builds an image of its own, so a tail that also leaned towards the side its note
@@ -544,6 +545,29 @@ Notes on the prototype
   button called Send would be named after the sending and raise none of it. What comes
   up is the receiving end — which is why the button names the pair and each panel names
   an effect.
+- **The mix is staged so that full scale is four notes**, which is one number —
+  `FmSynth.MasterGain`, a quarter — and it is what the threshold below rests on. It was
+  four fifths, which given a pan law at unity in the centre is a budget of one note: two
+  measured +4.1dBFS and a triad +7.6, and everything over the top was rounded off by the
+  soft clip. So a plain fifth at level 1 sounded dirty, and it was not the chord that was
+  wrong.
+
+  What the quarter costs is 10.1dB, and **the threshold is where it comes back** — the
+  make-up is the inverse of it, so pulling the bar down hands the level back and hardens
+  the mix on the way. That bar could not do this before: a mix arriving already at full
+  scale left it nothing to sit under, since a threshold below the mix squeezed everything
+  at once and one at the mix caught nothing. So what the gain really buys is a range of
+  levels for the one control here to mean something in.
+
+  It is a **format version**, and a conversion rather than a re-reading. A threshold is a
+  level, so a version 16 number met by a mix 10.1dB smaller would be a different setting
+  wearing the old one's spelling; shifted by exactly that, an older project comes back at
+  the level it had, with limiting beginning on the same note of the same bar. An older
+  piece is reproduced rather than approximated — the headroom is for what is written
+  next, and nothing is owed by what was written already. The shift is applied to the
+  project rather than to the limiter line, so that a file predating the limiter entirely
+  is carried with the rest instead of keeping a threshold at full scale over a mix a
+  quarter of the size.
 - **The limiter is not there to stop the mix clipping**; a soft clip was already doing
   that, and doing it without a control. It is there for the thing a limiter is actually
   reached for on a drum machine — squeezing the mix hard enough that the loud parts hold

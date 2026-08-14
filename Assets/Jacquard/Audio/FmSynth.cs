@@ -34,7 +34,30 @@ public sealed class FmSynth : System.IDisposable
     // between, so a note placed inside them would lose its front.
     public long MinimumLead => _backend.MinimumLead;
 
-    public FmSynth(int maxVoices, float masterGain = 0.8f, int queueCapacity = 512)
+    // What the sum of every voice is scaled by on the way out, which is the one number
+    // that says how much of the mix is headroom.
+    //
+    // A quarter, which is to say **full scale is four notes**. The pan law is unity at
+    // the centre rather than at the ends, so a note at level 1 already arrives at the mix
+    // at full scale on both sides — the budget is therefore literally counted in notes,
+    // and a gain anywhere near a whole is a budget of one. At four fifths it was: two
+    // notes measured +4.1dBFS and a triad +7.6, and everything over the top of that was
+    // rounded off by the soft clip at the end of the mix, which is why a plain fifth at
+    // level 1 sounded dirty. It was not the chord that was wrong. Four is a chord with a
+    // bass under it.
+    //
+    // What it costs is 10.1dB, and the **threshold is where that comes back**: the
+    // limiter's make-up is the inverse of it, so pulling the bar down hands the level
+    // back and hardens the mix on the way. That bar could not do this before. A mix
+    // arriving already at full scale left it nothing to sit under — a threshold below
+    // the mix squeezed everything at once and one at the mix caught nothing — so what
+    // this gain really buys is a range of levels for it to mean something in.
+    //
+    // Older projects do not pay the 10.1dB. ProjectFormat shifts a saved threshold by
+    // exactly it, which leaves a version 16 piece sounding as it did, note for note.
+    public const float MasterGain = 0.25f;
+
+    public FmSynth(int maxVoices, float masterGain = MasterGain, int queueCapacity = 512)
     {
         MaxVoices = maxVoices;
 #if UNITY_WEBGL && !UNITY_EDITOR

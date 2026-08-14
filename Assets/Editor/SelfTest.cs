@@ -2134,18 +2134,44 @@ static class SelfTest
               after > target * 0.9f,
               "tail RMS " + after + " against " + target + " at full gain");
 
+        // A version 16 threshold meets the staging shift on the way in. The mix in front
+        // of the limiter is 10.1dB smaller than it was, and a threshold is a level, so
+        // the same place in the mix is now a different number and the file has to be
+        // given it. One already at the end of the bar has nowhere left to go.
+        var shifted = ProjectFormat.Read("jacquard 16\nlimiter ceiling=-6\n").Limiter;
+        var floored = ProjectFormat.Read("jacquard 16\nlimiter ceiling=-40\n").Limiter;
+
+        Check(log, "a version 16 threshold comes down by the staged headroom",
+              Mathf.Abs(shifted.ceiling + 16.103f) < 0.01f &&
+              Mathf.Abs(floored.ceiling - Jacquard.Limiter.MinCeiling) < 0.001f,
+              "ceiling=" + shifted.ceiling + ", and -40 lands on " + floored.ceiling);
+
+        // And a file with no limiter line at all takes the same shift, which is the one
+        // case where reading it as it stands would be audible: a threshold left at full
+        // scale against a mix a quarter of the size is a limiter that has stopped
+        // reaching the music it used to hold down.
+        var silent = ProjectFormat.Read("jacquard 10\ntempo 120\n").Limiter;
+
+        Check(log, "a file from before the limiter is shifted with the rest",
+              Mathf.Abs(silent.ceiling - shifted.ceiling - 6.0f) < 0.01f,
+              "ceiling=" + silent.ceiling + " from a default of " +
+              Jacquard.Limiter.Default.ceiling);
+
         // A version 12 file said the same squeeze with two numbers, a drive pushing up
         // into a ceiling that held the output down, so it has to arrive as the one that
-        // carries it now: 12dB of push into a ceiling 6dB down is 18dB of squeeze. The
-        // second pair reaches past the bar and comes back at the end of it.
+        // carries it now: 12dB of push into a ceiling 6dB down is 18dB of squeeze. Then
+        // it takes the shift above like every other older threshold, which is what the
+        // expectation is written against rather than a second copy of the number. The
+        // last pair reaches past the bar before either conversion and stays at the end
+        // of it.
         var folded = ProjectFormat.Read(
           "jacquard 12\nlimiter drive=12 ceiling=-6 attack=0.01 release=0.2\n").Limiter;
 
         var beyond = ProjectFormat.Read(
           "jacquard 12\nlimiter drive=48 ceiling=-6\n").Limiter;
 
-        Check(log, "a version 12 drive folds into the ceiling",
-              Mathf.Abs(folded.ceiling + 18.0f) < 0.001f &&
+        Check(log, "a version 12 drive folds into the ceiling ahead of it",
+              Mathf.Abs(folded.ceiling - (shifted.ceiling - 12.0f)) < 0.01f &&
               Mathf.Abs(folded.attack - 0.01f) < 0.0001f &&
               Mathf.Abs(beyond.ceiling - Jacquard.Limiter.MinCeiling) < 0.001f,
               "ceiling=" + folded.ceiling + " attack=" + folded.attack +
