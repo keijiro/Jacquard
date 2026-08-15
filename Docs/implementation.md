@@ -1398,6 +1398,65 @@ Notes on the prototype
   `Jacquard.Core` is built with `noEngineReferences` and `Unity.Mathematics` is not, not
   because `math` is a problem for Burst — and it holds its own there anyway, timing the
   same as `math.sin` to within the noise.
+- **A button moves under the hand rather than staying where it is.** The ground goes one
+  step along the ramp for a pointer over it and four steps for a pointer pressing it —
+  `Style.HoverStep` and `Style.PressStep`, applied to whatever ground the control is
+  already on. Four times and not two and a half, which is where this started and which
+  could not be felt: a hover is a control saying it is under the pointer, which is a
+  whisper, and a press is the control answering a hand, which has to be felt without
+  being looked for — so the gap between them has to be bigger than the gap between a
+  hover and nothing.
+  **Which way it moves is decided by where the ground already is.** A dark ground goes
+  lighter, because light is what *engaged* means everywhere else here: a lit switch, a
+  solid cell and a bar opened to be typed into are all the pale end of the ramp. A pale
+  ground has nowhere to go that way — a lit switch is a hair under white, so a step
+  lands seven values from where it started and a switch that was on had no answer to a
+  press at all — so it goes down into the ramp instead. What the two cases share is the
+  part that carries the meaning: the ground moves, and it moves further under a press.
+  A bright border under the press was tried first as the way out of the pale case and
+  removed; it drew a second, louder thing on the screen to say what the ground now says
+  for itself. Written as an amount rather than as a second palette entry per control
+  because a switch has two grounds, dark when it is off and pale when it is lit, and a
+  hand on it means the same thing in either — the first step from the ordinary dark
+  ground lands exactly on `ControlHover`, which is what the bars were already lifting to
+  before the buttons did anything at all.
+  It is five events and not two, because a hand does not only arrive and leave: it
+  presses and releases in place, it slides off while still holding — where the press is
+  over as far as the button is concerned, since the stock `Clickable` will not fire — and
+  it slides back on again, which the pointer capture is what knows, and it is the same
+  capture the click itself is decided by. `PointerCaptureOutEvent` covers the ending that
+  reaches no release at all, a window deactivated or a touch cancelled, which is the one
+  that would otherwise leave a button lit with nothing on it.
+  The three things the colour is a function of — the ground, the hover, the press — are
+  set from different places, so they are hung on the button in a `Reaction` rather than
+  closed over: `SetActive` is handed a button by callers that have never heard of any of
+  this, and a switch is toggled by the very press that is lifting it, so the ground has
+  to be remembered rather than written straight to the style.
+
+  **The press has to be taken on the way down, and finding that out cost a wrong
+  answer.** `Clickable` answers a mouse through the compatibility `MouseDownEvent` rather
+  than through the pointer event, and it clears the way for that by calling
+  `StopImmediatePropagation` the moment it sees the mouse's own pointer id — so a
+  `PointerDownEvent` callback registered the ordinary way is *never called by a mouse*.
+  It is called by a finger, so the first cut of this worked under every touch profile
+  and did nothing at all under a mouse. `TrickleDown.TrickleDown` puts the handler ahead
+  of the manipulator instead of behind it, which is where something that only paints
+  belongs anyway: nothing here consumes the event or decides anything about the click.
+  `PointerUpEvent` is registered the same way for symmetry, and `PointerCaptureOutEvent`
+  is left on the ordinary phase because a capture event is delivered to one element and
+  never travels, so there is nothing ahead of it to stop it.
+
+  Two things about checking it, both learned the hard way. **Sending the event to the
+  button proves nothing about this**: `SendEvent` with the target set runs the same
+  propagation, but the wrong-phase handler still fired there because the events arrived
+  in an order a real device never produces — the whole bug lives in what a real mouse
+  does. And **the editor Game view is not the place to drive a real cursor**: it stops
+  processing input the moment `Application.isFocused` goes false, which it does whenever
+  the focused editor window is anything else, and it went false repeatedly between one
+  step of a test and the next. A `BuildOptions.Development` standalone player, activated
+  and driven with `CGEvent` from a ten-line Swift script, has none of that: hover, press
+  and release were read straight off `screencapture` at `#444444`, `#757575` with a
+  `#F2F2F2` border, and the lit ground after the click.
 - **The chrome has two metric profiles rather than a UI scale**, and what separates
   them is not the screen but the pointer: a mouse lands on whatever it is over, and a
   fingertip covers about nine millimetres of glass whatever is under it. `Controls`
@@ -1483,6 +1542,14 @@ Notes on the prototype
   on light. Bold is the one cut dilated rather than a second one — Jura has real weights
   up to 700, but a second file to carry them is a second thing to keep in step with the
   first, for a difference this synthesises well enough at these sizes.
+
+  **Dropping the weight was tried and reverted by eye** (2026-08-15). The argument for
+  dropping it is a good one — a synthesised bold is a face that does not exist, with its
+  own spacing and thickened joins, standing in a run of switches next to the same word in
+  the real one — and it is beside the point: plain type on the pale ground is markedly
+  harder to read at this size, which is the thing the rule was written for. It is a
+  question about a screen and it was answered by looking at one; anything that revisits
+  it should be settled the same way.
 - **The interface is sized by the inch, and the asset is the only thing that says
   so.** `Assets/UI/DefaultSettings.asset` is a constant *physical* size at a
   reference DPI of 132, a fallback of 264 and a scale of one; there is no pixel

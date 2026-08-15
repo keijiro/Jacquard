@@ -77,6 +77,47 @@ static class Style
     public static readonly Color ControlHover = Grey(0x44);
     public static readonly Color Link = Grey(0x86);
 
+    // What a control's ground does while a hand is on it: it moves along the ramp, one
+    // step for a pointer over it and a longer one for a pointer pressing it.
+    //
+    // Which way it moves is decided by where the ground already is, and it has to be. A
+    // dark ground goes lighter, which is what *engaged* means everywhere else here — a
+    // lit switch, a solid cell, a bar opened to be typed into are all the pale end of the
+    // ramp. A pale ground has nowhere to go in that direction: a lit switch is a hair
+    // under white, so lifting it is a change of seven values that nobody can see, and a
+    // switch that is on was left with no answer to a press at all. So it goes the other
+    // way, into the ramp rather than off the end of it, and what the two cases have in
+    // common is the thing that matters — the ground moves, and it moves further under a
+    // press than under a hover.
+    //
+    // Two steps rather than one repeated, so that a press is not a hover with a longer
+    // reaction time. The second is four times the first, and it is that far apart
+    // because the first is deliberately small: a hover is a control saying it is under
+    // the pointer, which is a whisper, and a press is the control answering a hand,
+    // which has to be felt without being looked for. At two and a half times the hover
+    // step — where this started — a press read as a hover that had drifted, and the
+    // thing it was drifting from is already the faintest mark on the screen.
+    //
+    // Written as an amount applied to whatever ground a control is on rather than as a
+    // second and third palette entry per control, since a switch has two grounds — dark
+    // when it is off and pale when it is lit — and a hand on it means the same thing in
+    // either state. From the ordinary dark ground the first step lands exactly on
+    // ControlHover, which is the colour the bars were already lifting to before the
+    // buttons did anything at all.
+    public const float HoverStep = 0x10 / 255.0f;
+    public const float PressStep = 0x40 / 255.0f;
+
+    // Away from the end of the ramp the ground is already at, and clamped, since a step
+    // is a fixed size and neither end of a byte wraps.
+    public static Color UnderHand(Color ground, float amount)
+    {
+        var move = ground.grayscale > 0.5f ? -amount : amount;
+
+        return new Color(Mathf.Clamp01(ground.r + move),
+                         Mathf.Clamp01(ground.g + move),
+                         Mathf.Clamp01(ground.b + move), ground.a);
+    }
+
     // A value bar's fill, and the same while it is being dragged. It has to stay light
     // enough to be read against the box it fills and dark enough to read the value
     // over, which is printed on top of it.
@@ -107,6 +148,13 @@ static class Style
     // up to 700, but what is checked in is one static instance of them, and a second
     // file to carry the bold would be a second thing to keep in step with the first for
     // a difference this synthesises well enough at these sizes.
+    //
+    // Dropping the weight and keeping the colour was tried, on the argument that a
+    // synthesised bold is a face that does not exist standing next to one that does. It
+    // reads as the better argument and it is the worse screen: plain type on the pale
+    // ground is markedly harder to read at this size, which is the thing the rule was
+    // written for and the thing the argument talked past. Reverted by eye, and the way
+    // to settle it again is to look at a lit switch and not at this comment.
     //
     // The colour and the weight are set together and in one place because they are one
     // decision: there is no light ground in this UI that takes plain type, and no dark

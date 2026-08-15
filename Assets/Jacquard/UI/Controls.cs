@@ -265,6 +265,7 @@ static class Controls
         TileElement.SetBorderWidth(button, 1.0f);
         TileElement.SetBorderColor(button, Style.PanelLine);
         TileElement.SetBorderRadius(button, Radius);
+        React(button);
         // Every width here is written against the mouse profile, so a caller never has
         // to know which set is in force.
         if (width > 0.0f) button.style.width = Width(width);
@@ -274,10 +275,110 @@ static class Controls
     // Shows whether what a button toggles is currently on.
     public static void SetActive(Button button, bool active)
     {
-        button.style.backgroundColor = active ? Style.NoteLine : Style.ControlBackground;
+        Ground(button, active ? Style.NoteLine : Style.ControlBackground);
         // Which also turns the word over to the weight a light ground takes.
         Style.SetInk(button, active);
     }
+
+    // What a button is doing about the hand on it: the ground it goes back to when the
+    // hand is elsewhere, and what the hand is currently doing to it.
+    //
+    // It has to be kept somewhere, because the three of them are set from three
+    // different places — the ground by whoever toggles the switch, the other two by the
+    // pointer — and the colour on screen is a function of all three. Hung on the button
+    // rather than closed over, since SetActive is handed a button by callers that have
+    // never heard of any of this.
+    sealed class Reaction
+    {
+        public Color Ground = Style.ControlBackground;
+        public bool Hover;
+        public bool Press;
+    }
+
+    // Gives a button its reaction to the pointer, which every button here gets: a flat
+    // box that does not move when it is touched reads as a picture of a button rather
+    // than as one, and on a screen with no cursor a press that leaves no mark is a press
+    // a hand cannot tell landed.
+    //
+    // Five events and not two, because a hand does not only arrive and leave. It presses
+    // and releases without going anywhere, it slides off while still holding — where the
+    // press is over as far as the button is concerned, and the stock Clickable will not
+    // fire — and it slides back on again, which is a press once more and says so: the
+    // capture is what knows that, and it is the same capture the click itself is decided
+    // by, so the mark and the outcome cannot disagree. And a press can end without any
+    // release reaching here at all, a window deactivated or a touch cancelled, which is
+    // the one ending that would otherwise leave a button lit with nothing on it.
+    //
+    // The press and the release are taken on the way down, and that is not a detail.
+    // Clickable answers a mouse through the compatibility MouseDownEvent rather than
+    // through the pointer event, and it clears the way for that by stopping the pointer
+    // event *immediately* the moment it sees the mouse's own id — so a PointerDownEvent
+    // handler registered the ordinary way is never called by a mouse at all. It is
+    // called by a finger, which is what made this look like it worked: every touch
+    // profile lit up and every mouse did nothing. TrickleDown puts these ahead of the
+    // manipulator instead of behind it, which is where a thing that only paints belongs
+    // anyway — nothing here consumes the event or decides anything about the click.
+    static void React(Button button)
+    {
+        var reaction = new Reaction();
+        button.userData = reaction;
+
+        button.RegisterCallback<PointerEnterEvent>(e =>
+        {
+            reaction.Hover = true;
+            reaction.Press = button.HasPointerCapture(e.pointerId);
+            Paint(button, reaction);
+        }, TrickleDown.TrickleDown);
+
+        button.RegisterCallback<PointerLeaveEvent>(_ =>
+        {
+            reaction.Hover = reaction.Press = false;
+            Paint(button, reaction);
+        }, TrickleDown.TrickleDown);
+
+        button.RegisterCallback<PointerDownEvent>(_ =>
+        {
+            reaction.Press = true;
+            Paint(button, reaction);
+        }, TrickleDown.TrickleDown);
+
+        button.RegisterCallback<PointerUpEvent>(_ =>
+        {
+            reaction.Press = false;
+            Paint(button, reaction);
+        }, TrickleDown.TrickleDown);
+
+        // Not on the way down, because a capture event does not travel: it is delivered
+        // to the element the capture is leaving and to nothing else, so there is nothing
+        // ahead of it to be stopped by.
+        button.RegisterCallback<PointerCaptureOutEvent>(_ =>
+        {
+            reaction.Press = false;
+            Paint(button, reaction);
+        });
+    }
+
+    // The ground a button rests on, which is where a switch says whether it is lit. It
+    // is remembered rather than written straight to the style, since the pointer may be
+    // on the button while it is being set — a switch is toggled by the very press that is
+    // moving it — and what is drawn then is this ground under a hand, not this ground.
+    static void Ground(Button button, Color ground)
+    {
+        if (button.userData is not Reaction reaction)
+        {
+            button.style.backgroundColor = ground;
+            return;
+        }
+
+        reaction.Ground = ground;
+        Paint(button, reaction);
+    }
+
+    static void Paint(Button button, Reaction reaction)
+      => button.style.backgroundColor =
+           reaction.Press ? Style.UnderHand(reaction.Ground, Style.PressStep)
+           : reaction.Hover ? Style.UnderHand(reaction.Ground, Style.HoverStep)
+           : reaction.Ground;
 
     // A button that is on while it is held and off the moment it is let go, which is
     // the whole of what a live effect is: there is no state to leave behind, so
