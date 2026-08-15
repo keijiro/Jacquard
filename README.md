@@ -157,7 +157,12 @@ hands back to whichever is still held. With a mouse only one button can be held 
 a time; a touch screen holds one per finger.
 
 Scores are saved under `Application.persistentDataPath/Scores` as plain text,
-one line per step; pick a slot with the arrows beside Save. On a desktop the System panel
+one line per step; pick one with the arrows beside Save. A copy of the app that has
+saved nothing yet writes nine of them for itself — `score1` through `score9`, the first
+holding the sample and the rest a bar with a note on each beat to start from — so every
+name on the chooser is a file that is really there, in alphabetical order. It opens in
+whichever was last saved or loaded, and comes back to the first name on the list when
+that one has gone. On a desktop the System panel
 has a button that opens that directory. In a Web build the path is the browser's own
 storage, so a save keeps across a reload but not across clearing the site's data — and
 there is nothing to open, so the button is not there.
@@ -171,8 +176,8 @@ mix and the live effects go on working, and the plane comes back the moment the 
 turns over. A request cannot be taken back — Stop is what ends the wait, and the score
 comes in there and then.
 
-The score the app opens on is one of those files, checked in at
-`Assets/Jacquard/Scores/Startup.jacquard.txt`. To replace it, save the score from
+The sample that fills the first slot is one of those files, checked in at
+`Assets/Jacquard/Scores/Sample.jacquard.txt`. To replace it, save the score from
 the app and copy the file over that one, then run **Jacquard > Run Self Test** to
 be told whether it still reads as the current version.
 

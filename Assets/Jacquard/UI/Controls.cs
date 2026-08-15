@@ -437,20 +437,36 @@ static class Controls
     // on this screen where a name is the whole of what is being read.
     public static VisualElement Chooser(IReadOnlyList<string> options, Func<int> get,
                                         Action<int> set)
+      => Chooser(options, get, set, out _);
+
+    // The same, handing back the way to put the readout right again.
+    //
+    // A chooser reads its list when it is built and whenever it is stepped, which is
+    // the whole of what a list written down in this project needs. The one on the
+    // transport row is a folder on a disk: it changes while the app is not looking, and
+    // what is showing then is a name that was there a moment ago. See
+    // JacquardUI.RefreshSlots.
+    public static VisualElement Chooser(IReadOnlyList<string> options, Func<int> get,
+                                        Action<int> set, out Action sync)
     {
         var row = Row();
 
         var value = Value("");
         value.style.unityTextAlign = TextAnchor.MiddleCenter;
 
+        // Empty is a real state for a list that is read off a disk, and not one for any
+        // of the lists in here that are written down. Nothing to show and nothing to
+        // step to, rather than an index into no options.
         void Refresh()
         {
             var index = Mathf.Clamp(get(), 0, options.Count - 1);
-            value.text = options[index];
+            value.text = options.Count > 0 ? options[index] : "";
         }
 
         void Move(int delta)
         {
+            if (options.Count == 0) return;
+
             var index = (get() + delta + options.Count) % options.Count;
             set(index);
             Refresh();
@@ -459,6 +475,8 @@ static class Controls
         row.Add(Arrow(left: true, () => Move(-1)));
         row.Add(value);
         row.Add(Arrow(left: false, () => Move(1)));
+
+        sync = Refresh;
 
         Refresh();
         return row;

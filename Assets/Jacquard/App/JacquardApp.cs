@@ -50,20 +50,25 @@ public sealed class JacquardApp : MonoBehaviour
     [field:SerializeField, Range(0.005f, 0.1f)]
     public float LiveLead { get; set; } = 0.03f;
 
-    // The score the app opens on, as a file rather than as code. What it holds is a
-    // real piece of work — eight patches and a handful of lanes — and the one thing
-    // that is certain about it is that it will be replaced again. Written out by the
-    // app's own Save and copied in, so replacing it is a copy rather than a
+    // The score a fresh install is given, as a file rather than as code. What it holds
+    // is a real piece of work — eight patches and a handful of lanes — and the one
+    // thing that is certain about it is that it will be replaced again. Written out by
+    // the app's own Save and copied in, so replacing it is a copy rather than a
     // transcription, and the format is exercised by the same reader every load uses.
     //
     // A double extension because Unity imports a TextAsset by extension and .jacquard
     // is not one it knows; the alternative is a ScriptedImporter for one file.
     //
-    // Nothing here is a fallback for a missing asset beyond an empty score: leaving
-    // the field unassigned is how the app is started with nothing in it, which is the
-    // only other thing this used to be able to do.
+    // It is not what the app opens on any more, and it is read exactly once in the life
+    // of an install: the first launch writes it into the first slot of the score folder
+    // and every launch after that opens whatever is in that folder. So this is the
+    // contents of a slot rather than a startup score, and what it is called says so.
+    //
+    // Nothing here is a fallback for a missing asset beyond the initial score: leaving
+    // the field unassigned is how the app is started with nothing made in it, which is
+    // the only other thing this used to be able to do.
     [field:SerializeField]
-    public TextAsset StartupScore { get; set; }
+    public TextAsset SampleScore { get; set; }
 
     // The wordmark at the left of the transport row. A bitmap and not a Painter2D
     // drawing like every other mark in here: the type is a pixel font already, so
@@ -214,25 +219,69 @@ public sealed class JacquardApp : MonoBehaviour
         Editor.Locked = false;
     }
 
-    // The score the app opens on. A file that will not read is not worth stopping for
-    // — there is a whole app behind it that works without one — so it comes back as an
-    // empty score with something to say, which is what the status line is for. What is
-    // said outlives the listing that would otherwise be there, since a startup file
-    // that has gone stale is the more useful of the two things to be told.
-    CoreProject ReadStartupScore()
+    // The score the app comes up in, which is a file on disk like every other score
+    // this app has ever saved.
+    //
+    // Three things in order, and each is only interesting when the one before it has
+    // nothing to say. The folder is filled if it is empty, which happens once in the
+    // life of an install. The name is whatever the app was last left in, which the
+    // store checks against the folder rather than trusting. And then it is loaded, the
+    // same way pressing Load loads one — the seam a running score is switched at is not
+    // wanted here, since there is nothing yet to play across.
+    //
+    // A file that will not read is not worth stopping for: there is a whole app behind
+    // it that works without one, so it comes back as an initial score with something to
+    // say, which is what the status line is for.
+    CoreProject OpeningScore()
     {
-        if (StartupScore == null) return CoreProject.CreateEmpty();
+        Store.Seed(ReadSampleScore);
+        Store.Name = Store.Opening();
+
+        var project = Store.Load(out var message);
+        Message = _sampleProblem ?? message;
+
+        return project ?? CoreProject.CreateInitial();
+    }
+
+    // The sample, as a score, for the one launch that has a folder to fill. Nothing
+    // here is worth stopping for either — a slot the sample cannot be put in gets the
+    // initial score like the eight beside it — but it is worth saying, since a sample
+    // asset left behind by a format bump is a thing to be told about once.
+    CoreProject ReadSampleScore()
+    {
+        if (SampleScore == null) return null;
 
         try
         {
-            return ProjectFormat.Read(StartupScore.text);
+            return ProjectFormat.Read(SampleScore.text);
         }
         catch (System.Exception error)
         {
             Debug.LogException(error);
-            _startupProblem = "could not read " + StartupScore.name + ": " + error.Message;
-            return CoreProject.CreateEmpty();
+            _sampleProblem = "could not read " + SampleScore.name + ": " + error.Message;
+            return null;
         }
+    }
+
+    // Coming back to the front. What was in the score folder is no longer known: the
+    // app has been away, and away is exactly where a file manager, a sync client or a
+    // desktop's own Finder window does its work — the System panel hands somebody that
+    // folder on purpose. So the chooser is built again from what is there now.
+    //
+    // Both callbacks, because which of the two arrives is the platform's business: iOS
+    // sends the pause, a desktop sends the focus, and either way this is cheap and
+    // reaches the same place. Nothing happens before the UI exists, since focus is
+    // delivered to a component that has not been started yet.
+    void ReadTheFolderAgain()
+    {
+        if (_ui == null) return;
+
+        // A folder emptied while the app was away is filled again rather than left
+        // empty, by the same rule that filled it in the first place: the chooser has to
+        // have something on it.
+        Store.Seed(ReadSampleScore);
+
+        _ui.RefreshSlots();
     }
 
     // MonoBehaviour implementation
@@ -250,7 +299,9 @@ public sealed class JacquardApp : MonoBehaviour
         // Before anything is built, since every control reads its size as it is made.
         Controls.LayOutFor(Pointer);
 
-        Project = ReadStartupScore();
+        // The store before the score, since the score is now one of its files.
+        Store = new ProjectStore();
+        Project = OpeningScore();
 
         // Before the synth and not after it. What this may do is reinitialize the audio
         // system, and the moment for that is while nothing has been allocated against
@@ -272,9 +323,6 @@ public sealed class JacquardApp : MonoBehaviour
         // After the editor and the view, since following a switch means pointing both
         // of them at what the sequencer has taken up.
         Sequencer.Switched += OnSwitched;
-
-        Store = new ProjectStore();
-        Message = _startupProblem ?? Store.Listing();
 
         Visualizer = GetComponent<Visualizer>();
 
@@ -339,6 +387,16 @@ public sealed class JacquardApp : MonoBehaviour
         // it moves under a running app.
         FollowTheZoom();
 #endif
+    }
+
+    void OnApplicationFocus(bool focused)
+    {
+        if (focused) ReadTheFolderAgain();
+    }
+
+    void OnApplicationPause(bool paused)
+    {
+        if (!paused) ReadTheFolderAgain();
     }
 
     void OnDestroy()
@@ -486,9 +544,9 @@ public sealed class JacquardApp : MonoBehaviour
 
     JacquardUI _ui;
 
-    // Whatever the startup file had to say for itself, held until there is a status
+    // Whatever the sample file had to say for itself, held until there is a status
     // line to say it on.
-    string _startupProblem;
+    string _sampleProblem;
 
     // The sample a score that has already taken over starts sounding on, and nothing
     // once the screen has caught up with it.

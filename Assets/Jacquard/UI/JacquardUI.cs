@@ -135,6 +135,28 @@ sealed class JacquardUI
         Report();
     }
 
+    // Builds the file chooser again from what is in the score folder now. Called when
+    // the app comes back to the front, which is the one moment it can be sure the folder
+    // has been out of its hands — see JacquardApp.ReadTheFolderAgain.
+    //
+    // The list is refilled rather than replaced, since the chooser was handed this list
+    // and holds it: a new one would be a chooser reading the folder as it stood when the
+    // row was built, for as long as the app runs.
+    //
+    // A name that is no longer there is given up. The chooser would show the first slot
+    // anyway — an index it cannot find reads as none — and leaving the store pointed at
+    // the missing file would mean Save and Load working on a name nothing on screen says.
+    public void RefreshSlots()
+    {
+        _slots.Clear();
+        _slots.AddRange(_app.Store.Slots());
+
+        if (_slots.Count > 0 && !_slots.Contains(_app.Store.Name))
+            _app.Store.Name = _slots[0];
+
+        _syncSlots();
+    }
+
     // Puts the score's own controls out of reach while another score waits to come in,
     // and gives them back at the seam.
     //
@@ -243,11 +265,16 @@ sealed class JacquardUI
 
         row.Add(Separator());
 
+        // The one list on this screen that is not written down anywhere: it is the score
+        // folder, read out. The list object outlives every reading of it, since what the
+        // chooser holds is this list rather than a copy of what was in it — see
+        // RefreshSlots.
         _slots = _app.Store.Slots();
 
         var chooser = Controls.Chooser(_slots,
                                        () => Mathf.Max(0, _slots.IndexOf(_app.Store.Name)),
-                                       index => _app.Store.Name = _slots[index]);
+                                       index => _app.Store.Name = _slots[index],
+                                       out _syncSlots);
         // The widest thing on the row, and the first place to look when the row runs
         // out of screen. What it has to hold is a slot name between two arrows, and a
         // name longer than the box draws past it rather than being clipped — where a
@@ -735,7 +762,11 @@ sealed class JacquardUI
     bool _systemShown;
     ValueBar _tempo;
     Button _load;
+
+    // The score folder as the chooser has it, and the way to make the chooser say what
+    // is in it again.
     List<string> _slots;
+    System.Action _syncSlots;
 
     // What the score's controls were last put into, so that they are written to when
     // that changes and not every frame it has not.

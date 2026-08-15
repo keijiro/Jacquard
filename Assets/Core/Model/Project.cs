@@ -75,11 +75,34 @@ public sealed class Project
     public int SoundingPitch(in FmPatch patch, int note)
       => Scale.Snap(note + (int)System.MathF.Round(patch.transpose));
 
-    // An empty project still needs one lane to type into.
-    public static Project CreateEmpty()
+    // What a score starts as: one lane of sixteen steps with a C4 on every fourth, which
+    // is what every empty slot on a fresh install holds and what a score is initialized
+    // to anywhere else.
+    //
+    // Not an empty lane, which is what this used to be. A lane with nothing in it is
+    // silent, so the first press of Play on a new score answered with nothing at all —
+    // and a hand that has just met the app cannot tell that from an app that is not
+    // working. Four notes on the one pitch play a bar as soon as it is asked for, and
+    // they are the least a score can hold and still say what a step, a lane and a lap
+    // are: the plane shows the shape, the playhead walks it, and every cell of it is
+    // something to type over.
+    //
+    // A bar of sixteenths rather than four steps end to end, because the lap this hands
+    // over is the one everything else here is written in: the steps are sixteenths, so a
+    // note every fourth is a beat, the lane is a bar of four, and the twelve empty cells
+    // between them are where the rest of the bar is typed. Four steps would have played
+    // the same pulse four times as fast and left nowhere to put anything between two
+    // notes without lengthening the lane first.
+    public static Project CreateInitial()
     {
         var project = new Project();
-        project.Score.AddLane(1, 1, new ChannelTile(), 16);
+        var lane = project.Score.AddLane(1, 1, new ChannelTile(), 16);
+
+        // Spelled out rather than left to the tile's own default, which is this note:
+        // what the score holds is written here, not somewhere a default can move.
+        for (var step = 0; step < 16; step += 4)
+            Fill(lane, step, new NoteTile { Note = N("C4") });
+
         return project;
     }
 
