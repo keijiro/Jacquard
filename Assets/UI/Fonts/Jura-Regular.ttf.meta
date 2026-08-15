@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 080c88c67512242ffa67a7a334455aab
+guid: 13f1a02e96f84bb7b1f0636a08122c82
 TrueTypeFontImporter:
   externalObjects: {}
   serializedVersion: 4
@@ -9,13 +9,13 @@ TrueTypeFontImporter:
   characterPadding: 1
   includeFontData: 1
   fontNames:
-  - Antic Didone
+  - Jura
   fallbackFontReferences: []
-  customCharacters: 
+  customCharacters:
   fontRenderingMode: 0
   ascentCalculationMode: 1
   useLegacyBoundsCalculation: 0
   shouldRoundAdvanceValue: 1
-  userData: 
-  assetBundleName: 
-  assetBundleVariant: 
+  userData:
+  assetBundleName:
+  assetBundleVariant:

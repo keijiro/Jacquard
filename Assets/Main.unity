@@ -261,7 +261,7 @@ MonoBehaviour:
   <LiveLead>k__BackingField: 0.03
   <StartupScore>k__BackingField: {fileID: 4900000, guid: 4f72478497783404a84b74201ce6eae8, type: 3}
   <Logo>k__BackingField: {fileID: 2800000, guid: c138cf66158254c6db98a90a489caeae, type: 3}
-  <Font>k__BackingField: {fileID: 12800000, guid: 080c88c67512242ffa67a7a334455aab, type: 3}
+  <Font>k__BackingField: {fileID: 12800000, guid: 13f1a02e96f84bb7b1f0636a08122c82, type: 3}
   <FrameRate>k__BackingField: 60
   <Pointer>k__BackingField: 0
 --- !u!114 &1391834426

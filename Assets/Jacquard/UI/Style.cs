@@ -94,17 +94,19 @@ static class Style
     //
     // Which of the two text colours a word is in, and how heavily it is cut.
     //
-    // The face is a Didone: every stroke runs from a stem to a hairline. Reversed out
-    // in light on dark the hairlines hold, because the glyph is the bright thing and a
-    // bright shape on a dark ground gains rather than loses at the edges. The same
-    // glyph set dark on light does the opposite — the hairlines thin to nothing and
-    // the counters fill in — and at the eleven and thirteen pixels this chrome is set
-    // at that is the difference between a word and a smudge.
+    // The face is monoline and light: one stroke weight from end to end, and a thin one.
+    // No hairline to lose, then — but a light face has little to give either, and a dark
+    // mark on a bright ground is eaten at its edges by the ground while a bright one on a
+    // dark ground spreads into it. At the eleven and thirteen pixels this chrome is set
+    // at that is a stroke's worth of difference between the two polarities, which on a
+    // stroke this thin is most of the stroke.
     //
     // So the two grounds do not take the same weight. Dark ground is plain; light
     // ground — a lit switch, a solid cell, a bar opened to be typed into — is bold,
-    // which here is the one cut dilated rather than a second one, since Antic Didone
-    // ships a single weight.
+    // which here is the one cut dilated rather than a second one. Jura has real weights
+    // up to 700, but what is checked in is one static instance of them, and a second
+    // file to carry the bold would be a second thing to keep in step with the first for
+    // a difference this synthesises well enough at these sizes.
     //
     // The colour and the weight are set together and in one place because they are one
     // decision: there is no light ground in this UI that takes plain type, and no dark

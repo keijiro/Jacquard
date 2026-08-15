@@ -27,9 +27,12 @@ static class SceneBuilder
     // README and the app icon; Branding/make_logo_png.py writes it.
     const string LogoPath = "Assets/Branding/Logo.png";
 
-    // The face the whole interface is set in. Antic Didone, under the Open Font
-    // License, which is kept beside it.
-    const string FontPath = "Assets/UI/Fonts/AnticDidone-Regular.ttf";
+    // The face the whole interface is set in. Jura, under the Open Font License, which
+    // is kept beside it. Google ships it as a variable font with a weight axis whose
+    // default end is Light; what is checked in is the Regular instance cut out of it,
+    // since the importer has no way to ask for a position on that axis and Light at
+    // eight pixels on a dark ground is not what the chrome is written for.
+    const string FontPath = "Assets/UI/Fonts/Jura-Regular.ttf";
 
     [MenuItem("Jacquard/Rebuild Main Scene")]
     public static void Build()

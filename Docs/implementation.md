@@ -1422,24 +1422,42 @@ Notes on the prototype
   chrome has to stay the one place where **layout values are the real sizes and no
   transform is applied**, or 1px borders and corner radii sit permanently off the
   pixel grid beside a plane that is legitimately smeared only while it is pinched.
-- **The face is Antic Didone, and its weight is a decision rather than a detail.** It
-  is put on the root element and inherited from there, so a control that chose a font of
-  its own would be the only way this could go wrong; the font asset is built from the
-  `Font` at startup rather than checked in beside it, since what such an asset holds is
-  a glyph atlas and a material made from the one thing this project actually chose, and
-  saving them is committing a cache.
+- **The face is Jura, and both its weight and its size are decisions rather than
+  details.** It is put on the root element and inherited from there, so a control that
+  chose a font of its own would be the only way this could go wrong; the font asset is
+  built from the `Font` at startup rather than checked in beside it, since what such an
+  asset holds is a glyph atlas and a material made from the one thing this project
+  actually chose, and saving them is committing a cache. What *is* checked in is a static
+  Regular instance cut from the variable file Google ships, whose weight axis starts at
+  Light: `TrueTypeFontImporter` has no way to ask for a position on an axis, so leaving
+  the variable file in the project would have set the whole interface in Light.
 
-  A Didone runs every stroke from a stem to a hairline. Reversed out in light on dark
-  the hairlines hold, because a bright shape on a dark ground gains at its edges; the
-  same glyph set dark on light does the opposite, and at the eleven and thirteen pixels
-  this chrome is set at the counters fill in and the thin strokes go to grey. Measured
-  on the lit Play switch, plain type carries a little over half the ink bold does — 1.8
-  times, over the same box. So `Style.SetInk` sets the colour and the weight together:
-  there is no light ground in this UI that takes plain type and no dark one that takes
-  bold, and the three places that ask are a lit switch, a bar opened to be typed into
-  and the solid `CHAN` cell, which is the only word the score itself sets on light.
-  Bold is the one cut dilated rather than a second one, since the family ships a single
-  weight.
+  **The type size is a property of the face, not only of the eye.** Every caption column
+  and button width in `Controls` was cut to a word set at eleven and thirteen pixels, so
+  a face that sets the same word wider is a face those numbers have to come down for.
+  The interim swap through Michroma made that concrete: half again as wide, it pushed
+  "Reverb send" out of its column and half the transport row's switches out of their
+  boxes, and since the boxes are the layout and the layout did not move, the pair went
+  to eight and nine and a half — the largest at which the longest word in this UI still
+  stood inside the narrowest box it is given. Jura is narrow enough to give the original
+  numbers back, and `Style.ControlSize` with them. What survives either way is the rule:
+  **hold the ratio between the two profiles rather than the numbers**, because
+  `Controls.Width` *is* that ratio, and type that fits one profile then fits the other.
+
+  Jura is monoline and light, so the weight rule it inherited is differently shaped but
+  no weaker. A Didone ran every stroke from a stem to a hairline, and set dark on light
+  at this size the counters filled in and the thin strokes went to grey; a monoline face
+  has no hairline to lose and only thins, because a dark mark on a bright ground is
+  eaten at its edges by the ground while a bright one on a dark ground spreads into it —
+  and on a stroke as thin as this one that is most of the stroke. Measured on the lit
+  Play switch in the original face, plain type carried a little over half the ink bold
+  does — 1.8 times, over the same box. So `Style.SetInk` still sets the colour and the
+  weight together: there is no light ground in this UI that takes plain type and no dark
+  one that takes bold, and the three places that ask are a lit switch, a bar opened to
+  be typed into and the solid `CHAN` cell, which is the only word the score itself sets
+  on light. Bold is the one cut dilated rather than a second one — Jura has real weights
+  up to 700, but a second file to carry them is a second thing to keep in step with the
+  first, for a difference this synthesises well enough at these sizes.
 - **The interface is sized by the inch, and the asset is the only thing that says
   so.** `Assets/UI/DefaultSettings.asset` is a constant *physical* size at a
   reference DPI of 132, a fallback of 264 and a scale of one; there is no pixel

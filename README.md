@@ -187,10 +187,12 @@ Documentation
 | [Docs/implementation.md] | How it is built, and the decisions behind it |
 | [Branding/README.md] | The marks, and how they are cut from the type |
 
-The interface is set in [Antic Didone], under the SIL Open Font License; the licence
-is kept beside the font at `Assets/UI/Fonts/`.
+The interface is set in [Jura], under the SIL Open Font License; the licence is kept
+beside the font at `Assets/UI/Fonts/`. Google ships Jura as a variable font whose
+weight axis starts at Light, so what is checked in is the Regular instance cut out of
+it — the importer has no way to ask for a position on that axis.
 
-[Antic Didone]: https://fonts.google.com/specimen/Antic+Didone
+[Jura]: https://fonts.google.com/specimen/Jura
 
 [Docs/prototype.md]: Docs/prototype.md
 [Docs/sequencer.md]: Docs/sequencer.md

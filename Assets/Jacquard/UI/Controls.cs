@@ -78,10 +78,17 @@ static class Controls
     // Text on the chrome. It grows by less than the box does, since eleven pixels was
     // legible on the tablet and only the target was not — and every caption column and
     // button width below is measured in words, so each of them pays for this.
+    //
+    // Which is why these two numbers are a property of the face as much as of the eye.
+    // Every width below was cut to a word set at them, so a face that sets the same word
+    // wider is a face that has to come down: the pair went to eight and nine and a half
+    // under a wide one, and came back here under a narrow one. The ratio between them is
+    // the thing to hold rather than the numbers, since Width below is that ratio.
     public static float FontSize => Touch ? 13.0f : MouseFontSize;
 
     // The caption column is as narrow as the longest parameter name will go, since a
-    // name that wraps or clips is worse than a bar that is a few pixels shorter.
+    // name that wraps or clips is worse than a bar that is a few pixels shorter. The
+    // name is "Reverb send".
     public static float LabelWidth => Touch ? 88.0f : 74.0f;
 
     // Every panel is this wide.
