@@ -260,7 +260,23 @@ sealed class JacquardUI
         // it took: the name between the arrows is as long as it ever was. What the word
         // said is said by where the box is standing — after the rule, between Save and
         // Load — and by what is written in it, which is the name of a file.
-        chooser.style.width = Controls.Width(94);
+        //
+        // Widened again to a name of eight wide characters — "MMMMMMMM", which is the
+        // longest eight letters can measure in this face and so what eight of anything
+        // fits inside. Every other number on this row is cut to a word that is written
+        // here and cannot change; this one is cut to a word somebody else will type, so
+        // it is the one box on the row that has to be sized to a length rather than to
+        // a string.
+        //
+        // Which is why it is the touch profile that sets the number, and by more than
+        // the ratio between the two. What is left for the name is the box less the two
+        // arrows and their gaps, and an arrow is a one-glyph button — the one shape
+        // Width floors at a row's height rather than scaling. So the arrows grow from 22
+        // to 30 while the ratio would only have taken them to 26, and the eight
+        // characters they are standing either side of grow by the ratio: the name is
+        // squeezed from both directions at once. 126 is what leaves eight of them room
+        // there, which leaves seven pixels going spare under a mouse.
+        chooser.style.width = Controls.Width(126);
         chooser.style.marginBottom = 0;
         row.Add(chooser);
 
