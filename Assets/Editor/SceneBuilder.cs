@@ -75,7 +75,7 @@ static class SceneBuilder
         var visualizer = appObject.AddComponent<Visualizer>();
         visualizer.Shader = AssetDatabase.LoadAssetAtPath<Shader>(VisualizerShaderPath);
         // Down until something asks for it, which is the state everything the transport
-        // row raises starts in. What asks is the Config panel, which reads the setting
+        // row raises starts in. What asks is the System panel, which reads the setting
         // as it is built and hands it straight over — so this is the state of the first
         // frames rather than the default, and the default is written down there.
         visualizer.enabled = false;

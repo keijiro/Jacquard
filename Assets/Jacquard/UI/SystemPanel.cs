@@ -31,7 +31,7 @@ namespace Jacquard.App {
 // nothing here is read against the plane, so there is no edge it wants to be near, and
 // the middle is what says a panel is not part of the arrangement around the score.
 
-sealed class ConfigPanel
+sealed class SystemPanel
 {
     public VisualElement Root { get; }
 
@@ -43,11 +43,11 @@ sealed class ConfigPanel
     // can show a folder; it is taken whatever the platform, since a constructor that
     // changes shape with the build target is a call site that has to know about
     // platforms too.
-    public ConfigPanel(ProjectStore store, Action<bool> apply, Action refocus)
+    public SystemPanel(ProjectStore store, Action<bool> apply, Action refocus)
     {
         (_apply, _refocus) = (apply, refocus);
 
-        Root = Controls.Panel("Config");
+        Root = Controls.Panel("System");
 
         // The shape a tile's Play switch has: the state is written on the button as well
         // as shown by its fill, so it reads at a glance and turns over in one press

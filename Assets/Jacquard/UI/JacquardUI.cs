@@ -99,10 +99,10 @@ sealed class JacquardUI
         // set about the thing at all, which is the panel beside it here — the two are
         // the same kind of thing to look at, and being in the same place says so.
         _global = new GlobalPanel(_editor);
-        _config = new ConfigPanel(_app.Store, SetVisualizer, Refocus);
-        body.Add(PanelCentre(_global.Root, _config.Root));
+        _system = new SystemPanel(_app.Store, SetVisualizer, Refocus);
+        body.Add(PanelCentre(_global.Root, _system.Root));
         ShowGlobal(false);
-        ShowConfig(false);
+        ShowSystem(false);
 
         // Neither column, because this one is not read: it is played. The columns are
         // where the eye goes and the bottom edge is where the hands already are.
@@ -236,10 +236,10 @@ sealed class JacquardUI
         // the row grows through from now on — a setting that answers to no cell used to
         // mean another switch up here, and the visualizer's was the proof, since it was
         // the only one that raised nothing at all.
-        _configButton = Controls.Push("Config",
-                                      () => { ShowConfig(!_configShown); Refocus(); },
+        _systemButton = Controls.Push("System",
+                                      () => { ShowSystem(!_systemShown); Refocus(); },
                                       62);
-        row.Add(_configButton);
+        row.Add(_systemButton);
 
         row.Add(Separator());
 
@@ -564,13 +564,13 @@ sealed class JacquardUI
 
     // And for the panel that stands with it in the middle. What is on that one is not
     // the project's, so nothing here refreshes it and a load goes past it.
-    void ShowConfig(bool shown)
+    void ShowSystem(bool shown)
     {
-        _configShown = shown;
+        _systemShown = shown;
 
-        _config.Root.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+        _system.Root.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
 
-        Controls.SetActive(_configButton, shown);
+        Controls.SetActive(_systemButton, shown);
     }
 
     // The one setting on that panel, which is the one thing switched on this screen that
@@ -580,7 +580,7 @@ sealed class JacquardUI
     // frame nothing at all.
     //
     // It used to be a switch on the transport row, beside the ones that raise panels,
-    // and it was the only one up there that raised nothing. The Config panel is where a
+    // and it was the only one up there that raised nothing. The System panel is where a
     // question about the app rather than about the piece belongs, and this is the first
     // of them.
     void SetVisualizer(bool shown)
@@ -700,7 +700,7 @@ sealed class JacquardUI
     readonly SendPanel _send;
     readonly ChannelsPanel _channels;
     readonly GlobalPanel _global;
-    readonly ConfigPanel _config;
+    readonly SystemPanel _system;
     readonly LivePanel _live;
 
     Button _play;
@@ -715,8 +715,8 @@ sealed class JacquardUI
     bool _globalShown;
     Button _channelsButton;
     bool _channelsShown;
-    Button _configButton;
-    bool _configShown;
+    Button _systemButton;
+    bool _systemShown;
     ValueBar _tempo;
     Button _load;
     List<string> _slots;

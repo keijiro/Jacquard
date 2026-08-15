@@ -706,21 +706,21 @@ Notes on the prototype
   setting nobody visits twice a session should say. It covers the score while it is up,
   and the switch that raised it is the way back.
 - **Everything the transport row switches starts off.** Channels, Send FX, Live FX, Global
-  and Config are five things a cell cannot ask for and so five switches, and none of them
+  and System are five things a cell cannot ask for and so five switches, and none of them
   is up until it is asked for: the plane is what the screen is for, and a switch that
   starts on is a decision nobody made. They stand in the order of how much each one
   reaches — one channel of the mix, what those channels feed, what is played across the
   whole of it, what is set across the whole of it, and then what is not about the piece at
   all.
 
-  **Config is the row's own way of not growing.** Every switch up there raises a panel
+  **System is the row's own way of not growing.** Every switch up there raises a panel
   except one: the visualizer's raised nothing, since what it moves is the component's own
   `enabled` flag, which is where a MonoBehaviour's on and off already live — so a
   visualizer nobody asked for costs a frame nothing at all, and it is also why that
   component wakes in `Awake` rather than `Start`, which never runs on something that ships
   disabled. That switch was a setting standing among the panels the project is made on,
   and a second setting of its kind would have been a sixth switch on a row that already
-  has to be reachable on a tablet. `ConfigPanel` is where such a question goes now, and
+  has to be reachable on a tablet. `SystemPanel` is where such a question goes now, and
   the visualizer's on and off is the first of them: the panel keeps what was chosen, hands
   it to a callback that knows what to do with it, and the next one arrives as a row rather
   than as a button on the row.

@@ -136,7 +136,7 @@ sealed class FmSynthPipeline : IFmSynthBackend
           ? $"Jacquard: {-moved * 1000.0:0.0}ms of audio was never mixed. The audio " +
             "thread missed its deadline and the device played something else for that " +
             "long, which is heard as a bang. What buys tolerance for it is a longer " +
-            "buffer: raise Buffer size on the Config panel, which the next launch takes up."
+            "buffer: raise Buffer size on the System panel, which the next launch takes up."
           : $"Jacquard: the audio clock ran {moved * 1000.0:0.0}ms ahead of real time, " +
             "so the stream was cut and restarted somewhere else.");
     }

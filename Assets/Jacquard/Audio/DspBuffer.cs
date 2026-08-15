@@ -15,7 +15,7 @@ namespace Jacquard.App {
 //
 // So it belongs to the machine and not to the piece — a fast laptop and a busy one
 // want different numbers out of the same score — which puts it in PlayerPrefs beside
-// the other things the Config panel keeps.
+// the other things the System panel keeps.
 //
 // It is applied once, before the synth is built, and not again. Unity reads its own
 // figure out of the project settings at boot, so a stored number does nothing until
