@@ -44,8 +44,9 @@ static class SceneBuilder
         camera.clearFlags = CameraClearFlags.SolidColor;
         // What the panel used to paint for itself. The interface is transparent over
         // this now, so this is the background of the whole app rather than the colour
-        // behind a panel that covered it.
-        camera.backgroundColor = new Color(0.086f, 0.086f, 0.102f);
+        // behind a panel that covered it. Style.Background as a float, spelled out
+        // rather than read, because Style is internal to the runtime assembly.
+        camera.backgroundColor = new Color(0.086f, 0.086f, 0.086f);
         camera.orthographic = true;
         // The default layer, which is where the visualizer's mesh is drawn and the only
         // thing there is to see: this was zero for as long as there was nothing at all.

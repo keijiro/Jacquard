@@ -60,29 +60,35 @@ static class Style
     public const float DimmedOpacity = 0.45f;
 
     // Colours
+    //
+    // One number each, because the palette is grey through and through. It used to
+    // carry a hint of blue in the dark end and of warmth in the light one — a tint
+    // small enough that no one would name it, but enough that the two ends leaned
+    // opposite ways and the mid greys sat between two hues rather than on one scale.
+    // What is left is the ramp that was doing the work all along, and Grey takes a
+    // single value so there is no longer a place to put a tint back.
 
-    public static readonly Color Background = Hex(0x16161a);
-    public static readonly Color NoteLine = Hex(0xe8e8e4);
-    public static readonly Color NoteText = Hex(0xf2f2ee);
-    public static readonly Color Marker = Hex(0x9a9a96);
-    public static readonly Color Dot = Hex(0x4e4e54);
-    public static readonly Color ControlBackground = Hex(0x34343c);
-    public static readonly Color ControlHover = Hex(0x44444e);
-    public static readonly Color Link = Hex(0x86868c);
+    public static readonly Color Background = Grey(0x16);
+    public static readonly Color NoteLine = Grey(0xe8);
+    public static readonly Color NoteText = Grey(0xf2);
+    public static readonly Color Marker = Grey(0x9a);
+    public static readonly Color Dot = Grey(0x4e);
+    public static readonly Color ControlBackground = Grey(0x34);
+    public static readonly Color ControlHover = Grey(0x44);
+    public static readonly Color Link = Grey(0x86);
 
-    // A value bar's fill, and the same while it is being dragged. Grey rather than a
-    // colour of its own, since nothing else here is coloured: it has to stay light
+    // A value bar's fill, and the same while it is being dragged. It has to stay light
     // enough to be read against the box it fills and dark enough to read the value
     // over, which is printed on top of it.
-    public static readonly Color Fill = Hex(0x6c6c76);
-    public static readonly Color FillActive = Hex(0x84848e);
+    public static readonly Color Fill = Grey(0x6c);
+    public static readonly Color FillActive = Grey(0x84);
 
-    public static readonly Color Panel = Hex(0x1e1e24);
-    public static readonly Color PanelLine = Hex(0x3a3a44);
-    public static readonly Color Label = Hex(0x9a9a96);
+    public static readonly Color Panel = Grey(0x1e);
+    public static readonly Color PanelLine = Grey(0x3a);
+    public static readonly Color Label = Grey(0x9a);
 
-    public static readonly Color Cursor = Hex(0xf2f2ee);
-    public static readonly Color Playhead = Hex(0xf2f2ee);
+    public static readonly Color Cursor = Grey(0xf2);
+    public static readonly Color Playhead = Grey(0xf2);
 
     // Ink
     //
@@ -110,8 +116,8 @@ static class Style
           onLight ? FontStyle.Bold : FontStyle.Normal;
     }
 
-    public static Color Hex(uint rgb)
-      => new Color32((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb, 255);
+    public static Color Grey(uint value)
+      => new Color32((byte)value, (byte)value, (byte)value, 255);
 
     public static Color Fade(Color color, float alpha)
       => new Color(color.r, color.g, color.b, alpha);

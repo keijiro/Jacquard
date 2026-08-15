@@ -12,8 +12,8 @@ import os
 from jacquard_grid import CELL, crop, grid, j_only, runs
 
 CANVAS = 16        # square canvas in cells, as the PNG favicon uses
-INK_LIGHT = "#16161a"      # the app's own ground, for a light tab bar
-INK_DARK = "#f2f2ee"       # and the type it writes on it, for a dark one
+INK_LIGHT = "#161616"      # the app's own ground, for a light tab bar
+INK_DARK = "#f2f2f2"       # and the type it writes on it, for a dark one
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "favicon.svg")
 
 j = crop(j_only(grid))
