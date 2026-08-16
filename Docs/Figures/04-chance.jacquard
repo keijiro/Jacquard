@@ -1,0 +1,8 @@
+jacquard 17
+tempo 120
+meter 4 4
+lane 1 1 CHAN:1 div=16 on=1
+  step C4
+  step
+  step GPRB:50 C4
+  step

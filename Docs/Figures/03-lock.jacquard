@@ -1,0 +1,8 @@
+jacquard 17
+tempo 120
+meter 4 4
+lane 1 1 CHAN:1 div=16 on=1
+  step PABS:index,6 C4 E4 G4
+  step
+  step C4 E4 G4
+  step

@@ -1,0 +1,24 @@
+jacquard 17
+tempo 120
+meter 4 4
+lane 1 1 CHAN:1 div=16 on=1
+  step C3
+  step
+  step G3
+  step
+lane 1 4 CHAN:2 div=16 on=0
+  step E4
+  step
+  step G4
+  step
+  step C5
+  step
+lane 1 6 CHAN:3 div=16 on=0
+  step D#5
+  step
+  step
+  step
+  step
+  step
+  step
+  step

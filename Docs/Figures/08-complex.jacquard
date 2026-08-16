@@ -1,0 +1,22 @@
+jacquard 17
+tempo 120
+meter 4 4
+lane 1 1 CHAN:1 div=16 on=1
+  step C3
+  step
+  step GPRB:60 C3
+  step PABS:index,7 D#3
+  step
+  step C3
+  step GCYC:2,01 JUMP
+  step G3
+lane 9 4 JDST from=7,2
+  step A#3
+  step G3
+lane 1 6 CHAN:2 div=16 on=1
+  step PREL:level,-0.3 G4
+  step
+  step E4 G4
+  step
+  step GPRB:50 C5
+  step
