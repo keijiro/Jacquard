@@ -13,6 +13,17 @@ The project takes inspiration from trackers, generative sequencers, and
 hardware grooveboxes, while exploring a more visual and spatial approach to
 sequencing.
 
+## Try It on the Web
+
+A Web build is available, so you can try Jacquard in a browser without
+installing anything.
+
+**https://www.keijiro.tokyo/jacquard-web/**
+
+Note that the Web version keeps saved scores in the browser's storage, which the
+browser may clear at any time. There is currently no way to back them up as
+external files, so treat anything made there as temporary.
+
 ## Basic Concepts
 
 At its simplest, Jacquard works like a regular step sequencer. Place note tiles
@@ -110,6 +121,15 @@ changes, making it possible to switch patterns and introduce parts while
 keeping everything aligned.
 
 <img src="Docs/Figures/12-master.png" width="356" alt="Master lane controlling synchronized score switching and lane start timing">
+
+Every score is a plain text file in a single folder, and the folder can be
+reached from outside the app. On desktop, the **Open score folder** button on
+the System panel reveals it in the file manager. On iOS, the same folder appears
+in the Files app under On My iPhone (or On My iPad), as Jacquard's own folder.
+
+From there scores can be copied, renamed, backed up, or moved between devices.
+A file dropped into the folder simply appears in the score list, since the list
+is that folder read out rather than anything the app remembers.
 
 ## Make It Your Own
 
