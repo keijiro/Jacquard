@@ -20,6 +20,43 @@ public struct FmSynthStatus
     public int droppedNotes;   // Lost because the schedule queue was full
     public int stolenNotes;    // Took a voice from a less important note
     public int cancelledNotes; // Rejected because every voice outranked it
+
+    // The worst a note was late by since the last report, in samples, which is the
+    // front of a note that was never rendered, and how many notes started over the
+    // same stretch — without which a lateness of zero cannot be told from a stretch
+    // with nothing in it. See FmVoicePool.late.
+    public int lateSamples;
+    public int startedNotes;
+
+    // How many times the audio system has renegotiated the format. It changes when a
+    // device is plugged in or the route moves, and everything measured about the path
+    // to the audio thread was measured on the old one. See FmSynthPipeline.
+    public int formatGeneration;
+}
+
+// A question about how far ahead of the app's clock a note has to be placed, and the
+// answer to it, in one struct travelling the same pipe as everything else.
+//
+// The main thread stamps the position it believes the clock is at and sends it; the
+// realtime part stamps the earliest sample it could still render a note from in full
+// and sends it back. The distance between the two stamps is the whole of what the path
+// costs — the hops between the parts, each of which is served once a mix cycle, and
+// whatever the two clocks disagree by — which is precisely what MinimumLead is for.
+//
+// It has to be asked rather than reasoned about because none of those terms is written
+// down anywhere: the hops belong to the pipeline, the disagreement belongs to the
+// device, and on the iPad measured they came to four mix cycles at a sample rate of
+// 24kHz, where the same four cycles on a 48kHz device would be half the time.
+//
+// The id pairs an answer with its question and says which way this one is going: the
+// main thread numbers its questions from one, and a nought is the same message asking
+// for the last answer without adding a question to the queue.
+
+public struct FmClockProbe
+{
+    public int id;
+    public long sentAtSample; // Where the main thread believed the clock was
+    public ulong earliest;    // The first sample the render job could still fill
 }
 
 // Everything on the mix that is not carried by a note, as the audio thread wants it,
@@ -139,9 +176,11 @@ struct FmSynthRealtime : RootOutputInstance.IRealtime
 {
     internal FmSynthCore core;
 
+    // Bumped by Configure, carried out on every status. See FmSynthStatus.
+    internal int generation;
+
     JobHandle _job;
     ulong _dspSample;
-    FmSynthStatus _lastReported;
     MixFxRuntime _fx;
 
     // Receives scheduled notes and effect settings from the control part, and reports
@@ -151,26 +190,42 @@ struct FmSynthRealtime : RootOutputInstance.IRealtime
         foreach (var element in pipe.GetAvailableData(context))
         {
             if (element.TryGetData(out FmNoteEvent note)) { core.pool.Enqueue(note); continue; }
-            if (element.TryGetData(out MixFxRuntime fx)) _fx = fx;
+            if (element.TryGetData(out MixFxRuntime fx)) { _fx = fx; continue; }
+
+            // Answered from here rather than from anywhere earlier, because here is
+            // where a note arriving now would have been put into the queue: whatever
+            // held this message up held a note up by the same amount.
+            //
+            // The buffer about to be rendered is the earliest one this can still be
+            // part of — Update runs ahead of Process in the same cycle, and _dspSample
+            // is where the last one began — so the first sample a note arriving now
+            // can be heard from in full is one buffer past that.
+            if (element.TryGetData(out FmClockProbe probe))
+            {
+                probe.earliest = _dspSample + (ulong)core.outL.Length;
+                pipe.SendData(context, in probe);
+            }
         }
 
         var status = core.Status(_dspSample);
+        status.formatGeneration = generation;
 
-        // Report whenever a count changes, and otherwise a few times a second to
-        // keep the reported clock fresh. The periodic report also covers start-up,
-        // where the all-zero state would match _lastReported and never be sent.
-        var interval = (ulong)(core.sampleRate / 20);
+        // Every cycle, with nothing held back.
+        //
+        // It used to go out a few times a second unless a count had moved, which is
+        // what a diagnostic is worth and no more. Two things in it are worth more than
+        // that now. The clock in it is what FmSynthPipeline schedules against, and the
+        // difference it takes from a report is the report's own age too small — a
+        // fiftieth of a second of staleness would be a fiftieth of a second off the
+        // front of every note. And the lateness in it is cleared by the report that
+        // carries it, so one that is never sent is a note nobody hears about.
+        if (!pipe.SendData(context, in status)) return;
 
-        if (!Differs(status, _lastReported) &&
-            status.dspSample - _lastReported.dspSample < interval) return;
-
-        if (pipe.SendData(context, in status)) _lastReported = status;
+        // What has been said has been said: the peak belongs to the stretch between
+        // two reports, so that the far side reads a lateness once rather than for as
+        // long as the worst note is remembered.
+        core.pool.ClearLateness();
     }
-
-    static bool Differs(in FmSynthStatus a, in FmSynthStatus b)
-      => a.activeVoices != b.activeVoices || a.queuedNotes != b.queuedNotes ||
-         a.droppedNotes != b.droppedNotes || a.stolenNotes != b.stolenNotes ||
-         a.cancelledNotes != b.cancelledNotes;
 
     public JobHandle EarlyProcessing(in RealtimeContext context, Pipe pipe) => default;
 

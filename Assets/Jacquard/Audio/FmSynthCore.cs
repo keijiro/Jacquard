@@ -139,7 +139,9 @@ struct FmSynthCore
           queuedNotes = pool.QueuedCount(),
           droppedNotes = pool.dropped,
           stolenNotes = pool.stolen,
-          cancelledNotes = pool.cancelled };
+          cancelledNotes = pool.cancelled,
+          lateSamples = pool.late,
+          startedNotes = pool.started };
 
     [BurstCompile(DisableSafetyChecks = true)]
     struct RenderJob : IJob

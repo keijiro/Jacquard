@@ -47,6 +47,10 @@ public sealed class JacquardApp : MonoBehaviour
     // rather than its place in the bar. Underneath this the driver's own floor still
     // applies, which on the Web is most of a tenth of a second and leaves the margin
     // there where it was.
+    //
+    // It is the floor of that window rather than the window itself: what is used is
+    // two frames, and this is what two frames may not fall below. See HandoverSeconds,
+    // which is where the whole of that argument is.
     [field:SerializeField, Range(0.005f, 0.1f)]
     public float LiveLead { get; set; } = 0.03f;
 
@@ -284,6 +288,33 @@ public sealed class JacquardApp : MonoBehaviour
         _ui.RefreshSlots();
     }
 
+    // Going away, on a platform that stops the app for it.
+    //
+    // The transport stops, and it stops here rather than being left to come back on its
+    // own. Nothing about a run survives the gap: the app is not called while it is away,
+    // so no note is scheduled for however long it lasts, and the audio system it comes
+    // back to is not the one it left — the clock has moved somewhere else and the path
+    // down to the mix has to be measured again. A sequencer that thinks it is still
+    // playing across all that is a sequencer that comes back with a fistful of notes
+    // whose moment went by while the screen was off, and plays them all at once with
+    // their fronts cut off.
+    //
+    // So the piece ends at the edge, and Play starts it again from the top. That is a
+    // real cost — it is not where the hand left it — and it is the price of the piece
+    // coming back sounding like itself rather than like the wreck of itself.
+    //
+    // The pause callback and not the focus one. iOS sends the pause, which is the
+    // platform that stops; a desktop sends focus, and a desktop losing focus is a
+    // window behind another window with the music still playing, which is right.
+    void GoQuietForTheBackground()
+    {
+        if (!Sequencer.IsPlaying) return;
+
+        Sequencer.Stop();
+        Live.Stop();
+        View.RefreshPlayheads();
+    }
+
     // MonoBehaviour implementation
 
     void Start()
@@ -396,7 +427,18 @@ public sealed class JacquardApp : MonoBehaviour
 
     void OnApplicationPause(bool paused)
     {
-        if (!paused) ReadTheFolderAgain();
+        // A screen locked while the app is still coming up delivers this to a component
+        // that has not had a Start yet, and everything below is built in that Start.
+        if (Synth == null) return;
+
+        if (paused) { GoQuietForTheBackground(); return; }
+
+        // Before the folder, and long before a hand can reach Play: the measurement
+        // takes a tenth of a second of frames and the transport is stopped for all of
+        // it, so by the time anybody asks for a sound the lead is this machine's again.
+        Synth.Recalibrate();
+
+        ReadTheFolderAgain();
     }
 
     void OnDestroy()
@@ -564,7 +606,7 @@ public sealed class JacquardApp : MonoBehaviour
     MixFxRuntime _fx;
 
     // The window, plus however far past the clock the driver's earliest schedulable
-    // note lies. Under the pipeline that is nothing and this is just the window.
+    // note lies — which is measured on the machine and is not nothing anywhere.
     long LookaheadSamples
       => (long)(Lookahead * Synth.SampleRate) + Synth.MinimumLead;
 
@@ -572,7 +614,40 @@ public sealed class JacquardApp : MonoBehaviour
     // over closer to the clock than the driver will take one, however late a live
     // effect is read.
     long LiveLeadSamples
-      => (long)(LiveLead * Synth.SampleRate) + Synth.MinimumLead;
+      => (long)(HandoverSeconds * Synth.SampleRate) + Synth.MinimumLead;
+
+    // How far ahead of a note this app actually hands it over, which is two frames
+    // unless LiveLead asks for more.
+    //
+    // The handover happens once an Update and takes everything already inside the
+    // window, so a note leaves at some point in the frame *before* the one it would
+    // have missed: the lead it really gets is the window less however long that frame
+    // ran. Cover the driver's own floor as well and the requirement comes out as one
+    // line — **this window has to be longer than a frame** — which is a requirement in
+    // frames and was written down in milliseconds.
+    //
+    // Thirty of them is 1.8 frames at sixty a second, and there is a device here that
+    // does not always run at sixty: iOS drops the app to thirty when it gets warm and
+    // to fifteen when it gets hot, which this project asks for
+    // (adjustIOSFPSUsingThermalState). At thirty a frame is 33ms and the window is
+    // shorter than the frame that has to fit inside it — every note would then be
+    // handed over after its own start and lose its front, which on a patch with a
+    // pitch sweep is heard as the sweep beginning part way down. The same fault the
+    // background/foreground work was about, arriving by a different road.
+    //
+    // So the window is read off the frame rate rather than written down. Two frames,
+    // smoothed, because one is the bare requirement and the second is the margin: a
+    // single frame that runs long is not this — the sequencer answers that one by
+    // taking the head off a note rather than moving it — and a rate that has genuinely
+    // dropped shows in the average within about a second.
+    //
+    // Clamped at both ends. LiveLead is the floor, so a display running at 120 does
+    // not shrink the reach of a live effect below what was chosen for it; Lookahead is
+    // the ceiling, since handing a note over before the sequencer has produced it is
+    // not a thing this can do, and at fifteen frames a second two of them would ask
+    // for exactly that.
+    float HandoverSeconds
+      => Mathf.Clamp(2.0f * Time.smoothDeltaTime, LiveLead, Lookahead);
 }
 
 } // namespace Jacquard.App

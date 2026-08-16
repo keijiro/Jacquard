@@ -28,11 +28,19 @@ public sealed class FmSynth : System.IDisposable
     // against this rather than against frame time.
     public long CurrentSample => _backend.CurrentSample;
 
-    // How far past CurrentSample the earliest schedulable note lies. Zero under the
-    // pipeline, which renders on demand and can start a note in the very next buffer.
-    // A driver that renders ahead of the clock has already committed the samples in
-    // between, so a note placed inside them would lose its front.
+    // How far past CurrentSample the earliest schedulable note lies. A driver that
+    // renders ahead of the clock has already committed the samples in between, so a
+    // note placed inside them would lose its front.
+    //
+    // On the Web it is what the driver holds queued, which it knows by construction.
+    // Under the pipeline it is measured on the machine — see FmSynthPipeline, where
+    // both what it is made of and why it cannot be reasoned about are set out.
     public long MinimumLead => _backend.MinimumLead;
+
+    // Says that whatever MinimumLead was measured against is no longer true: the app
+    // has been away, and the audio system it left behind is not the one it came back
+    // to. The figure in force stays in force until a new one has been taken.
+    public void Recalibrate() => _backend.Recalibrate();
 
     // What the sum of every voice is scaled by on the way out, which is the one number
     // that says how much of the mix is headroom.
@@ -108,6 +116,7 @@ interface IFmSynthBackend : System.IDisposable
     bool SetFx(in MixFxRuntime fx);
     FmSynthStatus GetStatus();
     void Pump();
+    void Recalibrate();
 }
 
 } // namespace Jacquard.App

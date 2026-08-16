@@ -17,12 +17,31 @@ struct FmVoicePool
     public NativeArray<FmNoteEvent> queue; // Scheduled notes, in no order
     public NativeArray<int> counters;
 
-    const int Count = 0, Dropped = 1, Stolen = 2, Cancelled = 3;
-    internal const int CounterCount = 4;
+    const int Count = 0, Dropped = 1, Stolen = 2, Cancelled = 3, Late = 4, Started = 5;
+    internal const int CounterCount = 6;
 
     public int dropped => counters[Dropped];
     public int stolen => counters[Stolen];
     public int cancelled => counters[Cancelled];
+
+    // The worst a note has been late by, in samples, since this was last cleared.
+    //
+    // Late means the buffer a note was started in had already begun when the note was
+    // still to come, so the front of it was never rendered: what a pitch sweep does
+    // then is start part way down, since everything about a voice is read off the time
+    // since its own start. It is the one fault the audio side can see and the main
+    // thread cannot — a note is stamped in the render job's clock, and whether that
+    // stamp arrived in time is only known where the stamp is read. See
+    // FmSynthPipeline.FollowTheRenderClock, which grows the lead by exactly this.
+    public int late => counters[Late];
+
+    // How many notes were started over the same stretch, which is what says whether a
+    // lateness of zero means they were all on time or that there were none. A piece
+    // with a note every half second spends most of its windows empty, and an empty one
+    // is not evidence of a lead that is long enough.
+    public int started => counters[Started];
+
+    public void ClearLateness() => (counters[Late], counters[Started]) = (0, 0);
 
     public int ActiveVoiceCount()
     {
@@ -91,6 +110,13 @@ struct FmVoicePool
             }
 
             if (next < 0) break;
+
+            // Before the trigger, since the note is about to be swapped out of the
+            // queue. Anything at or before the start of this buffer is time the note
+            // will never be rendered in.
+            var late = bufferStart - queue[next].startSample;
+            if (late > counters[Late]) counters[Late] = (int)math.min(late, int.MaxValue);
+            counters[Started]++;
 
             Trigger(queue[next], sampleRate);
 

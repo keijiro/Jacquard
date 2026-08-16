@@ -56,6 +56,10 @@ sealed class FmSynthWeb : IFmSynthBackend
 
     public FmSynthScope Scope => _core.scope;
 
+    // Nothing to measure: the lead here is what this driver itself keeps queued, which
+    // is a constant of its own making rather than anything the platform decides.
+    public void Recalibrate() {}
+
     public FmSynthWeb(int maxVoices, float masterGain, int queueCapacity)
     {
         var rate = WebAudioOut.Open();
@@ -95,7 +99,13 @@ sealed class FmSynthWeb : IFmSynthBackend
         return true;
     }
 
-    public FmSynthStatus GetStatus() => _core.Status((ulong)_playhead);
+    // The report as Pump left it, and the same one however many times it is asked for
+    // — the same bargain the pipeline driver makes, for the same reason: the lateness
+    // in it is cleared as it is taken, so a second ask in one frame would come back
+    // without what the first one carried away. There is no clock to correct with it
+    // here — the browser's playhead is the only clock and the sequencer is already on
+    // it — but a figure that only ever climbs is not a diagnostic.
+    public FmSynthStatus GetStatus() => _status;
 
     // Reads the clock, then renders whatever it takes to fill the queue back up.
     //
@@ -105,6 +115,10 @@ sealed class FmSynthWeb : IFmSynthBackend
     // gap that was heard stays heard rather than being paid for again next frame.
     public void Pump()
     {
+        // First and once, like the pipeline driver: see GetStatus.
+        _status = _core.Status((ulong)_playhead);
+        _core.pool.ClearLateness();
+
         if (!_open)
         {
             // Free-run, so that the transport and the playheads still move.
@@ -151,6 +165,8 @@ sealed class FmSynthWeb : IFmSynthBackend
 
     long _rendered; // Total frames handed to the browser
     long _playhead; // Of those, how many it says have been played
+
+    FmSynthStatus _status; // This frame's report, taken at the top of Pump
 }
 
 } // namespace Jacquard.App
