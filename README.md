@@ -67,6 +67,12 @@ survives a busy moment, and costs that much delay between a Live FX button and w
 comes out. It is taken up at the next launch, which the panel says while the two
 disagree.
 
+On a phone or a tablet, leaving the app stops the sequence. Nothing about a run
+survives being sent to the background — the app is not running to schedule anything,
+and the audio system it comes back to is not the one it left — so the piece ends at
+the edge and Play starts it again from the top. What it saves you from is the
+alternative, which was coming back to silence.
+
 A tile goes on free ground only: a lane's empty step, the cell under a stack, or
 the `TERM` cell, which grows the lane by a step. A stack is therefore built from
 the top down, the gate first and the note it governs in the cell underneath it,
