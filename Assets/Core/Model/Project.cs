@@ -106,9 +106,9 @@ public sealed class Project
         return project;
     }
 
-    // The mockup score from mockup.html, which is also the demonstration case: three
-    // lanes, a conditional jump into a variation, and an accent lane that has no
-    // notes of its own.
+    // The worked example the specification was written against, which is also the
+    // demonstration case: three lanes, a conditional jump into a variation, and an
+    // accent lane that has no notes of its own.
     public static Project CreateSample()
     {
         var project = new Project();

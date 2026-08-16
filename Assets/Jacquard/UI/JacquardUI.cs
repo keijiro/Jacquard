@@ -26,8 +26,8 @@ namespace Jacquard.App {
 // Every one of them is down until it is asked for. The plane is what the screen is for,
 // and a switch that starts on is a decision nobody made.
 //
-// prototype.md leaves the application level UI to be designed here, so it is kept
-// to what a prototype has to prove: that every kind of tile can be put down, tuned
+// The specification leaves the application level UI to be designed here, so it is
+// kept to what a prototype has to prove: that every kind of tile can be put down, tuned
 // and heard, that a score survives a save and a load, and that the plane can be
 // navigated when it grows past the screen.
 

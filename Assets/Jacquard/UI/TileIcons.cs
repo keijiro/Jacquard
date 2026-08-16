@@ -3,7 +3,7 @@ using UnityEngine.UIElements;
 
 namespace Jacquard.App {
 
-// The cell icons, ported from the SVG in mockup.html.
+// The cell icons, ported from the SVG of the original mockup.
 //
 // Everything is drawn in a 15x15 box with 1px strokes on half-integer coordinates
 // so that a stroke centre lands on a pixel boundary and stays crisp. The two gate
