@@ -9,6 +9,8 @@ sequences by placing and stacking tiles on a two-dimensional grid. Notes,
 parameter locks, gates, and branches can be combined to create patterns that
 evolve and change as they repeat.
 
+<img width="700" alt="Screenshot" src="https://github.com/user-attachments/assets/ff9def96-a870-4e28-9abf-b429958abdd7" />
+
 The project takes inspiration from trackers, generative sequencers, and
 hardware grooveboxes, while exploring a more visual and spatial approach to
 sequencing.
