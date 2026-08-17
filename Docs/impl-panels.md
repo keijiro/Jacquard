@@ -183,14 +183,38 @@ runs at every value a scrub passes through, because the model has to be current 
 the sequencer may well be playing through the edit. `ValueBar.Bind`'s optional
 `settled` runs once the number has stopped moving instead: at the end of a drag, or
 immediately for anything that was never a drag, since a typed value arrives already
-decided. The audition of a sound row hangs off it, and so does the note a pitch bar
-plays. Sounding a note per event turned a drag down a bar into a burst of a hundred,
+decided. The audition of a sound row hangs off it, and so do the notes the two pitch
+bars play. Sounding a note per event turned a drag down a bar into a burst of a hundred,
 none of which was the value being chosen.
 
-That is now the whole of the auditioning. There was an *Audition* button under the
-sound rows asking for the same note on demand, and it is gone: a bar that has just
-been moved has already played it, and one that has not is one nothing was asked
-about.
+There was an *Audition* button under the sound rows asking for the same note on demand,
+and it is gone: a bar that has just been moved has already played it, and one that has
+not is one nothing was asked about.
+
+**What an edit sounds about itself can be switched off, and what was asked for outright
+cannot.** Every audition goes through `ScoreEditor.Preview` — a settled bar, a tile just
+placed, a stack pasted, a transpose from the keys — and `Audition.On` is the one thing
+that decides whether it comes out. The Return key does not go that way. It does nothing
+else at all, so it is a hand asking for the note rather than an edit remarking on itself,
+and it reaches `ScoreEditor.Sound` past the switch: turning the auditioning off is asking
+the app to stop volunteering, not asking it to go deaf, and a player who has turned it
+off still needs a way to hear the cell under the cursor. That is the whole of the split —
+one gate, in the one place every audition already met.
+
+**Two bars for a pitch, and one for everything else.** A pitch was one bar over
+eighty-four semitones, which on the hundred and sixty pixels a drag covers is under two
+pixels a note: the note landed on was the note the hand happened to stop at, and changing
+register meant carrying the bar most of the way across the panel. Split into the letter
+and the octave it is thirteen pixels a semitone and eighteen an octave, and either half
+moves without disturbing the other — which is how a pitch is thought about, and how the
+cell has drawn one all along. Neither bar holds anything: they read the two halves off the
+one note number and write it back together, so the tile and the file are untouched. The
+letter bar stops at B rather than carrying into the next octave, because a drag is clamped
+to its own travel and could never produce the carry anyway; the row underneath is where
+the register is. The octave bar stops one short of the plane's top for the opposite reason
+— C9 is the only note in its octave, so a stop there would refuse eleven of the twelve
+letters and snap the bar above back to C. That last note is still typed, the same way
+everything outside a drag's range always has been.
 
 **Travel is a ratio wherever the range spans decades**, and an exponent is the wrong
 shape for one. `Range.Curve` was the first answer, and on an envelope time it put
@@ -284,17 +308,34 @@ and a second setting of its kind would have been a sixth switch on a row that al
 has to be reachable on a tablet. `SystemPanel` is where such a question goes now, and
 the visualizer's on and off is the first of them: the panel keeps what was chosen, hands
 it to a callback that knows what to do with it, and the next one arrives as a row rather
-than as a button on the row.
+than as a button on the row. The auditioning is that next one, and it arrived as a row.
+
+**A setting is pushed or it is pulled, and which one it is decides where it lives.**
+Nothing on this panel can reach a MonoBehaviour's `enabled` flag, so the visualizer is
+pushed: the panel keeps the answer and hands it to a callback. The auditioning is read at
+the instant a note would sound and nowhere else, so it is pulled, and there is nothing to
+hand anybody — `Audition` keeps it, `ScoreEditor` asks it, and the panel only throws the
+switch. Making it a second `Action<bool>` on the constructor would have been a call site
+telling `ScoreEditor` something `ScoreEditor` was about to ask about anyway, and a second
+copy of the answer to fall out of step with the first. The buffer size is the same shape
+already: `DspBuffer` holds it and the bar on this panel moves it.
 
 **What is on it is the app's, not the project's.** Everything else on this screen is
 written into the file and comes back with it; this outlasts one project being closed
 and another being opened, and would mean nothing to anybody the file is handed to. So
 it lives in `PlayerPrefs`, written through on every press rather than left for the quit
-— a tablet app is not quit, it is put away and then killed off screen — and the panel
-reads it once at construction and applies it, so there is no second place a default is
-written down to disagree with. It comes up in the middle beside Global, since neither
-is read against anything on the plane; two centred panels stack the way a column does
-rather than take turns, so neither switch has to know what the other raised.
+— a tablet app is not quit, it is put away and then killed off screen — and it is read
+where it is used, so there is no second place a default is written down to disagree
+with. It comes up in the middle beside Global, since neither is read against anything on
+the plane; two centred panels stack the way a column does rather than take turns, so
+neither switch has to know what the other raised.
+
+**The auditioning is the one setting here that starts on**, and it starts on because of
+what it is rather than in spite of the rule. Everything else on this screen offers
+something the app was not already doing, and a thing that starts on is a decision nobody
+made. This one takes away something the app has always done, so a default of off is a
+decision nobody made either — it is an app that goes quiet on the launch after an update
+with nobody having asked it to. What is remembered is somebody wanting the silence.
 
 **The one button on it opens the folder the scores are in, and only where that means
 anything.** Where a file lands is a fact about the machine rather than about the piece,

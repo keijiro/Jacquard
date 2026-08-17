@@ -306,20 +306,39 @@ sealed class InspectorPanel
         return row;
     }
 
+    // A pitch is two bars and not one, because the two halves of it are set for
+    // different reasons and a single bar serves neither. Eighty-four semitones over the
+    // hundred and sixty pixels a drag covers is under two pixels a note, so landing on
+    // the note meant was a matter of luck, and moving an octave meant carrying the bar
+    // most of the way across the panel. Split, a semitone is thirteen pixels and an
+    // octave is eighteen, and the letter can be changed without disturbing the register
+    // or the register without disturbing the letter — which is how a pitch is thought
+    // about anyway, and how the cell has always drawn one.
+    //
+    // Neither bar holds anything. They read the two halves off the one note number and
+    // write it back together, so the tile is unchanged and so is the file: what is
+    // stored is still one MIDI note. The bar being dragged pulls its partner along with
+    // it through the Refresh that Touch runs, and a drag survives that because it is
+    // measured from where the hand went down rather than from the value.
+    //
+    // The class bar stops at B rather than turning the octave over. A drag on a bar is
+    // clamped to its own travel, so a carry could never come from one anyway, and the
+    // octave is the next row down.
+    //
+    // The note is heard where a drag ends rather than at every semitone it crosses: a
+    // scrub over an octave is twelve notes on top of each other and none of them the one
+    // being chosen. A typed pitch sounds straight away, since it never passed through
+    // the eleven others.
     void BuildNote(VisualElement body, NoteTile note)
     {
-        // The bar spells the pitch as well as numbering it, so there is no longer a
-        // row beside it saying what 60 means.
-        //
-        // The note is heard where the drag ends rather than at every semitone it
-        // crosses: a scrub over an octave is twelve notes on top of each other and
-        // none of them the one being chosen. A typed pitch sounds straight away, since
-        // it never passed through the eleven others.
-        body.Add(Controls.Bar("Pitch", PitchRange, () => note.Note,
-                              value => { note.Note = Mathf.Clamp(Mathf.RoundToInt(value),
-                                                                 Pitch.Lowest, Pitch.Highest);
-                                         _editor.RememberNote(note);
-                                         Touch(); },
+        body.Add(Controls.Bar("Note", NoteRange, () => Pitch.ToClass(note.Note),
+                              value => SetPitch(note, Pitch.ToOctave(note.Note),
+                                                Mathf.RoundToInt(value)),
+                              () => _editor.Preview(note.Note)));
+
+        body.Add(Controls.Bar("Octave", OctaveRange, () => Pitch.ToOctave(note.Note),
+                              value => SetPitch(note, Mathf.RoundToInt(value),
+                                                Pitch.ToClass(note.Note)),
                               () => _editor.Preview(note.Note)));
 
         // Length is in steps, so what it means in real time depends on the
@@ -328,6 +347,16 @@ sealed class InspectorPanel
                               value => { note.Length = Mathf.Clamp(value, 0.25f, 64.0f);
                                          _editor.RememberNote(note);
                                          Touch(); }));
+    }
+
+    // Where the two halves are put back together, so that the clamp and what follows it
+    // are written once rather than once per bar.
+    void SetPitch(NoteTile note, int octave, int pitchClass)
+    {
+        note.Note = Mathf.Clamp(Pitch.FromParts(octave, pitchClass),
+                                Pitch.Lowest, Pitch.Highest);
+        _editor.RememberNote(note);
+        Touch();
     }
 
     // The period, and then a switch per lap of it.
@@ -461,14 +490,20 @@ sealed class InspectorPanel
     // Sound panels use. These are the ranges of the sequencer's own
     // numbers, which nothing outside this panel has to know about.
 
-    // A MIDI note number, read out as the name it spells so that a pitch is legible
-    // without counting semitones. Dragging covers the octaves music is actually
-    // written in, which is what makes a semitone a couple of pixels of travel rather
-    // than one; the rest can still be typed, as far as the plane's own ends.
-    static readonly ValueBar.Range PitchRange =
-      ValueBar.Integer(24.0f, 108.0f,
-                       value => Mathf.RoundToInt(value) + " " +
-                                Pitch.ToName(Mathf.RoundToInt(value)));
+    // The letter half of a pitch, read out as the letter and nothing else: the number
+    // behind it is an index into the twelve and says nothing a name does not, which is
+    // the one case Range.Display exists for. Typing still goes through that number, the
+    // same as the pitch bar these two replaced.
+    static readonly ValueBar.Range NoteRange =
+      ValueBar.Integer(0.0f, 11.0f,
+                       value => Pitch.ToClassName(Mathf.RoundToInt(value)));
+
+    // The register half, which stops one short of the plane's own top. C9 is the highest
+    // note there is and it is the only one in its octave, so a bar reaching it would
+    // spend a twelfth of its travel on a stop where eleven of the twelve letters are
+    // refused and the bar above snaps back to C. Every octave this one covers takes all
+    // twelve; the last note is still typed.
+    static readonly ValueBar.Range OctaveRange = ValueBar.Integer(0.0f, 8.0f);
 
     // A length in steps. Dragging lands on quarters of one, since that is where a note
     // either fits the grid or deliberately overlaps the step after it, and it reaches

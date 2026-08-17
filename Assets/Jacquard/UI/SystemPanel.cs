@@ -14,12 +14,19 @@ namespace Jacquard.App {
 // cannot reach it, in PlayerPrefs, and set on a panel of its own rather than on Global,
 // which is the project's own everything-at-once.
 //
-// One setting so far, and it was worth a panel at one for the reason Global was: a
-// setting with nowhere to hang otherwise takes a switch on the transport row, and the
-// row cannot grow a switch per setting. The visualizer had one, and it was the only
-// switch up there that raised nothing — a question about the app standing among the
-// panels the project is made on. This is where that question goes, and where the next
-// one of its kind goes without the row noticing.
+// It was worth a panel at one setting for the reason Global was: a setting with nowhere
+// to hang otherwise takes a switch on the transport row, and the row cannot grow a
+// switch per setting. The visualizer had one, and it was the only switch up there that
+// raised nothing — a question about the app standing among the panels the project is
+// made on. This is where that question went, and the auditioning is the next one of its
+// kind arriving as a row rather than as a switch the transport had to find room for.
+//
+// The two are not the same shape underneath, and the difference is worth reading. The
+// visualizer is pushed: nothing here can reach a MonoBehaviour's enabled flag, so the
+// panel keeps the answer and hands it to a callback. The auditioning is pulled: it is
+// read at the moment a note would sound and nowhere else, so Audition keeps it and this
+// panel only throws the switch. Which way round a setting goes is decided by whether
+// anything has to be told when it moves.
 //
 // Under it is the one button here that sets nothing: the folder the scores are written
 // to, handed to whatever the desktop opens folders with. It belongs on this panel for
@@ -35,9 +42,11 @@ sealed class SystemPanel
 {
     public VisualElement Root { get; }
 
-    // apply is what the setting actually does, since nothing here owns the thing it is
-    // about: this panel holds what was chosen and hands it over. refocus is the keyboard
-    // going back to the plane, which every panel with a button on it has to give back.
+    // apply is what the visualizer setting actually does, since nothing here owns the
+    // thing it is about: this panel holds what was chosen and hands it over. It is the
+    // one setting that needs it — the others are read where they are used. refocus is the
+    // keyboard going back to the plane, which every panel with a button on it has to give
+    // back.
     //
     // store is only read for where it keeps its files, and only on the platforms that
     // can show a folder; it is taken whatever the platform, since a constructor that
@@ -58,6 +67,20 @@ sealed class SystemPanel
         row.Add(Controls.Caption("Visualizer"));
         row.Add(_visualizer);
         Root.Add(row);
+
+        // The second question of this kind, and it arrives as a row rather than as
+        // another switch on the transport, which is what this panel exists for.
+        //
+        // It hands nothing to _apply, because nothing has to be told when it moves:
+        // where it is read is at the instant an edit would sound a note, so the switch
+        // and the reader meet in Audition and not here. The state is therefore Audition's
+        // and not the panel's — there is no second field of it to fall out of step.
+        _audition = Controls.Push("", ToggleAudition, 44);
+
+        var audition = Controls.Row();
+        audition.Add(Controls.Caption("Audition"));
+        audition.Add(_audition);
+        Root.Add(audition);
 
         // Under it because that is the order the two are met in: one is what the screen
         // is doing and the other is what the machine underneath it can keep up with.
@@ -125,6 +148,7 @@ sealed class SystemPanel
     readonly Action<bool> _apply;
     readonly Action _refocus;
     readonly Button _visualizer;
+    readonly Button _audition;
     readonly Label _restart;
 
     bool _visualizerOn;
@@ -149,10 +173,23 @@ sealed class SystemPanel
         _refocus();
     }
 
+    // Nothing to apply and nothing to remember: Audition writes itself through and is
+    // read wherever a note would sound, so the press is the whole of what happens here.
+    void ToggleAudition()
+    {
+        Audition.On = !Audition.On;
+
+        Sync();
+        _refocus();
+    }
+
     void Sync()
     {
         _visualizer.text = _visualizerOn ? "On" : "Off";
         Controls.SetActive(_visualizer, _visualizerOn);
+
+        _audition.text = Audition.On ? "On" : "Off";
+        Controls.SetActive(_audition, Audition.On);
     }
 
     // The note under the buffer row, up exactly while the setting has moved since the

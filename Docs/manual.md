@@ -15,7 +15,9 @@ Using it
 | --- | --- |
 | Move the cursor | Click a cell, or the arrow keys |
 | Write a note | The `NOTE` button the Tile panel offers on a free cell |
+| Set a note's pitch | Note and Octave on the Tile panel, the letter and the register on a bar each |
 | Transpose a note | Shift+up/down for a semitone, add command for an octave, which rewrites the tile |
+| Hear the note under the cursor | Return, which sounds it whatever the Audition switch says |
 | Add a gate or a lock | The buttons the Tile panel offers on a free cell |
 | Which laps a cycle gate fires on | Its Period, and the switch per lap under it |
 | Remove a tile | Delete on the Tile panel, or the delete key |
@@ -45,14 +47,20 @@ Using it
 | Pan the plane | Drag from an empty cell, two finger swipe, or command+drag |
 | Reach a control off the edge | Drag the row or the panel it is on: the transport slides sideways and a column of panels slides up and down whenever it holds more than the screen does |
 
-The System button opens what is set about the app rather than about the piece, and it
-holds one switch so far: Visualizer, which puts the synth behind the score in a wash the
-eye can ignore — the output as a trace across the middle and the twenty-four voice slots
-as a row along the bottom. It is drawn by the camera rather than by the interface, which
-is transparent over it. Nothing on that panel is saved with a project; it is remembered
-for the machine it was set on, and is there again the next time the app is opened. On a
-desktop it also carries Open score folder, which shows the directory the files below are
-written to.
+The System button opens what is set about the app rather than about the piece. Visualizer
+puts the synth behind the score in a wash the eye can ignore — the output as a trace
+across the middle and the twenty-four voice slots as a row along the bottom. It is drawn
+by the camera rather than by the interface, which is transparent over it. Nothing on that
+panel is saved with a project; it is remembered for the machine it was set on, and is
+there again the next time the app is opened. On a desktop it also carries Open score
+folder, which shows the directory the files below are written to.
+
+Audition is under it, and it is the only switch here that starts on. It is what makes an
+edit sound the note it just made: a bar let go of, a note written, a stack pasted, a
+transpose from the keys. Turned off, all of that goes quiet and the piece is heard only
+when it is played. Return still sounds the note under the cursor either way — that is a
+note asked for rather than one volunteered, and it is how a cell is heard with the
+auditioning off.
 
 Buffer size is on the same panel, and it is the one to reach for if the sound bangs or
 drops out: it is how long a buffer the audio thread has to fill, from 256 frames — 5.3ms
@@ -72,6 +80,13 @@ the `TERM` cell, which grows the lane by a step. A stack is therefore built from
 the top down, the gate first and the note it governs in the cell underneath it,
 which is the order the runner reads it in. A new note arrives at the pitch and
 length of the last note edited.
+
+A note's pitch is set on two bars rather than one. Note is the letter — C through B, the
+twelve of them across the whole bar — and Octave is the register under it, so the letter
+can be changed without leaving the register and the register without losing the letter.
+Note stops at B rather than turning the octave over; the row underneath is where that
+goes. Both are still typed if an exact one is wanted, by the number behind the name: 0
+for C, 11 for B.
 
 Dragging is the exception: a tile dropped on an occupied cell opens the stack up
 and takes its place, which is how one is reordered. A drop with nowhere to go —

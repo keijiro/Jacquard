@@ -23,7 +23,21 @@ public static class Pitch
     // separately.
     public static string ToClassName(int note) => Names[Mod(note, 12)];
 
+    // The two halves a pitch is set in, since a bar covering the whole of one is a
+    // bar where a semitone is two pixels of travel. Which half a note belongs to is
+    // the only thing either of them knows: the class is the letter and the octave is
+    // the number the cell already typesets separately.
+    //
+    // ToOctave divides rather than floors, so it is only right from note 0 up. That is
+    // every note this program can hold — Lowest is C0 — and the panel clamps before it
+    // ever asks.
     public static int ToOctave(int note) => note / 12 - 1;
+
+    public static int ToClass(int note) => Mod(note, 12);
+
+    // And back. 60 is C4, so an octave starts one below where its number would put it.
+    public static int FromParts(int octave, int pitchClass)
+      => (octave + 1) * 12 + pitchClass;
 
     public static bool IsSharp(int note) => Names[Mod(note, 12)].Length > 1;
 

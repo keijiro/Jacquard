@@ -338,9 +338,24 @@ public sealed class ScoreEditor
     // outside the scale is heard where it will land rather than where it was typed.
     // The locks and the live effects are still not here: those belong to a step and
     // to a hand on a button, and neither is what a cell is being asked about.
+    //
+    // Two ways in, and the difference is who asked. An edit sounding a note about itself
+    // is the auditioning the System panel switches off, and goes through Preview. A note
+    // asked for outright — the Return key, which does nothing else — is not a remark
+    // about an edit and is not a setting, so it goes straight to Sound and comes out
+    // whatever the switch says. A player who has turned the auditioning off still has a
+    // way to hear the cell under the cursor, which is the whole reason the two are told
+    // apart.
     public void Preview(int note) => Preview(note, Channel);
 
     public void Preview(int note, int channel)
+    {
+        if (Audition.On) Sound(note, channel);
+    }
+
+    public void Sound(int note) => Sound(note, Channel);
+
+    public void Sound(int note, int channel)
     {
         if (Synth == null) return;
 
@@ -409,7 +424,9 @@ public sealed class ScoreEditor
 
             case KeyCode.Return:
             case KeyCode.KeypadEnter:
-                if (Selected is NoteTile note) Preview(note.Note);
+                // Sound and not Preview: this key does nothing but ask for the note, so
+                // it is the one audition the System panel's switch does not govern.
+                if (Selected is NoteTile note) Sound(note.Note);
                 return true;
         }
 
