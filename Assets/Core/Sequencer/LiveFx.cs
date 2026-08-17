@@ -142,7 +142,7 @@ public sealed class LiveFx
 
         _queue.RemoveRange(kept, _queue.Count - kept);
 
-        if (roll != null) Repeat(roll, horizon);
+        if (roll != null) Repeat(roll, horizon, sixteenth);
 
         // Recording, remembering and colouring all read the event as the score wrote
         // it, so a roll caught under an octave holds the plain note and rises with the
@@ -207,9 +207,16 @@ public sealed class LiveFx
     // own length letting the sequence through and writing it down.
     sealed class Roll
     {
+        // The window on the grid rather than in samples, which is what every pass
+        // after the first is counted from. Laying one down by adding a length in
+        // samples to the last would carry whatever that length lost to rounding into
+        // every pass after it, and a roll held for a minute would slide off the beat
+        // by a few milliseconds and go on sliding.
+        public long Index;
+        public int Steps;
+
         public long Start;
         public long End;
-        public long Length => End - Start;
 
         // Where the record of what has sounded gives out, which is everything already
         // handed over. Past this the window fills from what is handed over next, and
@@ -235,8 +242,16 @@ public sealed class LiveFx
     long GridIndex(long sample, double sixteenth)
       => (long)Math.Floor((sample - _origin) / sixteenth);
 
+    // Truncated and not rounded, because truncating is what the sequencer does with
+    // its own position and the two have to name the same sample. At a tempo whose
+    // sixteenth is not a whole number of samples — which is about half of them —
+    // rounding up where the runner rounded down left the step at the far end of a
+    // window sitting one sample inside it: neither suppressed nor left out, but caught
+    // as a member of the window it was supposed to be the end of. A roll of two came
+    // out as three notes, the extra one a sample ahead of every repetition of the
+    // first, for as long as the button was held.
     long GridSample(long index, double sixteenth)
-      => _origin + (long)Math.Round(index * sixteenth);
+      => _origin + (long)(index * sixteenth);
 
     // The roll that is standing in for the score, which is the one pressed last: they
     // all answer the same question and there is one answer. Letting that one go leaves
@@ -276,7 +291,9 @@ public sealed class LiveFx
         var index = GridIndex(_pressed[slot], sixteenth);
 
         var roll = new Roll
-          { Start = GridSample(index, sixteenth),
+          { Index = index,
+            Steps = steps,
+            Start = GridSample(index, sixteenth),
             End = GridSample(index + steps, sixteenth) };
 
         roll.Caught = Math.Min(roll.End, _handedTo);
@@ -311,10 +328,9 @@ public sealed class LiveFx
     // the recorded note with a new sample to start on and nothing else changed, so
     // what a roll sounds like is decided by whatever is held when it is handed over
     // rather than by what was held when it was caught.
-    void Repeat(Roll roll, long horizon)
+    void Repeat(Roll roll, long horizon, double sixteenth)
     {
-        var length = roll.Length;
-        if (length <= 0 || roll.Notes.Count == 0) return;
+        if (roll.End <= roll.Start || roll.Notes.Count == 0) return;
 
         // Never behind the handover. A roll that was covered by one pressed over the
         // top of it stops being laid down while that lasts, so when it is handed back
@@ -324,10 +340,21 @@ public sealed class LiveFx
         var from = Math.Max(Math.Max(roll.EmittedTo, roll.End), _handedTo);
         if (from >= horizon) return;
 
-        var pass = Math.Max(0, (from - roll.End) / length);
+        // Which pass the mark has reached, so that a roll held for a long time is not
+        // walked from its first window every handover. Taken off the grid as a
+        // fraction, and then a pass earlier than that: one pass early costs a turn
+        // around a loop whose notes are all behind the mark and skipped, where one
+        // pass late would drop a note outright.
+        var reached = ((from - _origin) / sixteenth - roll.Index) / roll.Steps;
 
-        for (var start = roll.End + pass * length; start < horizon; start += length)
+        // Each pass is placed on the grid rather than a window's length past the last
+        // one, so that what a roll has lost to rounding is a sample at the far end of
+        // one pass and not a sample carried into every pass after it.
+        for (var n = Math.Max(1L, (long)reached - 1); ; n++)
         {
+            var start = GridSample(roll.Index + n * roll.Steps, sixteenth);
+            if (start >= horizon) break;
+
             foreach (var note in roll.Notes)
             {
                 var at = start + (note.startSample - roll.Start);

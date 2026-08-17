@@ -1727,6 +1727,15 @@ static class SelfTest
         LiveRoll(log, LiveEffect.Roll3, 3, span, sampleRate);
         LiveRoll(log, LiveEffect.Roll4, 4, span, sampleRate);
 
+        // All four again at a tempo whose sixteenth is a fraction of a sample, which
+        // is about half of them and is the one thing 120bpm cannot ask. Everything
+        // above lands on a whole number and so never noticed that this counted its
+        // grid one way and the sequencer counted it the other.
+        LiveRollOffGrid(log, LiveEffect.Roll1, 1, sampleRate);
+        LiveRollOffGrid(log, LiveEffect.Roll2, 2, sampleRate);
+        LiveRollOffGrid(log, LiveEffect.Roll3, 3, sampleRate);
+        LiveRollOffGrid(log, LiveEffect.Roll4, 4, sampleRate);
+
         // Two at once is the one thing here that does not stack, since both answer
         // what plays instead of the score. The longer one is pressed second and takes
         // it; letting that go hands back to the sixteenth, which has been catching all
@@ -1775,8 +1784,69 @@ static class SelfTest
                   (60 + (from + steps) % 16) + " was");
     }
 
-    // 120bpm puts a sixteenth at exactly 6000 samples, so every boundary in the check
-    // above is a whole number and nothing there is measured against a rounding.
+    // The same roll at 129bpm, where a sixteenth is 5581.4 samples and no boundary is
+    // a whole number. Two things a whole number hides are asked for here and nowhere
+    // else: that the step at the far end of the window is outside it — a grid rounded
+    // up where the sequencer rounded down put it one sample inside, so it neither
+    // stopped nor was left behind, and every pass afterwards carried it a sample ahead
+    // of its own first note — and that the roll is still on the grid twenty passes
+    // later, which laying each pass a rounded length past the last one did not manage.
+    static void LiveRollOffGrid(System.Text.StringBuilder log, LiveEffect fx, int steps,
+                                 int sampleRate)
+    {
+        const float tempo = 129.0f;
+        const int from = 7;
+
+        var sixteenth = 60.0 / tempo / 4.0 * sampleRate;
+        var span = LiveLookahead + (long)(40 * sixteenth);
+
+        // The sample the sequencer puts a step on, which is the truncation its own
+        // position gets and is what everything below is read against.
+        long At(int step) => LiveLookahead + (long)(step * sixteenth);
+
+        // A third of the way into the step, clear of the handover at either end of it.
+        var press = At(from) + (long)(sixteenth / 3.0);
+
+        var run = LiveRun((live, now)
+                            => { if (now >= press && now < press + LiveFrame)
+                                     live.Press(fx, now); },
+                          span, sampleRate, tempo: tempo);
+
+        var ok = true;
+        var why = "";
+
+        for (var i = from; i < 34 && ok; i++)
+        {
+            var source = i < from + steps ? i : from + (i - from) % steps;
+            var want = 60 + source % 16;
+
+            // Within a sample or two of the grid, since a pass placed on it and a note
+            // offset into it are two truncations against the sequencer's one.
+            var found = 0;
+            var last = -1;
+
+            foreach (var note in run)
+                if (System.Math.Abs(note.startSample - At(i)) <= 2)
+                    { found++; last = Semitones(note); }
+
+            if (found == 1 && last == want) continue;
+
+            (ok, why) = (false, "step " + i + " is " +
+                                (found == 0 ? "silent" :
+                                 found == 1 ? last.ToString() :
+                                 found + " notes at once") + " where " + want + " was");
+        }
+
+        if (ok) why = (34 - from) + " steps, each one note and on the grid";
+
+        Check(log, "a roll of " + steps + " keeps the sequencer's grid at 129bpm",
+              ok, why);
+    }
+
+    // 120bpm puts a sixteenth at exactly 6000 samples, so every boundary the checks
+    // read off this is a whole number and nothing measured against it is measured
+    // against a rounding. Which is also what those checks cannot ask, and why
+    // LiveRollOffGrid runs the rolls again at a tempo that has no such luck.
     const long LiveSixteenth = 6000;
 
     // The app's own two windows and its frame, at the scale of that tempo: an eighth
@@ -1790,9 +1860,9 @@ static class SelfTest
     // sequence it stood in for simply by reading the notes back.
     // release is the one patch value any of these checks cares about; zero leaves the
     // channel at the default the rest of them are measured against.
-    static Project LiveScore(float release, Scale scale)
+    static Project LiveScore(float release, Scale scale, float tempo)
     {
-        var project = new Project { Tempo = 120.0f };
+        var project = new Project { Tempo = tempo };
         var lane = project.Score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 16);
 
         for (var i = 0; i < 16; i++)
@@ -1811,9 +1881,9 @@ static class SelfTest
 
     static System.Collections.Generic.List<FmNoteEvent> LiveRun(
       System.Action<LiveFx, long> hand, long span, int sampleRate,
-      float release = 0.0f, Scale scale = null)
+      float release = 0.0f, Scale scale = null, float tempo = 120.0f)
     {
-        var project = LiveScore(release, scale);
+        var project = LiveScore(release, scale, tempo);
         var sequencer = new Sequencer { Project = project };
         var live = new LiveFx();
 
