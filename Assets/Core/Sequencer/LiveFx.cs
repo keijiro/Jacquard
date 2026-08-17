@@ -125,6 +125,13 @@ public sealed class LiveFx
         // Straight from the score, unless a roll has taken the score's place. A roll
         // that is still recording has not: it plays the sequence through once and
         // stands in for it only from the far end of what it recorded.
+        //
+        // Neither has a roll that caught nothing. A window over a rest has nothing to
+        // lay down, and standing in for the score with nothing is silence held for as
+        // long as the button — the one thing a hand reaching for a roll can never have
+        // wanted. So an empty window stops nothing while Arm looks for the next one.
+        var standing = roll != null && roll.Notes.Count > 0;
+
         var kept = 0;
 
         for (var i = 0; i < _queue.Count; i++)
@@ -137,7 +144,7 @@ public sealed class LiveFx
                 continue;
             }
 
-            if (roll == null || note.startSample < roll.End) _sounding.Add(note);
+            if (!standing || note.startSample < roll.End) _sounding.Add(note);
         }
 
         _queue.RemoveRange(kept, _queue.Count - kept);
@@ -286,9 +293,31 @@ public sealed class LiveFx
     void Arm(LiveEffect fx, int steps, double sixteenth)
     {
         var slot = (int)fx;
-        if (!_held[slot] || _rolls[slot] != null) return;
+        if (!_held[slot]) return;
 
-        var index = GridIndex(_pressed[slot], sixteenth);
+        var open = _rolls[slot];
+
+        if (open != null)
+        {
+            // Still filling, or full: either way it is the window this roll has.
+            if (open.End > _handedTo || open.Notes.Count > 0) return;
+
+            // Closed with nothing in it, which is a window over a rest. Let it go and
+            // take the next one along, so that a roll pressed in a gap starts on the
+            // step that breaks the gap rather than holding the gap open. What decides
+            // is the window rather than the step it opens on, so a long roll waits
+            // only for a bar that is silent all the way through and a sixteenth waits
+            // for the next note — which is the case a hand actually meets, since a
+            // sixteenth is the one length that can miss a note by being a step out.
+            _rolls[slot] = null;
+        }
+
+        // Where the last window gave out, or the step the hand was on if this is the
+        // first. Counted on from the window and not from the press, so the search
+        // moves at the speed of the music rather than all at once — the score has to
+        // be handed over before there is anything to know about it.
+        var index = open != null ? open.Index + open.Steps
+                                 : GridIndex(_pressed[slot], sixteenth);
 
         var roll = new Roll
           { Index = index,

@@ -102,6 +102,32 @@ anything. That is not a compromise — it is what the spec describes, and it is 
 four are one class with one number different, which is also why the number is the name
 on the button.
 
+**A roll counts its grid the way the sequencer counts its own.** Both put a step at
+`origin + (long)(index × sixteenth)`, truncated rather than rounded, and the agreement
+has to be exact: a sixteenth is a whole number of samples at about half the tempos and
+a fraction at the rest, and where the two differed by a sample the step at the far end
+of a window landed one sample inside it. It was then neither suppressed nor left
+behind — it played, and it was written into the window as an extra member, so a roll of
+two came out as three notes with the third a sample ahead of every repetition of the
+first, for as long as the button was held. For the same arithmetic each pass is placed
+on the grid rather than a window's length past the last one: the length is rounded to
+whole samples once, and adding it over and over walked the roll off the beat by about
+twelve milliseconds a minute and went on walking. Placing each pass separately leaves
+the rounding as a sample at one end of one pass instead of a sample carried into every
+pass after it.
+
+**A window with nothing in it never stands in for the score.** A roll pressed into a
+gap has nothing to lay down, and standing in with nothing is silence held for as long
+as the button, which is the one thing a hand reaching for a roll can never have wanted.
+So an empty window stops nothing, and once it has closed still empty it is let go and
+the next one along is taken, until one of them catches something. What decides is the
+window and not the step it opens on, so a longer roll waits only for a stretch that is
+silent all the way through, and a sixteenth — the one length that can miss a note by
+landing a step out, which is the case a hand actually meets — starts on the next note.
+The search moves at the speed of the music rather than all at once, since a step has to
+be handed over before there is anything to know about it, and it is not capped: four
+silent bars are four bars of waiting, which is at least a thing that can be explained.
+
 **The rolls are the only thing here that does not stack.** Everything else is summed:
 two octaves the opposite way come to no semitones at all, and a stab under a sustain
 is a fifth of a step, because the modifiers are applied in one order to one event. The

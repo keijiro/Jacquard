@@ -165,6 +165,11 @@ A roll of a sixteenth is playing from the moment it is asked for, since the step
 it caught has already been heard. The longer ones let the sequence through for the
 rest of their own length, recording it, before they stand in for anything.
 
+A roll pressed where there is nothing to catch waits rather than holding the
+silence: if what it caught is a rest all the way through, the sequence carries on
+and the roll starts on the next thing that sounds. So a sixteenth landing a step
+wide of the note you meant still rolls a note.
+
 Anything held at once applies at once — an octave up under a stab, both sends, a
 rise through a reverb. The rolls are the exception, since all four stand in for
 the same sequence: the one pressed last is the one that plays, and letting it go

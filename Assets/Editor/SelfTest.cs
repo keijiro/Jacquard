@@ -1736,6 +1736,23 @@ static class SelfTest
         LiveRollOffGrid(log, LiveEffect.Roll3, 3, sampleRate);
         LiveRollOffGrid(log, LiveEffect.Roll4, 4, sampleRate);
 
+        // A roll pressed into a gap. The sixteenth on a lane playing every other step
+        // is the case a hand meets, since a sixteenth is the one length that can miss
+        // a note by landing a step out; the longer ones only meet it where a whole
+        // window is silent, which is the sparse lane underneath.
+        // lands is where the window that catches something opens, which is not the
+        // step that broke the gap unless the roll is a sixteenth: a longer window
+        // reaches the note from a rest or two before it, and opening there is what
+        // keeps the roll on the grid it was pressed against.
+        LiveRollRest(log, LiveEffect.Roll1, 1, 2, 7, 8, sampleRate);
+        LiveRollRest(log, LiveEffect.Roll2, 2, 4, 5, 7, sampleRate);
+        LiveRollRest(log, LiveEffect.Roll4, 4, 8, 3, 7, sampleRate);
+
+        // And the same press where the step does carry a note, which is every case
+        // that already worked and has to keep working: the window is taken where the
+        // hand put it and nothing waits for anything.
+        LiveRollRest(log, LiveEffect.Roll1, 1, 2, 6, 6, sampleRate);
+
         // Two at once is the one thing here that does not stack, since both answer
         // what plays instead of the score. The longer one is pressed second and takes
         // it; letting that go hands back to the sixteenth, which has been catching all
@@ -1843,6 +1860,54 @@ static class SelfTest
               ok, why);
     }
 
+    // A roll pressed into a gap, on a lane that carries a note every stride steps.
+    //
+    // A window over a rest has nothing to lay down, and a roll that stands in for the
+    // score with nothing is silence held for as long as the button — which is the one
+    // thing a hand reaching for a roll can never have wanted. So the empty window is
+    // let go and the next one along is taken, until one of them catches something.
+    // What is asked here is that the score is never stopped while that search runs,
+    // and that the roll ends up on the step named by lands.
+    static void LiveRollRest(System.Text.StringBuilder log, LiveEffect fx, int steps,
+                              int stride, int press, int lands, int sampleRate)
+    {
+        var span = LiveLookahead + 40 * LiveSixteenth;
+        var at = LiveLookahead + press * LiveSixteenth + LiveSixteenth / 2;
+
+        var run = LiveRun((live, now)
+                            => { if (now >= at && now < at + LiveFrame)
+                                     live.Press(fx, now); },
+                          span, sampleRate, stride: stride);
+
+        var ok = true;
+        var why = "";
+
+        // Up to the window it lands on, the score is untouched — which is the whole of
+        // what the search costs and the whole of what it must not cost more than.
+        for (var i = press; i < lands + steps && ok; i++)
+            if (LiveNoteAt(run, i) != (i % stride == 0 ? 60 + i % 16 : -1))
+                (ok, why) = (false, "step " + i + " is " + LiveNoteAt(run, i) +
+                                    " where the score had " +
+                                    (i % stride == 0 ? 60 + i % 16 : -1));
+
+        // Past it, the window it landed on, laid down again and again.
+        for (var i = lands + steps; i < 34 && ok; i++)
+        {
+            var source = lands + (i - lands) % steps;
+            var want = source % stride == 0 ? 60 + source % 16 : -1;
+
+            if (LiveNoteAt(run, i) != want)
+                (ok, why) = (false, "step " + i + " is " + LiveNoteAt(run, i) +
+                                    " where step " + source + "'s " + want + " was");
+        }
+
+        if (ok) why = "the score through, then steps " + lands + " to " +
+                      (lands + steps - 1) + " over";
+
+        Check(log, "a roll of " + steps + " pressed on step " + press +
+                   " opens its window on step " + lands, ok, why);
+    }
+
     // 120bpm puts a sixteenth at exactly 6000 samples, so every boundary the checks
     // read off this is a whole number and nothing measured against it is measured
     // against a rounding. Which is also what those checks cannot ask, and why
@@ -1860,13 +1925,18 @@ static class SelfTest
     // sequence it stood in for simply by reading the notes back.
     // release is the one patch value any of these checks cares about; zero leaves the
     // channel at the default the rest of them are measured against.
-    static Project LiveScore(float release, Scale scale, float tempo)
+    // stride is how often a step carries a note at all: one is the lane every check
+    // but the rests one reads, and anything above it leaves gaps for a roll to be
+    // pressed into. A step with no tile on it is a rest and the runner simply passes
+    // over it, which is the whole of what makes one here.
+    static Project LiveScore(float release, Scale scale, float tempo, int stride)
     {
         var project = new Project { Tempo = tempo };
         var lane = project.Score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 16);
 
         for (var i = 0; i < 16; i++)
-            lane.Steps[i].Tiles.Add(new NoteTile { Note = 60 + i });
+            if (i % stride == 0)
+                lane.Steps[i].Tiles.Add(new NoteTile { Note = 60 + i });
 
         if (release > 0.0f) project.Patches[1].carrierRelease = release;
 
@@ -1881,9 +1951,9 @@ static class SelfTest
 
     static System.Collections.Generic.List<FmNoteEvent> LiveRun(
       System.Action<LiveFx, long> hand, long span, int sampleRate,
-      float release = 0.0f, Scale scale = null, float tempo = 120.0f)
+      float release = 0.0f, Scale scale = null, float tempo = 120.0f, int stride = 1)
     {
-        var project = LiveScore(release, scale, tempo);
+        var project = LiveScore(release, scale, tempo, stride);
         var sequencer = new Sequencer { Project = project };
         var live = new LiveFx();
 
