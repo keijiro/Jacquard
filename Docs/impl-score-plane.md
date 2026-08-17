@@ -135,6 +135,17 @@ whatever nobody claimed; neither has to know what the other is for. Four pixels 
 travel separate a pan from a tap, since a fingertip does not hold still, and a
 click on bare ground still moves the cursor as it always did.
 
+**A drag that begins at the very bottom of the screen means nothing here**, because it is
+not the plane's to have: a phone reads a drag from the bottom edge as the gesture that
+puts the app away, and claims it before the app is told a finger landed. The plane would
+follow the hand for a few pixels, hear that its press was cancelled, and stop — with the
+home screen coming up over the top of it. `ScrollArea.DeadBottom` is that strip, set from
+the safe area by the chrome, and a press inside it is left alone rather than captured. Only
+presses, and only that edge: a cell down there is still edited, since an edit is a tap and
+a tap is not what the system is watching for. For the same reason `Reveal` aims at the part
+of the viewport that can be looked at rather than at the whole of it — a cursor walked to
+the left edge of a phone held in landscape is a cursor revealed to nobody.
+
 What a lane owns
 ----------------
 

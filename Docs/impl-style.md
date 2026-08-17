@@ -260,3 +260,23 @@ nothing above or below it to line up with. The box gave back exactly what the
 word took, so the slot name between the arrows is as long as it ever was — and
 what the caption said is said by where the box stands, after the rule and
 between Save and Load, and by the file name written in it.
+
+**The mark is sized against the row and not against its own texture.**
+`JacquardUI.MarkOfBox` holds it at three quarters of a control's box — 15 units
+against 20 on the desktop, which is what the texture's own two-pixels-to-a-cell
+size already came to there, and 22.5 against 30 in the touch profile, where it
+used to stay at 15 while the box, the type and the bar all grew around it and it
+read as a bar with a small picture in it. The width follows the texture's shape
+so a cell stays square, which means nothing in the app reads the master's
+resolution any more — only its aspect. **What that moved is the pixel grid.** A
+mark lands pixel for pixel only where a cell comes to a whole number of device
+pixels: 15 units did that on every 2x screen from a master at two pixels to a
+cell, and 22.5 units asks for three. So the master is cut at three — `PPC` in
+`Branding/make_logo_png.py`, giving 216x45 for the same 72x15 cells — and the
+grid lands again. Measured on a simulated iPad Pro 11 by decoding the frame:
+every cell of the mark on screen is one flat 3x3 block, and of the 8190 pixels
+sampled across it **not one holds an interpolated value** — only the ink and the
+row's own grey. A 458 ppi phone asks for 5.2 pixels to a cell and no whole
+number meets that, so on a phone the mark is resampled (11% of its pixels land
+between the two colours) as it always was; the iPad is the screen this is exact
+on, and the screen the app is for.

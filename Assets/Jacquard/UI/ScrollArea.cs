@@ -26,6 +26,22 @@ public sealed partial class ScrollArea : VisualElement
 
     public Vector2 Offset { get => _offset; set => SetOffset(value); }
 
+    // A strip along the bottom edge that will not start a pan.
+    //
+    // What happens there is not this element's to have. A drag that begins at the bottom
+    // of a phone is the gesture that puts the app away, and the system claims it before
+    // the app is told a finger landed: the plane would follow the hand for a few pixels,
+    // hear that its press was cancelled, and stop — with the app going to the home screen
+    // over the top of it. So a press down there is left alone, and a pan begins a
+    // fingertip higher up.
+    //
+    // Only presses, and only this edge. A cell that happens to lie in the strip is still
+    // edited, because an edit is a tap and a tap is not what the system is watching for;
+    // and the top and sides of the plane are nobody else's — what the screen keeps on its
+    // sides is not touchable glass at all, and the gesture at the top of the screen
+    // begins on the transport row, which only ever travels sideways.
+    public float DeadBottom { get; set; }
+
     // The offset that was asked for, which is not always the one in force: a plane that
     // has just grown is a plane whose layout has not run yet, so a request reaching past
     // what it used to hold is clamped for a frame. Anything that means to survive that
@@ -134,6 +150,11 @@ public sealed partial class ScrollArea : VisualElement
 
     void OnPointerDown(PointerDownEvent evt)
     {
+        // Not captured and not stopped, so the press carries on to whatever is above this
+        // element — which is nothing that pans, and that is the point.
+        if (DeadBottom > 0.0f &&
+            this.WorldToLocal(evt.position).y > contentRect.height - DeadBottom) return;
+
         (_pressed, _dragging, _dragPoint) = (true, false, evt.position);
         this.CapturePointer(evt.pointerId);
         evt.StopPropagation();

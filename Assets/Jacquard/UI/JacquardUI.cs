@@ -37,6 +37,7 @@ sealed class JacquardUI
     {
         _app = app;
         _editor = app.Editor;
+        _root = root;
 
         root.style.flexGrow = 1;
         // Not painted here any more. The camera clears to this exact colour and draws
@@ -46,7 +47,8 @@ sealed class JacquardUI
 
         SetFace(root, app.Font);
 
-        root.Add(BuildTransportRow());
+        _row = BuildTransportRow();
+        root.Add(_row);
 
         var body = new VisualElement();
         body.style.flexGrow = 1;
@@ -84,14 +86,16 @@ sealed class JacquardUI
         // effect: what the switch raises is one thing, so it arrives as one thing.
         _send = new SendPanel(_editor);
 
-        body.Add(PanelEdge(false, PanelColumn(_send.Root),
-                                  PanelColumn(_inspector.Root)));
+        _rightEdge = PanelEdge(false, PanelColumn(_send.Root),
+                                      PanelColumn(_inspector.Root));
+        body.Add(_rightEdge);
         ShowSend(false);
 
         // The other edge, which is the one place a column is never covered by the
         // cursor's.
         _channels = new ChannelsPanel(_editor);
-        body.Add(PanelEdge(true, PanelColumn(_channels.Root)));
+        _leftEdge = PanelEdge(true, PanelColumn(_channels.Root));
+        body.Add(_leftEdge);
         ShowChannels(false);
 
         // In neither edge and not on the dock: what is set for the whole thing is read
@@ -100,19 +104,26 @@ sealed class JacquardUI
         // the same kind of thing to look at, and being in the same place says so.
         _global = new GlobalPanel(_editor);
         _system = new SystemPanel(_app.Store, SetVisualizer, Refocus);
-        body.Add(PanelCentre(_global.Root, _system.Root));
+        _centre = PanelCentre(_global.Root, _system.Root);
+        body.Add(_centre);
         ShowGlobal(false);
         ShowSystem(false);
 
         // Neither column, because this one is not read: it is played. The columns are
         // where the eye goes and the bottom edge is where the hands already are.
         _live = new LivePanel(app.Live, () => _app.Synth.CurrentSample, Refocus);
-        body.Add(PanelDock(_live.Root));
+        _dock = PanelDock(_live.Root);
+        body.Add(_dock);
         ShowLive(false);
 
         _editor.Changed += OnChanged;
 
         _view.Rebuild();
+
+        // Before the score is aimed at, since where the plane can be looked at is part
+        // of that aim. Every frame after this one it is Update's, and it writes nothing
+        // on the frames the screen has not turned over.
+        FollowTheSafeArea();
 
         // After the rebuild, since where the score has come to rest on the plane is
         // what this is aiming at.
@@ -131,6 +142,7 @@ sealed class JacquardUI
         // A loaded project brings a tempo of its own, which the bar has to follow.
         _tempo.Sync();
 
+        FollowTheSafeArea();
         FollowTheLock();
         Report();
     }
@@ -155,6 +167,75 @@ sealed class JacquardUI
             _app.Store.Name = _slots[0];
 
         _syncSlots();
+    }
+
+    // Holds everything that is read or pressed inside the part of the screen the system
+    // is not standing on. See SafeArea for what that part is and why it is not a viewport.
+    //
+    // Four places answer it, and each one answers only the edge it is pinned to:
+    //
+    // - The transport row keeps its ground and moves what travels on it, by adding the
+    //   inset to the padding at either end of its content. That also lengthens the strip,
+    //   which is the whole of the fix rather than half of it: a row that is longer than
+    //   its screen can be dragged, and `ScrollStrip.Travel` is measured against the
+    //   content box — so without this the last switch on the row could be dragged as far
+    //   as the screen's edge and no further, which on a phone left it under the camera
+    //   housing with no way to bring it out. Nothing that is not pressed pays for it: the
+    //   row's own bar of grey still runs the full width.
+    //
+    // - The columns of panels take it on the side they stand on and along the bottom.
+    //   Their top is the row's business, since the row is above them and has already
+    //   moved down by whatever the top edge keeps.
+    //
+    // - The dock takes it along the bottom, which is the one place a panel had a hand on
+    //   it in the system's own strip: the Live FX buttons are held rather than pressed,
+    //   and a finger holding one a hair above the home indicator is a finger one slip
+    //   away from putting the app away mid-phrase.
+    //
+    // - The centred panels take three sides, so that a panel too tall for the screen
+    //   comes to rest inside it rather than under the indicator.
+    //
+    // The wordmark is the exception, and it is the only thing on the screen that can be
+    // one: it is looked at and never pressed, so what it owes the edge is not what a
+    // switch owes it. See MarkAir.
+    //
+    // Read every frame and written only when it moves, the way the lock is. A rotation
+    // is the one thing that changes it in practice, and there is no event to hang this on
+    // that is cheaper to trust than the number itself — the screen has turned over by the
+    // time either edge has anything different to say.
+    void FollowTheSafeArea()
+    {
+        var safe = SafeArea.Read(_root.panel);
+        if (safe.Equals(_safe)) return;
+
+        _safe = safe;
+
+        _row.style.height = Controls.ToolbarHeight + safe.Top;
+        _row.style.paddingTop = safe.Top;
+
+        // The mark's air is its own and owes this nothing — see MarkAir — so a row with a
+        // mark on it is left where the row built it, and only a row without one takes the
+        // inset at its left.
+        if (_mark == null)
+            _row.contentContainer.style.paddingLeft = Controls.Inset + safe.Left;
+
+        _row.contentContainer.style.paddingRight = Controls.Inset + safe.Right;
+
+        _leftEdge.style.left = Controls.PanelGap + safe.Left;
+        _leftEdge.style.bottom = Controls.PanelGap + safe.Bottom;
+
+        _rightEdge.style.right = Controls.PanelGap + safe.Right;
+        _rightEdge.style.bottom = Controls.PanelGap + safe.Bottom;
+
+        _centre.style.left = safe.Left;
+        _centre.style.right = safe.Right;
+        _centre.style.bottom = safe.Bottom;
+
+        // The gap under the dock is the panel's own margin, so this is the inset and
+        // nothing more.
+        _dock.style.bottom = safe.Bottom;
+
+        _scroll.DeadBottom = safe.Bottom;
     }
 
     // Puts the score's own controls out of reach while another score waits to come in,
@@ -190,7 +271,19 @@ sealed class JacquardUI
         // The name of the thing, where an app's name goes. It is the one mark on the
         // row that does nothing when it is pressed, so it stands before the rule that
         // the transport starts at rather than among the switches.
-        if (_app.Logo != null) row.Add(Wordmark(_app.Logo));
+        // Kept, because it is the one thing on this row the screen's own edges are allowed
+        // to treat differently from the switches. See MarkAir.
+        if (_app.Logo != null)
+        {
+            _mark = Wordmark(_app.Logo);
+            row.Add(_mark);
+
+            // The mark stands *in* the row's left air rather than behind it, so that air
+            // is the mark's own and reads the same on both sides of it. Written here and
+            // again in FollowTheSafeArea, since the row that has no mark on it takes the
+            // safe inset instead and this is the only place that knows which row this is.
+            row.contentContainer.style.paddingLeft = MarkAir;
+        }
 
         _play = Controls.Push("Play", _app.TogglePlay, 54);
         row.Add(_play);
@@ -507,22 +600,35 @@ sealed class JacquardUI
         root.style.unityFontDefinition = FontDefinition.FromSDFFont(asset);
     }
 
-    // The wordmark on the row, one unit to a cell of the type it is set in.
+    // The wordmark on the row, as tall as MarkOfBox makes it and as wide as that leaves it.
     //
-    // The texture holds two pixels per cell, so on a screen the panel doubles it lands
-    // pixel for pixel and on one it does not it reduces by exactly two — either way a
-    // cell stays a square. It is the same size in both profiles: nothing here is
-    // pressed, so it has no target to grow, and the touch row has no width to give.
+    // The height follows the row it stands on and the width follows the texture, so a cell
+    // of the type the mark is set in stays square whatever profile is in force. It used to
+    // be the texture's own size at two pixels to a cell, which held it at 15 units in both
+    // profiles: on the row the layout was judged on that is three quarters of a control's
+    // box, and on the touch row — half again as tall — it was a third of the bar, the only
+    // thing on it that had not grown.
+    //
+    // Nothing here reads the texture's resolution any more, only its shape, so a master
+    // drawn at more pixels to a cell — `PPC` in Branding/make_logo_png.py — is a sharper
+    // mark at the same size and needs no change here. It took one: the mark lands pixel for
+    // pixel only where a cell comes to a whole number of device pixels, and at 22.5 units a
+    // cell is 3 of them on a 2x screen, which is what the master is now cut at. Measured on
+    // a simulated iPad, every cell of the mark on screen is one flat 3x3 block and not one
+    // pixel of it is an interpolated value; a 458 ppi phone asks for 5.2 and cannot be met
+    // by any whole number, so there the mark is resampled and always was.
     static VisualElement Wordmark(Texture2D texture)
     {
+        var height = Controls.RowHeight * MarkOfBox;
+
         var mark = new VisualElement();
-        mark.style.width = texture.width / LogoPixelsPerCell;
-        mark.style.height = texture.height / LogoPixelsPerCell;
+        mark.style.height = height;
+        mark.style.width = height * texture.width / texture.height;
         mark.style.flexShrink = 0;
-        // The row's own inset and not a gap: the name stands off the transport the
-        // way it stands off the edge of the screen, so the air reads the same on both
-        // sides of it rather than sitting it among the switches.
-        mark.style.marginRight = Controls.Inset;
+        // The mark's own air and not a gap: the name stands off the transport the way it
+        // stands off the edge of the screen, so the air reads the same on both sides of it
+        // rather than sitting it among the switches. See MarkAir.
+        mark.style.marginRight = MarkAir;
         mark.style.backgroundImage = Background.FromTexture2D(texture);
         // Held to the colour the row's own type is, rather than the white it is drawn
         // in, so the name does not sit brighter than everything it names.
@@ -530,7 +636,71 @@ sealed class JacquardUI
         return mark;
     }
 
-    const float LogoPixelsPerCell = 2.0f;
+    // How tall the mark stands against a control's box on the same row.
+    //
+    // Three quarters, which is a measurement rather than a proportion anybody chose: the
+    // texture is 15 cells tall and a control's box is 20 units in the profile the layout was
+    // judged in, so three quarters is what the mark already came to there. Taking it as a
+    // ratio is what carries that judgement across — 22.5 units against a 30 unit box — where
+    // before it stayed at 15 while the box, the type and the bar all grew around it.
+    //
+    // A control's box and not the bar's height, because what the mark is read against is the
+    // switches beside it rather than the air over them. The air is the other thing that
+    // grew, and it grew for a reason of its own that has nothing to do with how big a name
+    // should be — see MarkAir.
+    const float MarkOfBox = 0.75f;
+
+    // The air on either side of the wordmark, which is the one thing on this screen held
+    // off the edge by something other than the safe area.
+    //
+    // What a switch is held off that edge by is the safe area, and a switch is right to
+    // take it: it is pressed. The mark is not, so what it actually has to clear is the one
+    // thing that would *cut* it — the corner the display is rounded to. That is a much
+    // smaller distance than the inset, and at the top of the screen it is the only thing in
+    // the way at all: a phone's camera housing sits in the middle of the edge it is on, so
+    // in landscape it is nowhere near a row along the top.
+    //
+    // Neither of the two numbers the platform hands over says how big that corner is. The
+    // radius is not reported at all, and the safe inset is no guide to it — an iPad is cut
+    // to the same kind of corner and reports no inset whatever, so a mark placed by a share
+    // of the inset is a mark placed at nothing on the one family of devices this is mostly
+    // used on.
+    //
+    // So it is measured against the corner instead and then written down as a share of the
+    // row's own height — MarkAirOfRow, which comes to 34.6 units in the touch profile. What
+    // that has to beat is how far the curve has come in by the height the mark's top edge
+    // sits at, 11 units down: **20.6 units** on a simulated iPhone 13 Pro Max, whose corner
+    // is 53.3 units of radius, and **1.2** on an iPad Pro 11 at 18.
+    //
+    // The row's height rather than a number of its own because the mark is centred in the
+    // row: how far down its top edge sits, which is what decides the answer, is set by that
+    // height and by MarkOfBox — so the two have to be read together. It began at half the
+    // row, which cleared that phone's corner by 6.8 units while the mark stood at 15 units
+    // tall; the mark growing to 22.5 lifted its top edge into a deeper part of the curve and
+    // left 2.5, which is inside the curve's own antialiasing on a real screen. The quarter
+    // that makes up three quarters was added by eye against that, and it is the honest
+    // description of this number: a distance judged on a device, held to the one metric on
+    // the row that moves with what decides it.
+    //
+    // What it costs is row. The mark and its air come to 177 units in the touch profile
+    // against 154 at half the row, and the row is the tightest thing in this interface on a
+    // phone — see the note on the chooser's width in BuildTransportRow. It is a compromise
+    // throughout, and the thing that would settle it properly is a radius nobody publishes.
+    //
+    // A touch screen only. A desktop window has no corner cutting into its own content, so
+    // the mark keeps the row's inset there and the row looks as it always did — and forcing
+    // the touch profile on a Mac shows the phone's spacing, which is what that override is
+    // for.
+    //
+    // The switches lose nothing to this and need no inset of their own behind it: the mark
+    // and its air come to 177 units on that phone against the 41 the safe area asked for,
+    // so the first switch is well inside it either way.
+    static float MarkAir
+      => Controls.Touch ? Controls.ToolbarHeight * MarkAirOfRow : Controls.Inset;
+
+    // Three quarters of the row, and a different three quarters from MarkOfBox above: that
+    // one is a height against a control's box, this one is air against the bar.
+    const float MarkAirOfRow = 0.75f;
 
     static VisualElement Separator()
     {
@@ -674,10 +844,17 @@ sealed class JacquardUI
 
         var offset = _scroll.Requested;
 
-        if (rect.xMin < offset.x) offset.x = rect.xMin;
-        if (rect.xMax > offset.x + size.x) offset.x = rect.xMax - size.x;
+        // Against the part of the viewport that can be looked at rather than the whole
+        // of it: a cursor brought to the left edge of a phone held in landscape is a
+        // cursor under the camera housing, which is a cell that was revealed to nobody.
+        // Three sides and not four — the plane begins under the transport row, so its
+        // top is inside the safe area already.
+        if (rect.xMin < offset.x + _safe.Left) offset.x = rect.xMin - _safe.Left;
+        if (rect.xMax > offset.x + size.x - _safe.Right)
+            offset.x = rect.xMax - size.x + _safe.Right;
         if (rect.yMin < offset.y) offset.y = rect.yMin;
-        if (rect.yMax > offset.y + size.y) offset.y = rect.yMax - size.y;
+        if (rect.yMax > offset.y + size.y - _safe.Bottom)
+            offset.y = rect.yMax - size.y + _safe.Bottom;
 
         _scroll.Offset = offset;
     }
@@ -711,10 +888,12 @@ sealed class JacquardUI
         _view.SetCursor(new GridPoint(score.MinX, score.MinY));
 
         // The same inset the plane gives its own edge, so the cell sits where a cell at
-        // the corner of the plane would.
+        // the corner of the plane would — and clear of whatever the screen keeps on its
+        // left, so that the corner is where the plane can be looked at rather than where
+        // it happens to begin.
         var corner = new GridPoint(score.MinX - margin, score.MinY - margin);
         _scroll.Offset = Style.CellOrigin(corner) -
-                         new Vector2(Style.Padding, Style.Padding);
+                         new Vector2(Style.Padding + _safe.Left, Style.Padding);
     }
 
     // What the file controls have to say, which is the one thing the status line
@@ -739,6 +918,16 @@ sealed class JacquardUI
     readonly ScoreEditor _editor;
     readonly ScoreView _view;
     readonly ScrollArea _scroll;
+
+    // The boxes that answer to the screen's own edges, kept because what they are told
+    // changes with the way the thing is held. See FollowTheSafeArea.
+    readonly VisualElement _root;
+    readonly VisualElement _row;
+    readonly VisualElement _leftEdge;
+    readonly VisualElement _rightEdge;
+    readonly VisualElement _centre;
+    readonly VisualElement _dock;
+
     readonly InspectorPanel _inspector;
     readonly SendPanel _send;
     readonly ChannelsPanel _channels;
@@ -747,6 +936,8 @@ sealed class JacquardUI
     readonly LivePanel _live;
 
     Button _play;
+    // The name of the thing, at the left of the row, when there is one to draw.
+    VisualElement _mark;
     // The last thing the file controls said, so that a message is logged when it
     // arrives rather than on every frame it is still true.
     string _reported;
@@ -771,6 +962,9 @@ sealed class JacquardUI
     // What the score's controls were last put into, so that they are written to when
     // that changes and not every frame it has not.
     bool _locked;
+
+    // And the same for what the screen keeps: what the chrome was last laid out to.
+    SafeArea _safe;
 
     const float SeparatorAir = 8.0f;
 

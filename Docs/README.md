@@ -26,7 +26,7 @@ How it is built
 | [impl-audio.md] | The two drivers, the DSP clocks, dropouts, and the minimum lead |
 | [impl-live-fx.md] | The twelve buttons, the handover window, and the rolls |
 | [impl-score-plane.md] | The grid: cells, gestures, what a lane owns, and how the plane grows |
-| [impl-panels.md] | The panel the cursor answers to, the controls on it, the transport row |
+| [impl-panels.md] | The panel the cursor answers to, the controls on it, the transport row, the screen's edges |
 | [impl-style.md] | How a control answers a hand, the two metric profiles, the type, the marks |
 | [impl-visualizer.md] | The wash behind the score |
 | [impl-files.md] | The score folder, the sample, and what an older file is owed |

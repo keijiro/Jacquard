@@ -2,10 +2,11 @@ Panels
 ======
 
 The chrome around the plane: the panel the cursor answers to, the controls on
-it, and the transport row that raises the rest. The code is `Controls`,
-`InspectorPanel`, `ValueBar` and `ScrollStrip` in `Assets/Jacquard/UI`. How any
-of it is coloured and sized is [impl-style.md]; the one panel that is played
-rather than read is [impl-live-fx.md].
+it, the transport row that raises the rest, and where all of it stands against
+the edges of the screen. The code is `Controls`, `InspectorPanel`, `ValueBar`,
+`ScrollStrip` and `SafeArea` in `Assets/Jacquard/UI`, with the placing itself in
+`JacquardUI`. How any of it is coloured and sized is [impl-style.md]; the one
+panel that is played rather than read is [impl-live-fx.md].
 
 [impl-style.md]: impl-style.md
 [impl-live-fx.md]: impl-live-fx.md
@@ -431,3 +432,92 @@ test on who holds the pointer decides which of the two copies answers a move. An
 control whose own gesture is a drag keeps it**: `ValueBar` is scrubbed with both axes,
 so a bar handed the strip's rule would be a bar that cannot be set on exactly the
 screens where the rule applies.
+
+The screen's own edges
+----------------------
+
+**A phone hands an app the whole display and then covers parts of it.** In landscape,
+which is the only way this app is held, that is a camera housing cut out of one short
+edge and a home indicator along the bottom — and behind the indicator, the swipe it
+stands for, which the system claims before the app is told a finger landed. `SafeArea`
+reads what is left, converts it from device pixels counted up from the bottom into the
+layout's own units counted down from the top, and hands back the four insets; the
+conversion is the panel's resolved scale rather than the device's pixel ratio, because
+this panel is sized by density and a unit is an iOS point only on the iPads where 264
+ppi meets a reference of 132.
+
+**It is not a viewport, and nothing here shrinks to it.** The score carries on under the
+housing the way it carries on off the screen, and the transport row's bar of grey still
+runs the full width — a row of chrome stopping short of the edge reads as one that has
+been cut off rather than one that is being careful. What moves is only what is read or
+pressed: the row adds the inset to the padding at either end of its *content*, the
+columns of panels take it on the side they stand on and along the bottom, the dock takes
+it along the bottom, and the centred panels take three sides so that one too tall for the
+screen comes to rest inside it. None of them takes it at the top, because the row is up
+there and has already moved down by whatever that edge keeps.
+
+**The wordmark is held off the edge by something else entirely**, and it is the only thing
+on the screen that could be: it is looked at and never pressed. A switch takes the safe
+inset and is right to — it is pressed. What the mark has to clear is the one thing that
+would *cut* it, which is the corner the display is rounded to, and at the top of the screen
+that is the only thing in the way at all: a camera housing sits in the middle of the edge it
+is on, so in landscape it is nowhere near a row along the top.
+
+Neither number the platform hands over says how big that corner is. The radius is not
+reported anywhere, and **the safe inset is no guide to it** — an iPad is cut to the same kind
+of corner and reports no inset whatever, so a mark placed by a share of the inset is a mark
+placed at nothing on the family of devices this mostly runs on. So `MarkAir` is measured
+against the corner and then written down as a share of the row's own height —
+`MarkAirOfRow`, **three quarters**, which is 34.6 units in the touch profile. What that has
+to beat is how far the curve has come in by the height the mark's top edge sits at: 20.6 units
+on a simulated iPhone 13 Pro Max — 53.3 units of radius — and 1.2 on an iPad Pro 11 at 18,
+which it clears by **14.0** and **33.3**. The row's height rather than a number of its own
+because the mark is centred in the row, so how far down its top edge sits, which is what
+decides the answer, is set by that height and by `MarkOfBox`.
+
+**Those two pull against each other**, and the phone is where that shows: a taller mark has
+its top edge further up the curve, where the curve is deeper. It began at half the row, which
+cleared that phone by 6.8 units while the mark stood at 15 units tall; the mark growing to
+22.5 lifted its top edge into the deeper part of the curve and left 2.5, which is inside the
+curve's own antialiasing on a real screen and looked it. The quarter that makes three was
+added by eye against that, and that is the honest description of this number — a distance
+judged on a device, held to the one metric on the row that moves with what decides it. It is a
+compromise throughout, and what would settle it properly is a radius nobody publishes.
+
+The mark stands *in* the row's left air rather than behind it, so that air is the mark's own
+and reads the same on both sides of it; a row with no mark on it takes `Controls.Inset` and
+the safe inset instead. **The switches need no inset of their own behind the mark**: the mark
+and its air come to 177 units on that phone against the 41 the safe area asked for, so the
+first switch is well inside it either way. On a desktop the mark keeps the row's inset, since a
+window has no corner cutting into its own content; forcing the touch profile on a Mac shows
+the phone's spacing, which is what that override is for.
+
+What all of it costs is row. The mark at 22.5 units is 108 wide where 15 units was 72, and its
+air went from 10 to 34.6 on each side, so the touch row carries **1041 units** of content
+where it carried 916 — against 800 units of screen on that phone, which is 240 of drag, and
+against the iPad's 1194, which still swallows the lot at 1001. The row is the tightest thing
+in this interface on a phone and the mark is the only thing on it that is not a switch, so
+this is the one place where a thing being made bigger is paid for in reach.
+
+**Padding the row's content is the whole of that fix rather than half of it.**
+`ScrollStrip.Travel` is the content box measured against the viewport, so the inset
+lengthens the strip by exactly what it took: without it, the last switch on the row could
+be dragged as far as the screen's edge and no further, which on a phone left it under the
+camera housing with no way to bring it out. Measured on a simulated iPhone 13 Pro Max —
+800 units of screen, 47pt of housing either side — the row's travel went from 114 units to
+196, and Load came to rest 13 units inside the safe edge instead of 28 units under the
+housing.
+
+**Read every frame and written only when it moves**, which is the rule the lock follows
+and for the same reason: every line of it is a style write, and the frame the screen has
+not turned over is every frame. A rotation is the one thing that changes it in practice,
+and there is no event to hang this on that is cheaper to trust than the number itself. The
+insets come out zero on every desktop and in every browser, so `FollowTheSafeArea` writes
+once at startup there and never again.
+
+**The Device Simulator is where this is checked.** It is the shimmed `UnityEngine.Device`
+classes that answer with the device's own numbers — the same spelling `Controls` needs for
+its pointer profile — and a `Screen.safeArea` covering the whole screen is the tell that
+the window is not really the active play mode view. The newest phone the device package
+ships is the 13 Pro Max, whose notch is 47pt against the 59 or more a Dynamic Island takes,
+so it is a floor on the problem rather than the worst case.

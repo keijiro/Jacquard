@@ -31,9 +31,13 @@ The marks
 ---------
 
 **The wordmark** is white on black with the glitch, and the app draws the same
-thing on the left of its transport row from `Logo.png` — a bitmap at two texture
-pixels to the cell, shown at one unit to the cell, so on a screen the panel doubles
-it lands pixel for pixel and on one it does not it reduces by exactly two.
+thing on the left of its transport row from `Logo.png` — a bitmap at three texture
+pixels to the cell. The app sizes it against the row rather than from the texture,
+so a cell comes to one unit on the desktop and one and a half on a touch screen,
+and since the panel resolves two device pixels to a unit on a 2x screen, a cell
+there is exactly the three pixels this is cut at and the mark lands pixel for
+pixel on an iPad. It was two pixels to the cell while the mark stood at one unit
+to the cell, which was the same argument at the size the mark used to be.
 
 **The app icon** is the wordmark's J alone, centred on a canvas of twenty-six cells.
 Both current systems cut an icon into a rounded shape of their own, and the J is
