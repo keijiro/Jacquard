@@ -69,15 +69,36 @@ sealed class LivePanel
     // Wide enough for Roll 3/16, which is the longest label here.
     const float ButtonWidth = 70.0f;
 
+    // Half again a control's box, and taken all in the one direction. These are the
+    // only controls on the screen that are hit rather than aimed at — a hand comes
+    // off the plane mid-phrase and wants the box to be where it lands — and height is
+    // the whole of what is short of that: a box is already wide enough for
+    // "Roll 3/16" and only 30 units tall, so it is the vertical miss that a hurried
+    // finger makes. Width is what there is none of. Six of these stand across the
+    // middle of the bottom edge with a column of panels either side of them, so a
+    // wider box would be a panel over both columns on a tablet and off the edge of a
+    // phone, and what is under a thumb there is what the thumb was told about rather
+    // than what it hit.
+    //
+    // Half again and not double, which was where this went first and was more box
+    // than the buttons wanted. Half again lands on 45 units in the touch profile,
+    // which is about what a fingertip is usually held to, and it costs the panel 30
+    // units of height where double cost it 60.
+    static float ButtonHeight => Controls.RowHeight * 1.5f;
+
     VisualElement Buttons(params LiveEffect[] effects)
     {
         var row = Controls.Row();
 
         foreach (var fx in effects)
-            row.Add(Controls.Hold(Name(fx),
-                                  () => _live.Press(fx, _clock()),
-                                  () => { _live.Release(fx); _released(); },
-                                  ButtonWidth));
+        {
+            var button = Controls.Hold(Name(fx),
+                                       () => _live.Press(fx, _clock()),
+                                       () => { _live.Release(fx); _released(); },
+                                       ButtonWidth);
+            button.style.height = ButtonHeight;
+            row.Add(button);
+        }
 
         // The last button in a row carries a gap to its right that has nothing on the
         // other side of it, and the panel is fitted to its contents, so it would show
