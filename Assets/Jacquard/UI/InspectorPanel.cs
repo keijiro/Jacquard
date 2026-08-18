@@ -412,9 +412,19 @@ sealed class InspectorPanel
         row.Add(_play);
         body.Add(row);
 
-        body.Add(Controls.Bar("Channel", ChannelRange, () => channel.Channel,
-                              value => { channel.Channel = Mathf.RoundToInt(value);
-                                         Touch(); }));
+        // Stepped through with arrows rather than scrubbed on a bar. A channel is not a
+        // quantity: eight of them is a list of eight things to sound on, and the
+        // distance between the third and the seventh is not four of anything. A bar
+        // said otherwise twice over — it drew a fill that grew as if a higher channel
+        // were more of something, and it asked a hand to hit one eighth of its length
+        // to pick one. The arrows are what this panel already gives a choice from a
+        // written-down list, which is what the row under this one is.
+        var channels = new List<string>();
+        for (var i = 1; i <= PatchBank.Channels; i++) channels.Add(i.ToString());
+
+        body.Add(Controls.Chooser("Channel", channels,
+                                  () => channel.Channel - 1,
+                                  index => { channel.Channel = index + 1; Touch(); }));
 
         var divisions = new List<string>();
         foreach (var d in ChannelTile.Divisions) divisions.Add("1/" + d);
@@ -519,8 +529,6 @@ sealed class InspectorPanel
     // percentage at all is still allowed by typing it.
     static readonly ValueBar.Range ChanceRange =
       new ValueBar.Range(0.0f, 100.0f, snap: 1.0f, digits: 0, unit: "%");
-
-    static readonly ValueBar.Range ChannelRange = ValueBar.Integer(1.0f, PatchBank.Channels);
 
     // How many laps the cycle is long, which is also how many switches stand under
     // it. Dragging it covers the whole range, since every value on the way is a
