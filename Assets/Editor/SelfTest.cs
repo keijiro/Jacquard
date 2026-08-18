@@ -23,6 +23,7 @@ static class SelfTest
         SampleScore(log);
         Plane(log);
         Playback(log);
+        Holding(log);
         Lanes(log);
         Switching(log);
         Stack(log);
@@ -264,10 +265,82 @@ static class SelfTest
               "loudest=" + loudest + " against a patch level of " + plain);
 
         // And the steps the accent lane does not land on have to come out at the
-        // patch level, since a lock is over when its instant is.
+        // patch level, since a lock is over when the step it sits on is, and the accent
+        // lane divides the bar the same way the main one does.
         Check(log, "a lock is gone by the next step", untouched > 0,
               untouched + " of " + notes.Count + " notes at the patch level");
     }
+
+    // A lock lasts as long as the step it sits on, which says nothing at all while every
+    // lane divides the bar the same way and says everything the moment one of them does
+    // not: an eighth-note lock lane over a sixteenth-note lane of notes covers two of
+    // them with one step, and both have to be lifted.
+    //
+    // Three things are asked of the one score. The lock reaches every note that falls
+    // inside the step holding it; the empty cell after it lets the channel go, so the
+    // notes under that one are plain again; and the same two lanes with the lock
+    // underneath lift nothing at all, since a held lock is read at the place in the pass
+    // its own lane occupies and a lock only ever colours what is processed after it.
+    static void Holding(System.Text.StringBuilder log)
+    {
+        const int sampleRate = 48000;
+
+        var lifted = Emit(Holder(1, 3), sampleRate);
+
+        Check(log, "a lock holds every note inside the step it sits on",
+              Count(lifted, 72) == 2 && First(lifted, 72) == 0, Heard(lifted));
+
+        Check(log, "the empty cell after a lock lets the channel go",
+              Count(lifted, 60) == 2 && First(lifted, 60) > 0, Heard(lifted));
+
+        var below = Emit(Holder(3, 1), sampleRate);
+
+        Check(log, "a held lock reaches nothing above the lane holding it",
+              Count(below, 72) == 0 && Count(below, 60) == 4, Heard(below));
+    }
+
+    // An eighth-note lane holding one lock over a sixteenth-note lane of four plain
+    // notes, both on channel one and placed on the rows given: score5's shape, and the
+    // same thing upside down.
+    static Project Holder(int lockRow, int noteRow)
+    {
+        var project = new Project();
+        var score = project.Score;
+
+        var locks = score.AddLane(1, lockRow,
+                                  new ChannelTile { Channel = 1, Division = 8 }, 2);
+
+        var lift = new RelativeParamTile();
+        lift.Engage(ParamTargets.Transpose, 12.0f);
+        locks.Steps[0].Tiles.Add(lift);
+
+        var main = score.AddLane(1, noteRow,
+                                 new ChannelTile { Channel = 1, Division = 16 }, 4);
+
+        for (var step = 0; step < 4; step++)
+            main.Steps[step].Tiles.Add(new NoteTile { Note = 60 });
+
+        return project;
+    }
+
+    // One lap of that score and not a sample more — a beat, which is four sixteenths —
+    // so the lap that follows cannot add notes to what is being counted.
+    static System.Collections.Generic.List<FmNoteEvent> Emit(Project project,
+                                                             int sampleRate)
+    {
+        var sequencer = new Sequencer { Project = project };
+        var notes = new System.Collections.Generic.List<FmNoteEvent>();
+        var lap = (long)(60.0 / project.Tempo * sampleRate);
+
+        sequencer.Play(0, 0);
+        sequencer.Schedule(0, lap, sampleRate, notes);
+
+        return notes;
+    }
+
+    static string Heard(System.Collections.Generic.List<FmNoteEvent> notes)
+      => Count(notes, 72) + " lifted and " + Count(notes, 60) + " plain, out of "
+         + notes.Count;
 
     // A lane that is not running.
     //

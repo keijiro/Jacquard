@@ -310,17 +310,30 @@ meaningless tile" — it simply does not sound, and it does no harm.
 There are two constraints on what a lock reaches.
 
 - **It always applies to the whole channel.** It is not a per-note attribute
-- **It lasts for that step only.** Nothing is left over for the next step. A channel starts every instant from its own patch
+- **It lasts for that step only.** Nothing is left over for the step after it. A channel no lane is holding starts every instant from its own patch
 
 Putting those two together, what a lock actually colours is "whatever is processed after
-it, at the same instant". How far **after** reaches is decided by where it was placed:
-the notes below it in the same stack, and the sounds the lanes further down the plane
-make at the same instant. **A lock therefore goes above the sounds it is meant to
-reach.**
+it, while the step it sits on lasts". How far **after** reaches is decided by where it
+was placed: the notes below it in the same stack, and the sounds the lanes further down
+the plane make. **A lock therefore goes above the sounds it is meant to reach.**
 
 - **Placed above a note** → it applies to the notes under it
 - **Placed in the middle of a chord** → it applies only to the notes below the boundary
-- **Placed alone on a lane that holds no notes** → it applies to the sounds the lanes below make at the same instant. This is the accent lane usage (see "Lanes running in parallel")
+- **Placed alone on a lane that holds no notes** → it applies to the sounds the lanes below make while that step lasts. This is the accent lane usage (see "Lanes running in parallel")
+
+**The step is the one on the lane the lock is written on, and a lane's step is as long
+as its division says.** While every lane on a channel divides the bar the same way,
+"that step" and "that instant" are the same thing. When one of them is coarser they are
+not: an eighth-note lock lane over a sixteenth-note lane of notes covers two of them
+with one step, and both are coloured, because the step holding the lock has not ended
+when the second note sounds. **The cell after it is what lets the channel go** — a step
+is read whether or not anything is written on it, and what it holds replaces what the
+step before it left, so an empty cell on a lock lane releases.
+
+A lock still standing is read **at the place in the pass its own lane occupies**, so it
+reaches exactly what a freshly placed one would: the lanes below it, never the ones
+above. An accent lane placed below the notes therefore colours nothing on any instant,
+which is the same answer it gets at the instant it is placed on.
 
 **A lock with nowhere to go is a meaningless tile.** A `PABS` placed at the bottom of
 the bottommost lane does nothing, because there is nothing processed after it. **This
@@ -695,8 +708,8 @@ applies to the whole channel. A branch lane has no `CHAN` of its own, so it soun
 the timbre and the division of the channel that called it. The upper bound on channel
 numbers is decided by the size of that patch bank (8 at present).
 
-**A patch is a set of reference values, not state.** A lock lasts for that step only, so
-a channel starts every instant from the patch values. Rewriting a patch during playback
+**A patch is a set of reference values, not state.** A lock lasts for the step it sits on
+only, so a channel no lane is holding starts every instant from the patch values. Rewriting a patch during playback
 takes effect straight away from the next instant, and there is nothing a lock has piled
 up that has to be undone.
 

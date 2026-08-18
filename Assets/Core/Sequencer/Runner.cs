@@ -66,6 +66,38 @@ public sealed class Runner
     public float StepSeconds(float tempo)
       => OriginLane.Channel?.StepSeconds(tempo) ?? 0.125f;
 
+    // Held locks
+
+    // The locks the step being played put on the channel, and the sample the step after
+    // it begins on.
+    //
+    // A lock lasts as long as the step it sits on, and the step is this lane's — so a
+    // lane whose division is coarser than the ones below it goes on holding the channel
+    // through the instants between its own steps. Sequencer.Reapply is where a step
+    // still standing is put back into the pass.
+    //
+    // What is kept is the tiles that were reached and not the numbers they arrived at.
+    // Reading them again writes the same working patch as the pass that placed them —
+    // the relative ones stack and clamp in the same order — and no gate is asked twice,
+    // since a tile a gate cut off never got in here to begin with.
+    public IReadOnlyList<ParamTile> HeldLocks => _held;
+
+    public double HoldUntil { get; private set; }
+
+    // Takes the locks of the step being read now, in place of whatever the step before
+    // it left. A step with no lock on it therefore lets the channel go, which is what
+    // an empty cell on a lock lane is good for.
+    //
+    // Zero is a hold that is already over, which is what a runner put back at the top
+    // of its lane is left with: what it was holding belonged to a run that has ended.
+    public void BeginHold(double until)
+    {
+        _held.Clear();
+        HoldUntil = until;
+    }
+
+    public void Hold(ParamTile tile) => _held.Add(tile);
+
     // Playhead tracking
 
     public void Record(long sample, Lane lane, int step)
@@ -96,6 +128,7 @@ public sealed class Runner
     }
 
     readonly Queue<Marker> _scheduled = new();
+    readonly List<ParamTile> _held = new();
 }
 
 } // namespace Jacquard

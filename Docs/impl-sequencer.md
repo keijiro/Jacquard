@@ -22,19 +22,51 @@ One instant, one downward pass
 ------------------------------
 
 **One instant is one downward pass.** Runners are one per `CHAN` lane, ordered
-by the vertical position of that tile, and the ones landing on the same instant
-are read in that order, each from the rail row of its step down. Everything a
-tile does reaches what is read after it and nothing before it: a gate ends the
-descent, a lock colours the notes that follow it, a note takes the channel as it
-stands where it sits. That one rule covers both the inside of a stack and the
-lanes against each other, which is what lets the accent lane, placed above the
-main one, colour it.
+by the vertical position of that tile, and every lane is asked in that order,
+each from the rail row of its step down. Everything a tile does reaches what is
+read after it and nothing before it: a gate ends the descent, a lock colours the
+notes that follow it, a note takes the channel as it stands where it sits. That
+one rule covers both the inside of a stack and the lanes against each other,
+which is what lets the accent lane, placed above the main one, colour it.
+
+**A lane takes part in a pass whether or not it is due on it.** A lane that has
+come to a step reads it. A lane part way through one puts back the locks that step
+placed and sounds nothing. Which of the two it is, is read off the same number and
+the same half sample of tolerance the slice itself is gathered with — for a
+running lane the hold a step opens runs to exactly where the next one begins, so
+being due and being part way through are the only two answers. A lane that has
+stopped is the one case that is neither for a while: its position is out past
+every comparison while the last step it played is still sounding, and the hold is
+what carries that step's locks to the end of it.
 
 The lifetime of a lock
 ----------------------
 
-**A lock is over when its instant is.** There is no accumulating lock and no
-standing channel state; every channel starts each instant from its patch again.
+**A lock is over when the step it sits on is.** There is no accumulating lock and
+no standing channel state: a channel no lane is holding starts each instant from
+its patch again.
+
+**The step is the lane's own, so a division says how far a lock carries.** While
+every lane divides the bar the same way that is one instant and nothing more,
+which is all this ever meant while it was written as one. An eighth-note lock
+lane over a sixteenth-note lane of notes covers two of them with one step, and
+both are lifted — the lock lane's step has not ended at the instant the second
+note sounds. The empty cell after it is what lets the channel go, since a step is
+read whether or not it holds anything and what it holds replaces what the step
+before it left.
+
+**A held lock is put back at the place in the pass its own lane occupies**, not at
+the top of the slice, so it reaches exactly what a fresh one would: the lanes
+below it and nothing above. The rule that a lock goes above the sounds it colours
+therefore holds whether or not the instant being played is the one it was placed
+on — an accent lane below the notes reaches them on no instant at all.
+
+**What a runner holds is the lock tiles it reached, not the numbers they came to.**
+Reading them again writes the same working patch as the pass that placed them:
+the relative ones stack and clamp in the same order, and no gate is asked twice,
+since a tile a gate cut off never entered the hold. A runner put back at the top
+of its lane lets go of everything, because what it was holding was the reading of
+a step in a run that has ended.
 
 Transpose and scale
 -------------------

@@ -15,8 +15,13 @@ namespace Jacquard {
 // tile does reaches what is processed after it and nothing before it, which is the
 // one rule behind gates, locks and notes alike.
 //
-// Locks last exactly as long as that pass, so every channel starts each slice from
-// its own patch again.
+// A lock lasts as long as the step it sits on. Inside a pass that is the rule above:
+// it colours whatever is processed after it. Across passes it is what lets a lane whose
+// steps are longer than the ones under it hold the channel through the instants between
+// its own steps — every lane is asked at its own place in every pass, and it either
+// reads the step it has come to or puts back the one it is still on. Nothing outlives
+// its own step, so a channel no lane is holding starts each instant from its patch
+// again.
 //
 // One score can be played out and another begun without stopping, and the seam is the
 // turn of the master lane — see Score.MasterLane, which is where a piece says how long
@@ -147,9 +152,16 @@ public sealed class Sequencer
     // resuming from it would emit steps behind the clock, and its lap count belongs to
     // a run that has ended. A lane coming back and a lane drawn a moment ago both
     // arrive here, and they have to sound the same.
+    //
+    // The locks it was holding are among the things dropped, for the same reason: they
+    // were the reading of a step in that ended run.
     static void Start(Runner runner, double sample)
-      => (runner.Lane, runner.StepIndex, runner.Pass, runner.NextSample) =
-         (runner.OriginLane, 0, 0, sample);
+    {
+        (runner.Lane, runner.StepIndex, runner.Pass, runner.NextSample) =
+          (runner.OriginLane, 0, 0, sample);
+
+        runner.BeginHold(0.0);
+    }
 
     // Starts every switched-on lane that is sitting out, on the sample a lap begins.
     void StartPending(double sample)
@@ -340,24 +352,50 @@ public sealed class Sequencer
 
         _slice.Clear();
 
-        // Half a sample of tolerance: two runners on different divisions can land
-        // on the same instant with the accumulated position differing in the last
-        // bit.
+        // Whoever has something to say at this instant. That is the runners due on it,
+        // and also the ones part way through a step whose locks are still standing: a
+        // lane in the middle of a step reads nothing and sounds nothing, but the hold it
+        // opened has not run out and the channel is still coloured by it.
         foreach (var runner in _runners)
-            if (runner.NextSample < time + Tolerance) _slice.Add(runner);
+            if (Lands(runner, time) || Holding(runner, time)) _slice.Add(runner);
 
         // Upper CHAN tiles go first, which is what puts an accent lane placed above
         // the main one in a position to colour it.
         _slice.Sort((a, b) => a.Order.CompareTo(b.Order));
 
-        // A lock reaches no further than the instant it sits in, so nothing carries
-        // over: the working bank is the patch bank again at the top of every slice.
+        // A lock reaches no further than the step it sits on, so the working bank is the
+        // patch bank again at the top of every slice; what is still standing is put back
+        // by the lane holding it, in the place in the pass that lane occupies.
         for (var channel = 1; channel <= PatchBank.Channels; channel++)
             _working[channel] = Project.Patches[channel];
 
         foreach (var runner in _slice)
-            Execute(runner, startSample, sampleRate, output);
+        {
+            if (Lands(runner, time))
+                Execute(runner, startSample, sampleRate, output);
+            else
+                Reapply(runner);
+        }
     }
+
+    // Whether this instant is the one the runner is due on.
+    //
+    // Half a sample of tolerance: two runners on different divisions can land on the
+    // same instant with the accumulated position differing in the last bit.
+    static bool Lands(Runner runner, double time)
+      => runner.NextSample < time + Tolerance;
+
+    // Whether the step the runner is on is still standing here, which is what keeps its
+    // locks on the channel.
+    //
+    // The same tolerance read from the other side, and deliberately the complement of
+    // Lands: a step's hold runs to exactly where the next step begins, so a running lane
+    // is either due or in the middle of a step and never neither. What the two questions
+    // do not answer alike is a lane that has stopped — its position is out past every
+    // comparison while the last step it played is still sounding, and the hold is what
+    // carries its locks to the end of it.
+    static bool Holding(Runner runner, double time)
+      => time + Tolerance <= runner.HoldUntil;
 
     // Reads the step the runner is sitting on, then moves the runner along.
     void Execute(Runner runner, long startSample, int sampleRate,
@@ -367,7 +405,16 @@ public sealed class Sequencer
         var lane = runner.Lane;
         var step = lane.StepAt(runner.StepIndex);
 
+        // Where the step after this one falls, which is everything that wants to know
+        // how long this one lasts: the position to move on to, the moment a lane that
+        // ends here falls silent, and the end of the window this step's locks hold for.
+        var after = runner.NextSample + stepSeconds * sampleRate;
+
         runner.Record(startSample, lane, runner.StepIndex);
+
+        // Opened before the descent and whether or not there is a step to descend, so an
+        // empty cell releases what the cell before it was holding.
+        runner.BeginHold(after);
 
         var destination = step == null ? null
           : Descend(step, runner, startSample, stepSeconds, output);
@@ -377,16 +424,11 @@ public sealed class Sequencer
         if (destination != null)
         {
             (runner.Lane, runner.StepIndex) = (destination, 0);
-            runner.NextSample += stepSeconds * sampleRate;
+            runner.NextSample = after;
             return;
         }
 
         var stopped = !Advance(runner);
-
-        // Where the step after this one would have fallen. Both branches want it: the one
-        // that goes on wants it as a position, and the one that stops wants it as the
-        // moment the lane falls silent.
-        var after = runner.NextSample + stepSeconds * sampleRate;
 
         if (!stopped)
         {
@@ -427,6 +469,10 @@ public sealed class Sequencer
             {
                 case ParamTile param:
                     Apply(param, channel);
+
+                    // Kept as well as applied, so the steps of the lanes below that fall
+                    // inside this one meet it too.
+                    runner.Hold(param);
                     break;
 
                 case NoteTile note:
@@ -495,9 +541,23 @@ public sealed class Sequencer
         return true;
     }
 
-    // A lock always reaches the whole channel and never more than this instant, so
-    // there is nothing to resolve about where it applies: it writes the working
-    // patch, and whoever comes later in the pass reads it.
+    // Puts back the locks of a step that is still standing, at the place in the pass
+    // the lane holding them occupies.
+    //
+    // Read there rather than at the top of the slice, so a held lock reaches exactly
+    // what a fresh one would — the lanes below it and nothing above — and the rule
+    // that a lock goes above the sounds it colours holds whether or not the instant
+    // being played is the one it was placed on.
+    void Reapply(Runner runner)
+    {
+        var channel = runner.Channel;
+
+        foreach (var tile in runner.HeldLocks) Apply(tile, channel);
+    }
+
+    // A lock always reaches the whole channel and never outlasts the step it sits on, so
+    // there is nothing to resolve about where it applies: it writes the working patch,
+    // and whoever comes later in the pass reads it.
     //
     // Every parameter it has taken hold of is written, in target order; the rest of
     // the patch is not touched, so two locks in the same stack only disagree where
@@ -520,9 +580,10 @@ public sealed class Sequencer
 
     // Private members
 
-    // How wide one instant is here. Gathering a slice and deciding which side of the
-    // lap line a runner falls on are the same question asked twice, so they are asked
-    // with the same number.
+    // How wide one instant is here. Gathering a slice, telling a lane that is due from
+    // one part way through a step, and deciding which side of the lap line a runner
+    // falls on are the same question asked three times, so they are asked with the same
+    // number.
     const double Tolerance = 0.5;
 
     // Where the lap line sits once the master lane has said, and out of the way of

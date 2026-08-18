@@ -15,10 +15,10 @@ The patch and its lock targets
 
 **Every field of the patch is a lock target.** `FmPatch` and `ParamTargets` name
 the same fifteen parameters, so there is nothing a channel holds that a step cannot
-reach for one instant. One of them, the gate ratio, multiplies the length written
-on the note rather than being a length itself, which is why the note reads in
-steps and the channel in percent: the two are the same multiplication and only
-the unit tells them apart.
+reach for as long as that step lasts. One of them, the gate ratio, multiplies the
+length written on the note rather than being a length itself, which is why the
+note reads in steps and the channel in percent: the two are the same
+multiplication and only the unit tells them apart.
 
 **One of them the synth never sees.** The transpose moves the note the sequencer is
 about to make, so it is spent before an event exists and is the one patch field with
@@ -27,8 +27,9 @@ number saying how far it was carried to get there would be a second answer nobod
 reads. It is in the patch because it answers to a channel, the way the sends do, and
 in the target list because the list *is* the fields of the patch. What that buys is
 the reason it is worth having there rather than beside the tempo: the sequencer reads
-the working patch, the one this instant's locks have already coloured, so a `PABS` or
-a `PREL` on the transpose lifts the notes under it in that step and no others.
+the working patch, the one the locks standing at this instant have already coloured, so
+a `PABS` or a `PREL` on the transpose lifts the notes under it in that step and no
+others.
 
 Parameter names and their order
 -------------------------------

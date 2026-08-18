@@ -75,10 +75,12 @@ public sealed class NoteTile : Tile
 // with nothing below it to colour is: it is inert rather than wrong, and it is
 // what a lock looks like the moment it is placed.
 //
-// A lock always reaches the whole channel and never outlives the instant it sits
-// in, so there is no scope to record: what it actually colours is whatever is
-// processed after it, which the position on the plane decides and the tile does
-// not need to know.
+// A lock always reaches the whole channel and never outlives the step it sits on, so
+// there is no scope to record: what it actually colours is whatever is processed after
+// it, which the position on the plane decides and the tile does not need to know. How
+// long that step lasts is decided there too — it is the division of the lane the lock is
+// written on, so an eighth-note lane holds the channel across two steps of a
+// sixteenth-note one below it.
 
 public abstract class ParamTile : Tile
 {
