@@ -271,9 +271,20 @@ public sealed class ScoreEditor
     {
         if (Locked) return;
 
-        var point = Score.FindFreeRow(View.Cursor, 16);
-        Score.AddLane(point.X, point.Y, new ChannelTile { Channel = Channel }, 16);
+        // The row is searched for one column right of the cursor, because a row's
+        // position is that of its first step and the head sits to the left of it:
+        // asked at the cursor, the CHAN lands a column short of where it was asked
+        // for, and the cell a hand pointed at is the cell it means.
+        var point = Score.FindFreeRow(View.Cursor.Offset(1, 0), 16);
+        var lane = Score.AddLane(point.X, point.Y, new ChannelTile { Channel = Channel }, 16);
         Commit();
+
+        // The cursor follows the lane wherever the search had to put it. Asked for a
+        // row that is taken, the lane lands further down, and a cursor left behind on
+        // the old cell would say the new lane is somewhere it is not — the next thing
+        // typed would go into whatever the cursor is still standing on. Read after the
+        // commit, since committing can move the score bodily, the way a paste does.
+        View.SetCursor(lane.HeadPoint);
     }
 
     public void ResizeLane(int delta)
