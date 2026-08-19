@@ -400,6 +400,7 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
         _dragging = true;
         _dragged = false;
         Anchor(e.position, e.shiftKey);
+        (_dragFrame, _dragSteady) = (Time.frameCount, _value);
 
         this.CapturePointer(e.pointerId);
         _fill.style.backgroundColor = Style.FillActive;
@@ -428,6 +429,12 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
 
         if (offset.sqrMagnitude > DragThreshold * DragThreshold) _dragged = true;
 
+        // Where the value stood at the end of the last frame the pointer was seen in.
+        // Kept at every frame boundary and not per event, since a frame can carry more
+        // than one move and it is the whole frame that is given back below.
+        if (_dragFrame != Time.frameCount)
+          (_dragFrame, _dragSteady) = (Time.frameCount, _value);
+
         value = _range.Round(_range.ToValue(Mathf.Clamp01(_dragPosition + travel)));
 
         e.StopPropagation();
@@ -442,9 +449,36 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
         _dragPosition = Mathf.Clamp01(_range.ToPosition(_value));
     }
 
+    // Gives back whatever the pointer did in the frame it was lifted in, which is not
+    // something any hand asked for.
+    //
+    // Measured on the phone rather than guessed at: nine drags, and every one of them
+    // ended with one move arriving in the release's own frame — zero or one millisecond
+    // before it, never a frame earlier — that carried the pointer a pixel and a half
+    // further, downwards every single time. It is the finger leaving the glass: the
+    // contact patch collapses and its centre slides off. Three of the nine had been
+    // held perfectly still for three to five hundred milliseconds first and drifted just
+    // the same, so it is the lift and not a hand still travelling; one of them moved the
+    // value by nine tenths of a percent on a vertical drift alone, having not moved
+    // sideways at all.
+    //
+    // A trackpad does it too, which is why nothing here asks what kind of pointer it
+    // was. A finger and a fingertip on glass are the same hand leaving the same way.
+    //
+    // What it costs is one frame of a drag released while still moving, which at sixty
+    // frames a second is a few pixels of a gesture that was never aiming at a particular
+    // number. What it buys is that a drag ending where it was pointed stays there: this
+    // bar reads both axes and a downward slide is worth as much as a sideways one, so a
+    // drag to the left lost a fiftieth of the range to the lift — always downwards,
+    // always the same direction, never given back.
+    //
+    // The value is written through rather than only shown, since the model has already
+    // been handed the drifted number and the settle that follows is what auditions it.
     void OnPointerUp(PointerUpEvent e)
     {
         if (!_dragging) return;
+
+        if (_dragFrame == Time.frameCount) value = _dragSteady;
 
         this.ReleasePointer(e.pointerId);
         EndDrag();
@@ -670,6 +704,12 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
     bool _dragFine;
     Vector2 _dragOrigin; // Pointer position the drag is measured from
     float _dragPosition; // Bar position it counts from
+
+    // The value as it stood before anything this frame moved it, and the frame that
+    // was. See OnPointerUp: what the pointer does in the frame it is lifted in is not
+    // something the hand asked for.
+    int _dragFrame;
+    float _dragSteady;
 
     bool _editing;
     long _clickTime; // Timestamp of the last click that did not scrub
