@@ -522,7 +522,37 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
             _input.SetValueWithoutNotify(_range.ToNumber(_value));
             _input.Focus();
             _input.SelectAll();
+            SelectAllOnTouchKeyboard();
         });
+    }
+
+    // The same selection over again, on the keyboard a touch screen puts up.
+    //
+    // On such a screen that keyboard holds the text and this field only shows what it
+    // holds: UI Toolkit copies the keyboard into the field every frame and writes the
+    // selection back the other way only at the moment the keyboard opens — and what it
+    // writes there is the caret parked at the end of the number. So the SelectAll above
+    // is invisible exactly where it was wanted, and a double tap that means replace this
+    // arrives as add to this.
+    //
+    // Nothing has to be arranged for the timing. iOS applies the range to its own field
+    // at once and remembers it, and applies it again as the keyboard animates in, so a
+    // selection set the instant the keyboard opens survives the keyboard arriving. Which
+    // is why this can stand here, in the same breath as the focus that opened it.
+    //
+    // The length is the keyboard's own text and not ours: the setter throws if the range
+    // reaches past what it holds, and the two are the same string only for as long as
+    // nobody has typed.
+    //
+    // There is no keyboard at all wherever a pointer does the editing, which is every
+    // platform this runs on but one — and an iPad with a keyboard attached, where the
+    // field is edited in place and the SelectAll above is the whole of it.
+    void SelectAllOnTouchKeyboard()
+    {
+        var keyboard = _input.textEdition.touchScreenKeyboard;
+        if (keyboard == null || !keyboard.canSetSelection) return;
+
+        keyboard.selection = new RangeInt(0, keyboard.text?.Length ?? 0);
     }
 
     void EndEdit(bool commit, bool returnKeyboard)
