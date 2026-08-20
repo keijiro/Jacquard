@@ -4,7 +4,7 @@ namespace Jacquard {
 
 // What a parameter lock can point at.
 //
-// sequencer.md leaves this set to the synth: the sequencer only carries an index
+// sequencer-spec.md leaves this set to the synth: the sequencer only carries an index
 // and an amount, and everything about what the index means lives here alongside
 // the patch it addresses. Adding a target is a one line change in three switches,
 // or in two of them for anything whose useful range is the zero to one both default
@@ -17,9 +17,11 @@ namespace Jacquard {
 // is a property of the project.
 //
 // What is not free about that is the screen. Adding one here adds a row to the Sound
-// panel and a row to the Lock panel, and on a tablet that column does not scroll — so
-// a target arriving in this list is a decision about how tall a panel may be as much
-// as it is one about what a lock can say.
+// group and a row to a lock's, and on a tablet a row costs 33pt of a column that has
+// to be dragged to reach past the bottom of the screen — so a target arriving in this
+// list is a decision about how far a hand has to travel as much as it is one about
+// what a lock can say. It used to be a harder limit than that: the column did not
+// scroll at all, and a row past the screen was a control nobody could reach.
 //
 // One of them is not addressed to the synth at all. The transpose is read by the
 // sequencer as it makes the note and never reaches a voice, which makes it the one

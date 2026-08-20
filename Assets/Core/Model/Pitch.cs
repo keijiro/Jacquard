@@ -5,7 +5,7 @@ namespace Jacquard {
 // Note names and frequencies.
 //
 // Pitches are MIDI note numbers throughout, with 60 spelled C4. Only sharps are
-// used: sequencer.md drops flats so that one pitch has exactly one spelling and
+// used: sequencer-spec.md drops flats so that one pitch has exactly one spelling and
 // a cell therefore has exactly one look.
 
 public static class Pitch

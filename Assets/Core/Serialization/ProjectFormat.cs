@@ -7,7 +7,7 @@ namespace Jacquard {
 
 // The file format: a line of text per lane element, tokens separated by spaces.
 //
-// A token is not the data — sequencer.md is explicit about that — so the file has
+// A token is not the data — sequencer-spec.md is explicit about that — so the file has
 // its own spellings, chosen to be unambiguous rather than to look like a cell. A
 // jump is recorded as the coordinate of the JUMP cell on the branch lane that
 // answers to it, which is the same trick the mockup uses: there is nowhere to

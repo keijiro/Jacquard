@@ -125,7 +125,7 @@ sealed class SendPanel
         _body.Add(Controls.Heading("Delay", follows: true));
 
         // The one control here that is not a bar. A delay time is a note value rather
-        // than a number, so what it needs is a list to step through: sequencer.md
+        // than a number, so what it needs is a list to step through: sequencer-spec.md
         // keeps a number on a bar and a choice out of a set on a pair of arrows, and
         // this is the second of those.
         _body.Add(Controls.Chooser("Time", DelayTime.Names,

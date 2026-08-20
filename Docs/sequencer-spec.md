@@ -109,9 +109,7 @@ a chord and the control elements that apply to that step all go into this vertic
 stack.
 
 **There is no limit on the length of a stack.** As many tiles can hang down as the empty
-ground on the plane allows. There used to be a frame of "at most 4 slots per step", but
-there was no ground for choosing any particular number of slots and the depth each lane
-needed differed anyway, so it was abolished. The concept of a "slot" is gone with it:
+ground on the plane allows, and there is no concept of a "slot":
 **what a step holds is a variable-length run of tiles**.
 
 The area a lane occupies is therefore not a rectangle. Only the cells that are actually
@@ -132,17 +130,10 @@ below it.**
 A stack therefore reads from the top as **firing condition → parameter → note**. The one
 rule is to write a thing **before** whatever it is meant to apply to or control.
 
-It used to be explained as a relation of governing and being governed, where the cell
-above governs the cell below. `GCYC / A4` was the condition above controlling the note
-below, and `A4 / PABS` was the lock below attaching itself to the note above — **two
-readings pointing in opposite directions living side by side**. Since every chain line
-is the same 1px line, the weakness was that a run like `GPRB:4 / A4 / PABS` could not be
-read for which direction it bound in without already knowing what the tokens are.
-
-**Changing to a one-way flow removed that weakness.** The line is always read from the
-top down, and the direction of an effect is legible without knowing the kinds. The grey
-ground behind the control elements is now nothing but an ornament that helps tell the
-kinds apart.
+**The flow is one-way so that a stack can be read without knowing the tokens in it.**
+Every chain line is the same 1px line, so the direction of an effect has to come from the
+line and not from the kinds it joins. The grey ground behind the control elements is
+therefore nothing but an ornament that helps tell the kinds apart.
 
 This rule works **the same way on a mixed stack** as it does on one arranged by kind. If
 `E4 / GCYC4:1000 / C4` is written, for instance,
@@ -150,9 +141,8 @@ This rule works **the same way on a mixed stack** as it does on one arranged by 
 - `E4` is above the gate, so it **sounds every lap**
 - `C4` is below the gate, so it **sounds once every four laps**
 
-Under the old rule a gate inside a step applied to the whole step, so both of them
-sounded once every four laps in this score. **What is placed above a gate is not
-affected by that gate** — that is the most visible consequence of the change.
+**What is placed above a gate is not affected by that gate.** A gate does not apply to
+the step it sits in; it applies to what is read after it.
 
 As a consequence, **a tile placed on the rail row (depth 0) is subject to nothing within
 its own stack.** Nothing can be placed above it, so it can be given neither a condition
@@ -175,10 +165,9 @@ filled in white.** That was made a rule. There are four kinds at present.
 | `JUMP` | A rounded Z with an arrow to the right | Flies to another lane |
 | `JDST` | A vertical line with an arrow to the right | A destination. The start of a lane |
 
-`TERM` is placed automatically to the right of the last step. The dotted rail used to
-end at "the last ▶ marker", which was an implementation that cut the rail short whenever
-a note went into the top row of the last step. Making the terminator an explicit cell
-rather than something to be inferred is what resolved it.
+`TERM` is placed automatically to the right of the last step. It is an explicit cell
+rather than something inferred from where the tiles end, which is what keeps the rail's
+length independent of what is written on the last step.
 
 **Reaching `TERM` returns to the `CHAN` it started from.** That is true of the `TERM` of
 any lane: the variation lane's `TERM` returns to the start point of the channel too,
@@ -214,10 +203,10 @@ A `JUMP` cell is the one place where two of these three kinds meet. The white so
 descending the stack arrives from above, and the grey solid line — where the sequence
 goes next in time — leaves below.
 
-The vertical chain line used to be drawn from nothing but "is the cell directly above
-filled", which made the tail of one lane's stack and the head of another look connected
-when they happened to sit one above the other; the built app draws a chain line only
-between cells of the same stack, which settles it (see `impl-score-plane.md`).
+A chain line is drawn only between cells of the same stack, and not from whether the
+cell above happens to be filled — otherwise the tail of one lane's stack and the head of
+another read as connected wherever they sit one above the other (see
+`impl-score-plane.md`).
 
 The detailed settings go in a separate window
 ---------------------------------------------
@@ -255,27 +244,17 @@ The prefix says the category. `P` is a parameter (`PABS` / `PREL`), `G` is a gat
 (`GCYC` / `GPRB`). As with the rule for type names, **a prefix goes only on the ones the
 modifier alone leaves ambiguous**, so `JUMP` / `JDST` / `TERM` / `CHAN` do not carry one.
 
-The probability gate used to be `PROB`, whose prefix collided with the `P` of the
-parameters. The cycle gate used to be `NGTE` (note gate), and since a `JUMP` can be
-gated too, "note" had stopped matching what it actually did. Renaming the pair to
-`GPRB` / `GCYC` resolved both.
-
-The channel start point alone used to be the three characters `CH1`, with the kind name
-and the channel number fused into one. That was changed to `CHAN:1`, separating the kind
-from its argument. Every kind token is now four characters.
+The kind and its argument are always separate, as in `CHAN:1` — no token fuses the two.
 
 ### Notes
 
 Written as a note name plus an octave, `C4` / `F#4` / `G#4`. The accidental is shown
 raised within the cell.
 
-**The gutter for an accidental is opened only when there is an accidental.** The same
-width of gutter used to be taken on every note, so that the letters of a name would not
-move as it was transposed through a sharp and back, and that specification was
-withdrawn. For the sake of an absence of movement nobody was watching for, the many
-notes that have no sharp were left carrying a gap in the middle of their name, spending
-5px of the cell's 30px width on it. **A note name is read; it is not aligned against the
-name that was there a moment ago.**
+**The gutter for an accidental is opened only when there is an accidental**, rather than
+standing on every note so that a letter keeps its place as it is transposed through a
+sharp and back. It is 5px of the cell's 30px width, and **a note name is read; it is not
+aligned against the name that was there a moment ago.**
 
 **Length is in units of steps, and the default is one step.** At the default the name
 alone is shown, and a number is added as in `C4/4` only when some other length is set.
@@ -298,14 +277,8 @@ slot per target and applies only the ones it has been given a value for. Nothing
 to the parameters it does not hold, and the channel's own value passes through
 untouched.
 
-A lock used to be able to hold one target only. Moving four parameters meant stacking
-four lock tiles vertically, which stretched out the distance between the gate and the
-note and ate up the room for putting a boundary in the middle of a chord. **There was
-nothing that the stacking expressed**, so it was folded into one tile.
-
-**A lock that applies nothing is allowed.** A freshly placed lock is exactly that, and
-it does nothing. It is treated the same way as "a lock with nowhere to go is a
-meaningless tile" — it simply does not sound, and it does no harm.
+**A lock that applies nothing is allowed**, which is what a freshly placed one is. It is
+the same standing as a lock with nowhere to go, below.
 
 There are two constraints on what a lock reaches.
 
@@ -349,22 +322,15 @@ right.
 | `PABS` | A fader alone | Sets the parameter to an absolute value |
 | `PREL` | A fader plus ↕ | Changes it by a relative amount from the current value |
 
-There used to be a third lock, `PACC`, which applied a relative change permanently and
-so could be used to go on raising or lowering a parameter. **It was abolished.** Once
-the influence of a lock survives outside the current step, the state the sound being
-heard is in can no longer be read off the score. Making the constraint "a lock lasts for
-that step only" explicit was what was chosen, and `PACC` was thrown away as the price of
-it.
+**There is no third kind that accumulates.** Once the influence of a lock survives
+outside the current step, the state the sound being heard is in can no longer be read off
+the score, and holding the constraint "a lock lasts for that step only" was worth the
+price of not having one. See "Rejected alternatives".
 
 **Which parameters can be targeted is not decided here.** The synth is developed
 separately as its own project, and the set of target parameters belongs to the synth
 side. It is a matter to be settled at the stage the two are joined, not an open question
 on the sequencer side.
-
-**The target and the amount are not displayed on the cell.** The icon says only which
-kind of lock it is, and the detail is set by selecting the tile and using the separate
-window. There is no need to cram a target name and a value into a 30px cell. Since one
-lock can hold several targets, it would not fit in the first place.
 
 **The separate window lists every target and shows the ones not being applied faintly.**
 Moving a bar is what makes that parameter locked, and clicking the name lets go of it.
@@ -375,9 +341,9 @@ the current patch value for a `PABS`, and 0 for a `PREL`.
 
 ### Firing conditions
 
-These decide whether the processing of the stack continues. **If the condition holds the
-descent carries on downwards, and if it does not, it ends there.** What they govern is
-not the one tile directly below but everything below: notes, locks and `JUMP`s all stop.
+These decide whether the processing of the stack continues, by the rule the vertical
+chain already states. What they govern is not the one tile directly below but everything
+below: notes, locks and `JUMP`s all stop.
 
 Placing several in one stack means the lower ones are only judged when the upper ones
 have passed. They become nested conditions.
@@ -387,12 +353,10 @@ have passed. They become nested conditions.
 | `GCYCn:pattern` | n rectangles, the firing laps filled | Fires only on the laps named by the pattern. `GCYC4:0010` is the 3rd of 4 laps, `GCYC4:1010` is the 1st and the 3rd |
 | `GPRB:n` | A pie chart | Fires at random with a probability of n percent |
 
-**A `GCYC` has a switch per lap.** It used to hold a single number — "the mth of n laps"
-— so firing on the 1st and 3rd of four laps meant stacking two gates. Given that holding
-a bit per lap of the period costs nothing but one word, **it should have been a run of
-switches rather than a number** all along. A gate with not one switch on never fires,
-which is not "wrong" but "does nothing", and is treated the same way as a lock that
-applies nothing.
+**A `GCYC` has a switch per lap and not a single number**, so that firing on the 1st and
+3rd of four laps is one gate rather than two stacked; a bit per lap of the period costs
+nothing but one word. A gate with not one switch on never fires, which is not "wrong" but
+"does nothing", and is treated the same way as a lock that applies nothing.
 
 **The period runs 2 to 32.** That is 16 steps over two bars, and around the upper limit
 of a length that is worth reading as a figure on a cell.
@@ -404,11 +368,11 @@ per line. **Past 9 it stops counting and shows 6 with an ellipsis.** Nobody coun
 rectangles off a cell, and the exact specification is the panel's job.
 
 **The figure is not spread to the full width of the cell.** A 5px margin is taken on
-each side and the rectangle width is decided inside that (3px when four stand in a row).
-There used to be only 1.5px, which made the icon look stuck to the outline of the tile.
-The figure of a period is there **to be recognised as a shape rather than to be
-counted**, so the rectangle width is what gives way for the margin. The one thing that
-cannot give way is the contrast between filled and hollow, and 3px keeps that.
+each side and the rectangle width is decided inside that (3px when four stand in a row);
+any less and the icon reads as stuck to the outline of the tile. The figure of a period is
+there **to be recognised as a shape rather than to be counted**, so the rectangle width is
+what gives way for the margin. The one thing that cannot give way is the contrast between
+filled and hollow, and 3px keeps that.
 
 The number six is also where the ellipsis stands. Since the second line ends at two
 rectangles, two rectangles' worth of ground is free at its bottom right, so **the
@@ -416,9 +380,8 @@ ellipsis goes there**. It takes no width of its own, so an elided figure and an 
 one are the same size of block.
 
 **A `GPRB` takes any float as a percentage.** The pie chart shows that proportion as a
-sector. It used to be treated as a clock in twelve divisions, but that was only the
-number of divisions a clock-shaped icon is easy to draw at, and there was no reason to
-tie the granularity of a probability to twelve steps.
+sector. The granularity is not tied to the number of divisions a clock-shaped icon is
+easy to draw at.
 
 Branching sequences
 -------------------
@@ -581,11 +544,9 @@ builds up the channel state with its `PREL`, and the main Runner comes after and
 its notes in that state. **The side giving the accent has to be placed above what it
 applies to.**
 
-It used to be the other way round: **whoever executed later won** — a lower `CHAN` could
-overwrite the work of a higher one. Once locks stopped surviving across steps and their
-effect was unified into flowing towards "whatever is processed after them", the concept
-of overwriting disappeared altogether. When two locks apply to the same parameter, the
-one read later is the one that takes effect on the sounds after it.
+**Nothing here overwrites anything.** Because a lock reaches only what is processed after
+it, two locks applying to the same parameter are not in contention: the one read later is
+simply the one in force for the sounds after it.
 
 The precedence follows the Runner around, and is not the position of the lane it is
 currently running along. Moving to a destination lane by a `JUMP` leaves the precedence
@@ -660,10 +621,6 @@ those would defeat it.
 left to a hand that has changed its mind is Stop, which ends the very thing being waited
 for, and the load then takes effect there and then.
 
-**If a later specification asks for the same kind of turn, it uses this rather than
-defining a new one.** A `CHAN` sending a Runner out was the first of those, and there
-turned out to be nothing to add.
-
 Simplifications already decided
 -------------------------------
 
@@ -678,15 +635,8 @@ leaving `C5` plain cannot be specified. A lock flows to everything below the bou
 so all that can be expressed is a division into "some above and some below", and there
 is no means of naming a note individually. This is accepted.
 
-It used to be a much stronger simplification: **the same parameter applied to the whole
-chord**. A lock looked like it attached to the note directly above it wherever it stood,
-and the implementation gave the same value to every note in the step. Changing to a
-top-to-bottom flow made the division expressible.
-
-Placing the attached cell horizontally, and indenting a subordinate cell by half a cell
-to make a tree, were both considered as alternatives; the former breaks the promise that
-the horizontal axis is time and the latter loses the regularity of the grid, so neither
-was adopted.
+Ways of naming a note individually were looked for and none was adopted — see
+"Rejected alternatives".
 
 Matters left to the synth side
 ------------------------------
@@ -694,14 +644,13 @@ Matters left to the synth side
 The synth is developed separately as its own project. The following are not decided on
 the sequencer side and are settled at the stage the two are joined.
 
-- The **set of target parameters** a parameter lock can name. It belongs to the synth side (14 at present, matching every field of `FmPatch`)
+- The **set of target parameters** a parameter lock can name. It belongs to the synth side (15 at present, matching every field of `FmPatch`)
 - The unit and range of the amount. It should differ per target, and cannot be decided until the targets are
 
 These are set in the separate window that opens when a tile is selected. They do not go
 on the cell, so they have no effect on the display design of the sequencer side.
 
-**Timbre is held per channel.** This too was settled at the stage the two were joined.
-The synth side holds a patch per channel bundled together, and the number on a `CHAN`
+**Timbre is held per channel.** The synth side holds a patch per channel bundled together, and the number on a `CHAN`
 picks the timbre as well as the stream. Lanes running in parallel on the same channel
 therefore share a timbre, which lines the unit up with the rule that a lock always
 applies to the whole channel. A branch lane has no `CHAN` of its own, so it sounds with
@@ -713,8 +662,8 @@ only, so a channel no lane is holding starts every instant from the patch values
 takes effect straight away from the next instant, and there is nothing a lock has piled
 up that has to be undone.
 
-**The effects are per project and the send amounts are per channel.** This too was
-settled at the stage the two were joined. There is one reverb and one delay for the
+**The effects are per project and the send amounts are per channel.** There is one
+reverb and one delay for the
 whole score, and their settings belong to the `Project` alongside the tempo. **How much
 of a sound goes to each, on the other hand, is part of the patch**, and is therefore
 also a target for a parameter lock. That split is the whole meaning of having effects on
@@ -750,6 +699,31 @@ the answer, and nobody can hear a reason for which way it goes to vary by place.
 already been made, so an octave or a ramp goes freely outside the scale. A key signature
 is a premise the piece is written under and Live FX lasts only as long as a hand is on a
 button, and the two are on different layers.
+
+Rejected alternatives
+---------------------
+
+Each of these was in the specification or was seriously considered, and each is recorded
+so that it is not proposed again. The reason is what matters; the history is in the commit
+log.
+
+| What was rejected | Why |
+| --- | --- |
+| **`PACC`** — a third lock applying a relative change permanently | Once a lock outlives its step, the state a sound is in cannot be read off the score. See the Open question it leaves behind |
+| **Governing and being governed** — the cell above governs the cell below, and a lock below attaches to the note above | Two readings pointing opposite ways, on chain lines that all look alike. `GPRB:4 / A4 / PABS` could not be read without already knowing the tokens |
+| **A gate applying to the whole step it sits in** | Nothing above a gate could then be excepted from it, and a mixed stack had no meaning |
+| **One target per lock** | Moving four parameters meant four stacked tiles, which stretched the distance between the gate and the note for nothing the stacking expressed |
+| **The same parameter across the whole chord** | A boundary inside a chord is exactly what a lock in a stack is for |
+| **Naming a note individually** — the attached cell placed horizontally, or a subordinate cell indented by half a cell into a tree | The first breaks the promise that the horizontal axis is time; the second loses the regularity of the grid |
+| **Whoever executes later wins** — a lower `CHAN` overwriting a higher one | Made redundant once a lock reaches only what is read after it. There is nothing left to overwrite |
+| **At most 4 slots per step** | No ground for choosing any number, and the depth each lane needs differs |
+| **A `GCYC` holding one lap number** | A bit per lap costs one word, and most patterns could not be written at all |
+| **A `GPRB` in twelve divisions** | That was the granularity a clock-shaped icon is easy to draw at, which is not a reason |
+| **A gutter for an accidental on every note** | Spent 5px of a 30px cell on every plain name, to spare a movement nobody was watching for |
+| **♭ as well as ♯** | One pitch would have two spellings and the same cell two appearances |
+| **The rail ending at the last ▶ marker** | Cut the rail short whenever a note went into the top row of the last step |
+| **A chain line drawn from "is the cell above filled"** | Made one lane's tail and another's head read as connected |
+| **`PROB`, `NGTE`, `CH1`** | `PROB` collided with the `P` of the parameters; "note gate" stopped matching what it did once a `JUMP` could be gated; `CH1` fused a kind with its argument |
 
 Open questions
 --------------

@@ -6,7 +6,7 @@ namespace Jacquard.App {
 
 // The detail window for whatever the cursor is on.
 //
-// sequencer.md draws the line here: a cell carries the kind of tile and the figure
+// sequencer-spec.md draws the line here: a cell carries the kind of tile and the figure
 // you need in order to read the score, and everything else — which parameter a lock
 // points at, how far it moves it, the exact percentage behind a pie chart — is set
 // in a window of its own rather than crammed into thirty pixels.

@@ -461,7 +461,7 @@ public sealed class JacquardApp : MonoBehaviour
     // itself.
     //
     // This is UUM-136603, a regression in 6.3 that is fixed in 6000.6.0a5 and closed
-    // as won't-fix on the 6.3, 6.4 and 6.5 streams — this project is on 6000.5.6f1, so
+    // as won't-fix on the 6.3, 6.4 and 6.5 streams — this project is on the 6.5 stream, so
     // it is on the wrong side of that. The simulator shims Screen properly: with an
     // iPhone 13 Pro Max selected Screen.dpi reads 458, the safe area is the phone's
     // and the target is 2778x1284. What does not arrive is the panel's own density.
@@ -637,7 +637,10 @@ public sealed class JacquardApp : MonoBehaviour
     // shorter than the frame that has to fit inside it — every note would then be
     // handed over after its own start and lose its front, which on a patch with a
     // pitch sweep is heard as the sweep beginning part way down. The same fault the
-    // background/foreground work was about, arriving by a different road.
+    // background/foreground work was about, arriving by a different road. Measured at
+    // fifteen with the window fixed at thirty milliseconds: up to 32.7ms off the front
+    // of every note, with the lead trim stepping in a second later to cover it under
+    // the wrong name.
     //
     // So the window is read off the frame rate rather than written down. Two frames,
     // smoothed, because one is the bare requirement and the second is the margin: a

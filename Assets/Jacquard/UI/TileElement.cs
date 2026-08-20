@@ -7,7 +7,7 @@ namespace Jacquard.App {
 //
 // Three looks for four categories: a note is outlined, a parameter lock or a gate
 // sits on a grey field, and a flow tile is filled solid because it does something
-// other than carry on to the right. sequencer.md notes that this leaves locks and
+// other than carry on to the right. sequencer-spec.md notes that this leaves locks and
 // gates telling apart only by their position in a stack, and that the look is what
 // will eventually give, not the categories.
 //

@@ -5,7 +5,7 @@ namespace Jacquard {
 
 // The tile hierarchy.
 //
-// Four categories, as laid out in sequencer.md: notes sound, parameter locks
+// Four categories, as laid out in sequencer-spec.md: notes sound, parameter locks
 // operate on the timbre, gates decide whether what hangs below them fires, and
 // flow tiles steer the sequence. A category word only appears in a concrete name
 // when the modifier alone would not carry the meaning, so there is an

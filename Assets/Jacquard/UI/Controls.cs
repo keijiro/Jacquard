@@ -318,6 +318,15 @@ static class Controls
     // profile lit up and every mouse did nothing. TrickleDown puts these ahead of the
     // manipulator instead of behind it, which is where a thing that only paints belongs
     // anyway — nothing here consumes the event or decides anything about the click.
+    //
+    // Two things about checking any of that, both learned the hard way. SendEvent with
+    // the target set proves nothing: it runs the same propagation, but the wrong-phase
+    // handler still fired under it because the events arrived in an order no real device
+    // produces, and the whole fault lives in what a real mouse does. And the editor Game
+    // view cannot drive a real cursor — it stops processing input the moment
+    // Application.isFocused goes false, which is whenever the focused editor window is
+    // anything else. What settles it is a development standalone player driven with
+    // CGEvent, with the grounds read straight off a screen capture.
     static void React(Button button)
     {
         var reaction = new Reaction();
@@ -651,7 +660,7 @@ static class Controls
 
     // Panels
 
-    // A floating panel. sequencer.md puts the details of a tile in a window of its
+    // A floating panel. sequencer-spec.md puts the details of a tile in a window of its
     // own, and this is that window: the cell shows the kind and the figure that
     // matters for reading the score, and everything else is set here.
     //
