@@ -179,7 +179,12 @@ sealed class ScrollStrip : VisualElement
     // never be anything else.
     void OnPointerDown(PointerDownEvent evt)
     {
-        if (evt.button != 0 || KeepsItsOwnDrag(evt.target)) return;
+        // The second press a touch drag sends arrives after the strip has taken the
+        // pointer off what was pressed, and this is the one handler it is then delivered
+        // to: read as a new press it would start the pan over while still holding it. See
+        // Controls.PressAlreadyHeld.
+        if (evt.button != 0 || Controls.PressAlreadyHeld(this, evt) ||
+            KeepsItsOwnDrag(evt.target)) return;
 
         (_pressed, _dragging) = (true, false);
         (_pointerId, _origin) = (evt.pointerId, Along(evt.position));

@@ -150,6 +150,11 @@ public sealed partial class ScrollArea : VisualElement
 
     void OnPointerDown(PointerDownEvent evt)
     {
+        // The second press a touch drag sends would put the threshold back with the pan
+        // already under way, so the hand would have to spend its four pixels twice. See
+        // Controls.PressAlreadyHeld.
+        if (Controls.PressAlreadyHeld(this, evt)) return;
+
         // Not captured and not stopped, so the press carries on to whatever is above this
         // element — which is nothing that pans, and that is the point.
         if (DeadBottom > 0.0f &&

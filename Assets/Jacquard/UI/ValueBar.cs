@@ -384,6 +384,12 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
     {
         if (e.button != 0 || _editing) return;
 
+        // The second press a touch drag sends would re-anchor the scrub a pixel in and,
+        // worse, take back the flag that says this drag scrubbed — which is what keeps a
+        // release from counting as the first half of a double click. See
+        // Controls.PressAlreadyHeld.
+        if (Controls.PressAlreadyHeld(this, e)) return;
+
         RememberKeyboard();
 
         // Double click detection of its own, rather than the event's clickCount:

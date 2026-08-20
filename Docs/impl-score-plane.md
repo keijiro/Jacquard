@@ -68,6 +68,11 @@ rather than of what is under it:
   event's own count goes by the clock alone, and a press on one cell, one on its
   neighbour and one back on the first arrives as a count of three.
 
+A third thing is shared and it is not the hand's doing: **a touch drag arrives as two
+presses**, and the second one landed on the cell the drag started from, which every double
+click test here read as a double click. Ignoring it is one line — see the rule in
+[impl-panels.md] and `Controls.PressAlreadyHeld` for what the platform does.
+
 **A drag beginning at the very bottom of the screen is not the plane's to have.** A phone
 reads it as the gesture that puts the app away and claims it before the app hears the
 finger land. `ScrollArea.DeadBottom` is that strip, set from the safe area by the chrome.

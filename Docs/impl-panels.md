@@ -87,6 +87,15 @@ was moved by — see [impl-mix.md].
 
 [impl-mix.md]: impl-mix.md
 
+**A press a control is already holding is not a press.** A finger's drag arrives as two
+`PointerDownEvent`s, a frame and a pixel or two apart, and the second is delivered to
+whatever holds the pointer — so everything that begins a gesture on a press has to let it
+go by, which is one line and the same line everywhere: `Controls.PressAlreadyHeld`. That
+is where it is argued, along with what the Input System does to produce it and what it was
+measured at. It is not only the panels' rule: `ScoreView`, `ScrollArea` and `ScrollStrip`
+obey it too, and a new control that captures a pointer is the next place it can be
+forgotten.
+
 **A setting is pushed or it is pulled, and which one it is decides where it lives.**
 Nothing on a panel can reach a MonoBehaviour's `enabled` flag, so the visualizer is
 pushed — the panel keeps the answer and hands it to a callback. The auditioning, the

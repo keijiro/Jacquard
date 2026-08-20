@@ -243,6 +243,39 @@ static class Controls
         return row;
     }
 
+    // Presses
+
+    // Whether a press is one this element is already holding, which on a touch screen is
+    // not a rhetorical question: a finger's drag arrives as two presses, and everything
+    // here that begins a gesture on a press has to let the second one go by.
+    //
+    // Where the second one comes from, since nothing about it is this codebase's doing.
+    // The Input System's UI click action is a pass-through bound to the touch's press,
+    // and a touch's press is not a button — it is read off the phase, so the phase
+    // turning from Began to Moved is a state change of the control with the value still
+    // pressed. A pass-through action performs on every state change rather than on every
+    // value change, and the InputForUI provider sends a fresh ButtonPressed for it: it
+    // works out that the button was already down and then does not use the answer. UI
+    // Toolkit turns that into a second PointerDownEvent and hands it to whoever holds the
+    // pointer, which is the element in the middle of the drag.
+    //
+    // Measured on the drag it was found by, a synthetic finger stepped one phase at a
+    // time: the second press arrives on the first movement, 1.7 pixels from the first and
+    // on the same cell, one input update behind it. One extra press per drag and no more
+    // — a phase that is already Moved does not change again, so the rest of a drag is
+    // clean, and a flick fast enough to carry the second press onto another cell was never
+    // read as a double click at all.
+    //
+    // A mouse cannot do this, since moving one does not touch the bit its button lives
+    // in, which is why this looked like a mystery about iOS: every pointer on the machine
+    // the UI is built on behaves, and every finger on the device does not.
+    //
+    // The capture is what answers the question. A press for a pointer this element
+    // already holds is that press arriving twice and is never a new gesture; a second
+    // finger carries an id of its own and is not caught by this.
+    public static bool PressAlreadyHeld(VisualElement element, PointerDownEvent evt)
+      => element.HasPointerCapture(evt.pointerId);
+
     // Buttons
 
     public static Button Push(string text, Action onClick, float width = 0.0f)
@@ -413,9 +446,12 @@ static class Controls
         var button = Push(text, null, width);
         button.clickable = null;
 
+        // This is the control the second press of a touch drag costs the most: it acts on
+        // the press, so a held button whose finger slides a pixel would throw the effect
+        // again under the hand that is already holding it. See PressAlreadyHeld.
         button.RegisterCallback<PointerDownEvent>(e =>
         {
-            if (e.button != 0) return;
+            if (e.button != 0 || PressAlreadyHeld(button, e)) return;
             button.CapturePointer(e.pointerId);
             SetActive(button, true);
             onDown?.Invoke();

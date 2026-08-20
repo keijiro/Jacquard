@@ -518,6 +518,12 @@ public sealed class ScoreView : VisualElement
 
     void OnPointerDown(PointerDownEvent evt)
     {
+        // The second press a touch drag sends lands on the cell the drag started on, a
+        // frame and a pixel or two after the first, which is a double click by every test
+        // below — so a finger moving a tile copied its stack, and a finger moving a CHAN
+        // head started or stopped the lane. See Controls.PressAlreadyHeld.
+        if (Controls.PressAlreadyHeld(this, evt)) return;
+
         // A modified drag pans the plane instead of editing it, and a held plane is
         // every drag: the press travels on to the scroll area either way.
         if (_locked || ScrollArea.IsPanModifierHeld(evt)) return;
