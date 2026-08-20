@@ -398,10 +398,14 @@ public sealed class JacquardApp : MonoBehaviour
         foreach (var note in _released) Synth.Schedule(note);
 
         // Hand over the mix settings whenever they are not what was handed over last.
-        // One comparison covers every way they can change — a bar on the Send panel or
-        // the Global one, the tempo the delay is locked to, a project loaded over the
-        // top of this one — so none of those has to know that anything downstream cares.
-        var fx = MixFxRuntime.FromSettings(Project.Fx, Project.Limiter, Project.Tempo,
+        // One comparison covers every way they can change — a bar on the Send panel, the
+        // Global one or the System one, the tempo the delay is locked to, a project
+        // loaded over the top of this one — so none of those has to know that anything
+        // downstream cares. The volume is the one term that is not the project's, and it
+        // rides here because what the audio thread is owed is the settings as they now
+        // stand, whoever they belong to.
+        var fx = MixFxRuntime.FromSettings(Project.Fx, Project.Limiter,
+                                           OutputVolume.Decibels, Project.Tempo,
                                            Synth.SampleRate);
 
         if (!fx.Equals(_fx))

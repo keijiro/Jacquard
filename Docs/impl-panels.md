@@ -321,6 +321,20 @@ telling `ScoreEditor` something `ScoreEditor` was about to ask about anyway, and
 copy of the answer to fall out of step with the first. The buffer size is the same shape
 already: `DspBuffer` holds it and the bar on this panel moves it.
 
+**The output volume is where that rule was tested from the other side.** It was built on
+Global first, with the limiter and the scale, which is where the rest of the mix is set
+and where it plainly seems to belong. It was wrong there: a mix is left at a level, but
+what a hand comes to a volume for is the room it is in — headphones at midnight, a
+speaker across a desk — and a room does not travel with the file. Saved into the score it
+would arrive on somebody else's machine as an instruction about their room. So it came
+here, into `PlayerPrefs` beside the buffer size, and the format never grew a line for it.
+What settles that kind of question is not which panel a setting looks like it belongs on
+but whether it would mean anything to somebody the file is handed to. It is pulled like
+the auditioning, by the loop that was already asking: `JacquardApp` reads it once a frame
+with the rest of the mix settings, so the bar writes a number and the panel knows nothing
+about what happens next. The write is the buffer size's bargain too — a drag crosses
+every value and a flush is a write to disk, so the hand coming off commits it.
+
 **What is on it is the app's, not the project's.** Everything else on this screen is
 written into the file and comes back with it; this outlasts one project being closed
 and another being opened, and would mean nothing to anybody the file is handed to. So

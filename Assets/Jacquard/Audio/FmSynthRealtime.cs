@@ -74,14 +74,27 @@ public struct MixFxRuntime
     public SendFxRuntime sends;
     public LimiterRuntime limiter;
 
+    // The output volume, already a gain. A struct of its own the way the two above have
+    // one would be a wrapper around a single multiplication with nothing else to convert
+    // — the whole of the conversion is the pow, and it is OutputVolume's own.
+    //
+    // It is also the one thing in here that is not the project's: the sends and the
+    // limiter come off a panel and travel with the file, and this comes out of
+    // PlayerPrefs. Nothing downstream cares — what the audio thread is owed is the
+    // settings as they now stand, whoever they belong to — and the alternative was a
+    // second message on the same pipe carrying one float.
+    public float outputGain;
+
     public static MixFxRuntime FromSettings(in SendFx fx, in Limiter limiter,
-                                            float tempo, float sampleRate)
+                                            float volume, float tempo, float sampleRate)
       => new MixFxRuntime
         { sends = SendFxRuntime.FromSettings(fx, tempo, sampleRate),
-          limiter = LimiterRuntime.FromSettings(limiter, sampleRate) };
+          limiter = LimiterRuntime.FromSettings(limiter, sampleRate),
+          outputGain = OutputVolume.Gain(volume) };
 
     public bool Equals(in MixFxRuntime other)
-      => sends.Equals(other.sends) && limiter.Equals(other.limiter);
+      => sends.Equals(other.sends) && limiter.Equals(other.limiter) &&
+         outputGain == other.outputGain;
 }
 
 // The send effects, converted.

@@ -14,6 +14,12 @@ different question from what came out of it. A gate that did not fire, a note th
 its voice to a louder one, a limiter closing on a kick: none of it is visible on the
 plane and all of it is visible in a trace of the output and a row of the voice pool.
 
+What it draws is the mix and not the monitoring level: the scope is written where the
+mix is finished, ahead of the output volume that follows it, so a hand turning the piece
+down does not turn the drawing down with it. See [impl-mix.md].
+
+[impl-mix.md]: impl-mix.md
+
 It is **drawn rather than laid out**, which is why it is the one thing on screen that is
 not UI Toolkit. A trace is a few hundred columns rebuilt every frame; a panel would want
 an element or a `Painter2D` call per column, inside a layout with nothing to lay out. A

@@ -41,15 +41,19 @@ Using it
 | Reverb and delay | The Send FX button opens the panel they are set on; how much of a channel reaches each is the last two rows of its sound |
 | Play the sequence by hand | The Live FX button opens a row of buttons that act while they are held |
 | Loudness and punch | The same Global panel holds the limiter; Threshold is the one that is played, and the make-up gain follows it so the mix gets louder as it gets harder; the bottom of that bar is the whole mix through the soft clip |
+| How loud it all is | Volume, on the System panel: it is after everything else in the mix, so it makes the piece quieter without making it any softer, and the bottom of the bar is off. The bar is tapered like a fader — the first few decibels take a quarter of it, so a trim is a drag rather than a pixel |
 | What a lock holds | Select it, then move a bar on the Tile panel; click a name to let go |
 | Play | Space, or the Play button |
 | Tempo | The bpm bar beside Play, which the delay is in time with |
 | Pan the plane | Drag from an empty cell, two finger swipe, or command+drag |
 | Reach a control off the edge | Drag the row or the panel it is on: the transport slides sideways and a column of panels slides up and down whenever it holds more than the screen does |
 
-The System button opens what is set about the app rather than about the piece. Visualizer
-puts the synth behind the score in a wash the eye can ignore — the output as a trace
-across the middle and the twenty-four voice slots as a row along the bottom. It is drawn
+The System button opens what is set about the app rather than about the piece. Volume is
+how loud the whole thing leaves — after everything else in the mix, so it makes the piece
+quieter without making it any softer, tapered like a fader, and off at the bottom of its
+travel. Visualizer puts the synth behind the score in a wash the eye can ignore — the
+output as a trace across the middle and the twenty-four voice slots as a row along the
+bottom. It is drawn
 by the camera rather than by the interface, which is transparent over it. Nothing on that
 panel is saved with a project; it is remembered for the machine it was set on, and is
 there again the next time the app is opened. On a desktop it also carries Open score

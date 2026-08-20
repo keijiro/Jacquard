@@ -34,6 +34,7 @@ struct FmSynthCore
     public ReverbBus reverb;
     public DelayBus delay;
     public LimiterBus limiter;
+    public OutputBus output;
 
     // Where the finished mix and the state of the pool are left for anything drawing
     // them. Owned by the driver rather than by this: it is allocated on the main thread,
@@ -81,6 +82,7 @@ struct FmSynthCore
         reverb = ReverbBus.Create(rate);
         delay = DelayBus.Create(rate);
         limiter = LimiterBus.Create();
+        output = OutputBus.Create();
     }
 
     public void Release()
@@ -99,6 +101,7 @@ struct FmSynthCore
         reverb.Dispose();
         delay.Dispose();
         limiter.Dispose();
+        output.Dispose();
     }
 
     // Fills outL and outR with the frames beginning at bufferStart. The two ways in
@@ -117,6 +120,7 @@ struct FmSynthCore
           reverb = reverb,
           delay = delay,
           limiter = limiter,
+          output = output,
           scope = scope,
           dryL = dryL,
           dryR = dryR,
@@ -150,6 +154,7 @@ struct FmSynthCore
         public ReverbBus reverb;
         public DelayBus delay;
         public LimiterBus limiter;
+        public OutputBus output;
         public FmSynthScope scope;
 
         public NativeArray<float> dryL;
@@ -214,10 +219,17 @@ struct FmSynthCore
                 outR[frame] = SoftClip(outR[frame]);
             }
 
-            // Last, so that what is drawn is what leaves here rather than a stage of
-            // it: the scope shows the limiter working, which is most of what a scope on
-            // this mix is for.
+            // Before the volume rather than after it, which is the one place the scope
+            // is deliberately not reading what leaves here. Everything above this line
+            // is the mix — the limiter working is most of what a scope on it is for —
+            // and the volume is not part of that: it says how loud the thing is being
+            // played, and a drawing that dimmed because somebody turned it down would
+            // be reporting the room rather than the piece.
             scope.Write(outL, outR, frameCount);
+
+            // And the volume last of all, on a mix that is already inside full scale.
+            // See OutputBus for why it is walked to rather than set.
+            output.Process(outL, outR, frameCount, fx.outputGain);
         }
 
         // A Pade approximant of tanh — x(27 + x²) / (27 + 9x²), with the square held at

@@ -2,7 +2,8 @@ Mix
 ===
 
 What happens to the sum of the voices: the two send effects, the staging that
-decides how loud a note is, and the limiter the mix is played through. The code
+decides how loud a note is, the limiter the mix is played through, and the volume
+it leaves at. The code
 is the buses in `Assets/Jacquard/Audio` and the settings on `Project` in
 `Assets/Core/Model`. The voice that feeds it is [impl-synth.md].
 
@@ -92,8 +93,9 @@ the other did the work, a ceiling below the drive was the two of them fighting w
 output quieter for it, and the only thing the drive was really for was getting the level
 back. Deriving that instead of offering it removes a bar, removes the way of setting the
 two against each other, and leaves the one number a hand reaches for. What it costs is
-that the output is no longer somewhere a project can put it — full scale is where every
-mix now lands, and the soft clip is what stands behind that.
+that the output is no longer somewhere the limiter can put it — full scale is where every
+mix now lands, the soft clip is what stands behind that, and where the mix is *played*
+is the volume below rather than anything on this bar.
 
 The make-up is applied **after** the moving gain rather than before it, which is not a
 detail: the detector has to go on reading the mix as it arrives, or the ceiling would be
@@ -176,3 +178,72 @@ with the eye nowhere in particular — and the middle is the one position on thi
 that says a panel is not part of the arrangement around the plane, which is what a
 setting nobody visits twice a session should say. It covers the score while it is up,
 and the switch that raised it is the way back.
+
+The output volume
+-----------------
+
+**The volume is the last thing in the path and the first that is not about the sound.**
+The code is `OutputVolume` and `OutputBus` in `Assets/Jacquard/Audio` and
+`Assets/Jacquard/App`, and the bar is on the System panel rather than on Global — see
+below for why.
+Everything above it lands the mix at full scale by construction — the make-up gives back
+whatever the threshold took off, the soft clip rounds off what is left over the top — so
+until it arrived there was nowhere to say *and play it this loud*, and the only answer to
+a mix that was too much for a pair of headphones was to undo the mix.
+
+**It goes after the soft clip, and that is the whole reason it is a separate number
+rather than a second make-up.** A gain in front of the clip is not a level at all: it
+moves the mix into or out of the clipping, so turning it down takes the edge off the
+sound and turning it up puts it back. After the clip nothing downstream can hear the
+difference, which is what makes this the one control here that changes only how loud the
+piece is. It only goes down for the same reason — what reaches it cannot exceed full
+scale, so a volume above unity would be asking the device to square off what the clip was
+careful to round. The top of the bar is unity and is where a project sits until somebody
+moves it, so a piece that never opens the panel sounds exactly as it did before there was
+one, and the bottom is silence rather than 60dB down: a volume control whose lowest
+setting still lets something through is one a hand cannot trust, and the readout says
+`off` there instead of a number.
+
+**The bar over those decibels is curved, where the threshold's is straight**, and the
+difference is what each control is for. Every position on the threshold is a different
+sound and the far end of it is the most extreme one, so a decibel there is worth the same
+travel wherever it is taken. A volume is not played that way: what a hand comes to it for
+is a trim of a decibel or two, and below about twenty down there is nothing left to choose
+— -40 and -46 are both quiet, and neither is a setting anybody arrives at on purpose.
+Straight, the part that gets played was the top sixth of the bar and six decibels of it
+were a tenth, so the fiftieth of the range a hand can move on the lift alone was worth
+more than a decibel of trim. The exponent is 0.4, which is below one where the two curved
+bars in `ParamRanges` are above it — they give their bottom ends the room because that is
+where their sounds are, and this gives its top end the room for the same reason. The first
+six decibels take a quarter of the travel instead of a tenth, a pixel is worth a sixth of
+a decibel up there against half of one at thirty down, and the middle of the bar lands at
+-14.5dB, which is about where a mixing desk puts the middle of a fader.
+
+**It is on the System panel and in `PlayerPrefs`, not in the file**, which is the one
+thing here worth arguing over and it was decided the other way first. The case for the
+file is real: a mix is left at a level, the way a piece driven hard into the limiter is
+finished quieter as surely as it is finished with the delay at that feedback. The case
+against it is what a hand actually reaches for a volume for — a pair of headphones at
+midnight, a speaker across a desk, the phone the app was carried out on — and none of
+that travels with the score. A volume saved into the file would arrive on somebody else's
+machine as an instruction about their room. So the piece stays at full scale wherever it
+is opened, this says how loud that is played here, and the format never grew a line for
+it. What settles that kind of question is not which panel a setting looks like it belongs
+on, but whether it would mean anything to somebody the file is handed to.
+
+**It is the one gain on this mix that had to be smoothed**, which is `OutputBus` and is
+all that bus is. Every other setting is spared it by what kind of quantity it is: a level
+is baked into a note at its start, the reverb's controls are coefficients that colour a
+tail rather than scale it, and the limiter's own gain is smoothed by the attack and the
+release it exists to have. A master volume has none of those excuses, and read once a
+block it steps at every block boundary — a finger crossing the bar in half a second moves
+it about a decibel a block, which on a signal near full scale is a tenth of the waveform's
+height arriving between two samples. So the gain is walked from where the last block left
+it to where this one asks, in equal steps, arriving on the final sample: a ramp and not a
+filter, so there is no time constant to pick and nothing lags.
+
+**The scope is written before it**, which is the one place the visualizer is deliberately
+not reading what leaves the mix. Everything above that line is the piece and the limiter
+working on it, which is most of what a scope here is for; the volume is how loud that is
+being played, and a drawing that dimmed because somebody turned it down would be reporting
+the room rather than the piece.

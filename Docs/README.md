@@ -22,7 +22,7 @@ How it is built
 | --- | --- |
 | [impl-sequencer.md] | Timing, the downward pass, locks, mutes, and the turn of the piece |
 | [impl-synth.md] | The FM voice, the patch, the lock targets, pan and unison |
-| [impl-mix.md] | The send effects, the mix staging, and the limiter |
+| [impl-mix.md] | The send effects, the mix staging, the limiter, and the output volume |
 | [impl-audio.md] | The two drivers, the DSP clocks, dropouts, and the minimum lead |
 | [impl-live-fx.md] | The twelve buttons, the handover window, and the rolls |
 | [impl-score-plane.md] | The grid: cells, gestures, what a lane owns, and how the plane grows |

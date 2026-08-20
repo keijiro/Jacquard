@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -21,12 +22,23 @@ namespace Jacquard.App {
 // made on. This is where that question went, and the auditioning is the next one of its
 // kind arriving as a row rather than as a switch the transport had to find room for.
 //
+// The output volume is the one that tested the rule from the other side. It was built on
+// Global first, where the rest of the mix is set and where it plainly seems to belong,
+// and it was wrong there for exactly the reason the line above draws: a mix is left at a
+// level, but what a hand comes to a volume for is the room it is in, and a room does not
+// travel with the file. So it came here, and what settles that kind of question is not
+// which panel a setting looks like it belongs on but whether it would mean anything to
+// somebody the file is handed to.
+//
 // The two are not the same shape underneath, and the difference is worth reading. The
 // visualizer is pushed: nothing here can reach a MonoBehaviour's enabled flag, so the
 // panel keeps the answer and hands it to a callback. The auditioning is pulled: it is
 // read at the moment a note would sound and nowhere else, so Audition keeps it and this
 // panel only throws the switch. Which way round a setting goes is decided by whether
-// anything has to be told when it moves.
+// anything has to be told when it moves. The volume is pulled as well and by the loop
+// that was already asking: JacquardApp reads it once a frame with the rest of the mix
+// settings and sends it on when it has moved, so the bar writes a number and nothing
+// here knows what happens next.
 //
 // Under it is the one button here that sets nothing: the folder the scores are written
 // to, handed to whatever the desktop opens folders with. It belongs on this panel for
@@ -82,8 +94,29 @@ sealed class SystemPanel
         audition.Add(_audition);
         Root.Add(audition);
 
-        // Under it because that is the order the two are met in: one is what the screen
-        // is doing and the other is what the machine underneath it can keep up with.
+        // How loud the whole thing leaves, which is here rather than on Global for what
+        // this panel is: a mix is left at a level, but what a hand comes to this bar for
+        // is the room it is in — a pair of headphones at midnight, a speaker across a
+        // desk, the phone it was carried out on. None of that travels with the file, and
+        // a volume that did would arrive on somebody else's machine as an instruction
+        // about their room. So the piece stays at full scale wherever it is opened and
+        // this says how loud that is played here. See OutputVolume.
+        //
+        // Above the buffer size and below the two switches, which is the order the three
+        // are reached for: this one is come back to, and the one under it is set once on
+        // a machine and left. It is a bar rather than a pair of arrows for the reason the
+        // one under it is — a level is an amount and not a list.
+        Root.Add(Controls.Bar("Volume", VolumeRange,
+                              () => OutputVolume.Decibels,
+                              value => OutputVolume.Decibels = value,
+                              // A drag crosses every value on the way and each one would
+                              // be a write to disk. The hand coming off commits it, the
+                              // same bargain the buffer size makes.
+                              OutputVolume.Flush));
+
+        // Under it because that is the order the three are met in: what the screen is
+        // doing, how loud what comes out of it is, and what the machine underneath can
+        // keep up with.
         //
         // A bar rather than the arrows a choice out of a list gets, because this is not
         // a list: it is one number with a low end and a high end, and which end it is
@@ -152,6 +185,41 @@ sealed class SystemPanel
     readonly Label _restart;
 
     bool _visualizerOn;
+
+    // Down from full scale, and curved where the limiter's threshold is straight — the
+    // difference between the two is what each is for rather than a difference of taste.
+    // Every position on that one is a different sound and its far end is the most extreme
+    // one, so a decibel there is worth the same travel wherever it is taken. This bar is
+    // not that. What a hand comes to it for is a trim — a decibel or two, so the piece
+    // sits against a room or a pair of headphones — and below about twenty down there is
+    // nothing left to choose: -40 and -46 are both quiet, and neither is a setting
+    // anybody arrives at on purpose. Straight, the part that is played was the top sixth
+    // of the bar and six decibels of it were a tenth, which is what made it abrupt — the
+    // fiftieth of the range a hand can move on the lift alone, which ValueBar.OnPointerUp
+    // exists to give back, was a decibel and a quarter of trim on this one.
+    //
+    // So the exponent spends the travel where the choosing happens. Below one, where the
+    // two curved bars in ParamRanges are above it — those give their bottom ends the room
+    // because that is where their sounds are, and this one gives its top end the room for
+    // the same reason. At 0.4 the first six decibels take a quarter of the bar instead of
+    // a tenth, a pixel is worth a sixth of a decibel up there against half of one at
+    // thirty down and a whole one at the foot of it, and the middle of the travel lands
+    // at -14.5dB — which is about where a mixing desk puts the middle of a fader, arrived
+    // at from the same argument.
+    //
+    // There is nothing above unity on it. What reaches the volume has been through the
+    // soft clip, so it cannot be over full scale and cannot be made louder without asking
+    // the device to square off what the clip was careful to round.
+    //
+    // The bottom is silence rather than a number, and the readout says so: a bar printing
+    // -60.0 dB at the position where nothing is coming out would be telling the truth
+    // about the setting and lying about the sound.
+    static readonly ValueBar.Range VolumeRange =
+      new ValueBar.Range(OutputVolume.MinVolume, 0.0f, curve: 0.4f, digits: 1,
+                         unit: "dB",
+                         display: v => v <= OutputVolume.MinVolume ? "off"
+                                       : v.ToString("F1", CultureInfo.InvariantCulture)
+                                         + " dB");
 
     // Off unless it was turned on, which is what everything raised from the transport
     // row starts as: the plane is what the screen is for, and a thing that starts on is

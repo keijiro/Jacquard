@@ -40,6 +40,7 @@ static class SelfTest
         Delay(log);
         Reverb(log);
         Limiter(log);
+        Volume(log);
 
         Debug.Log(log.ToString());
     }
@@ -2391,6 +2392,69 @@ static class SelfTest
               ", and 48dB over 6 clamps to " + beyond.ceiling);
     }
 
+    // The output volume, which has three promises: that unity is nothing at all, that a
+    // number on the bar is that number and not something the mix has coloured, that the
+    // bottom of it is silence — and one more that is the reason the bus exists, that a
+    // volume moved between two blocks is walked to rather than jumped to.
+    //
+    // The setting itself is not checked here. It lives in PlayerPrefs, and a check that
+    // wrote one would be a self test that moved somebody's volume.
+    static void Volume(System.Text.StringBuilder log)
+    {
+        // What a project opens at, on a signal already at full scale. The volume is the
+        // one setting here that is after everything, so this is a plain identity: not
+        // approximately the same mix, the same samples.
+        var input = Tone(Seconds(0.1f), 1.0f);
+        var open = RenderVolume(input, block => 0.0f);
+        var moved = 0.0f;
+
+        for (var i = 0; i < input.Length; i++)
+            moved = Mathf.Max(moved, Mathf.Abs(open[i] - input[i]));
+
+        Check(log, "a project at unity leaves the mix untouched",
+              moved == 0.0f, "worst sample moved by " + moved);
+
+        // Half the amplitude, which is what a level rather than a colour means: the
+        // whole of the mix down by exactly the figure on the bar.
+        var half = RenderVolume(input, block => -6.0206f);
+
+        Check(log, "the volume is the number on the bar",
+              Mathf.Abs(Rms(half, Seconds(0.05f), Seconds(0.1f)) /
+                        Rms(input, Seconds(0.05f), Seconds(0.1f)) - 0.5f) < 0.001f,
+              "out/in=" + Rms(half, Seconds(0.05f), Seconds(0.1f)) /
+                          Rms(input, Seconds(0.05f), Seconds(0.1f)));
+
+        // And the bottom of the bar is off rather than very quiet, which is a promise
+        // about the control and not about how far down 60dB is.
+        var silent = RenderVolume(input, block => OutputVolume.MinVolume);
+        var loudest = 0.0f;
+
+        for (var i = Seconds(0.05f); i < input.Length; i++)
+            loudest = Mathf.Max(loudest, Mathf.Abs(silent[i]));
+
+        Check(log, "the bottom of the bar is silence",
+              loudest == 0.0f, "peak=" + loudest);
+
+        // The reason there is a bus here at all. A hand on the bar moves the gain once a
+        // block, and a gain that changed at a block boundary would step the waveform by
+        // the whole of the change: on a signal held at full scale that is half the
+        // amplitude arriving between two samples, which is a click. Walked across the
+        // block, no two neighbours are further apart than one step of the ramp.
+        var held = new float[Seconds(0.1f)];
+        for (var i = 0; i < held.Length; i++) held[i] = 1.0f;
+
+        var swept = RenderVolume(held, block => block < 2 ? 0.0f : -6.0206f);
+        var jump = 0.0f;
+
+        for (var i = 1; i < swept.Length; i++)
+            jump = Mathf.Max(jump, Mathf.Abs(swept[i] - swept[i - 1]));
+
+        Check(log, "a volume moved between blocks is walked to",
+              jump < 0.01f && Mathf.Abs(swept[swept.Length - 1] - 0.5f) < 0.0001f,
+              "worst step=" + jump + ", arrived at " + swept[swept.Length - 1]);
+
+    }
+
     // Rendering helpers
     //
     // Both buses hold their state in NativeArrays, so a check has to allocate one the
@@ -2461,6 +2525,37 @@ static class SelfTest
                 left[i] = right[i] = i < frames ? input[position + i] : 0.0f;
 
             bus.Process(left, right, frames, runtime);
+
+            for (var i = 0; i < frames; i++) trace[position + i] = left[i];
+        }
+
+        left.Dispose();
+        right.Dispose();
+        bus.Dispose();
+
+        return trace;
+    }
+
+    // The output volume in place, the way the app drives it: a level per block, since
+    // what this bus is for is what happens when the level changes between two of them.
+    static float[] RenderVolume(float[] input, System.Func<int, float> volume)
+    {
+        const int block = 256;
+
+        var bus = OutputBus.Create();
+
+        var left = new NativeArray<float>(block, Allocator.Persistent);
+        var right = new NativeArray<float>(block, Allocator.Persistent);
+        var trace = new float[input.Length];
+
+        for (var position = 0; position < input.Length; position += block)
+        {
+            var frames = Mathf.Min(block, input.Length - position);
+
+            for (var i = 0; i < block; i++)
+                left[i] = right[i] = i < frames ? input[position + i] : 0.0f;
+
+            bus.Process(left, right, frames, OutputVolume.Gain(volume(position / block)));
 
             for (var i = 0; i < frames; i++) trace[position + i] = left[i];
         }
