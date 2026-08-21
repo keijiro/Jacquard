@@ -105,7 +105,7 @@ public struct FmPatch
 {
     public float transpose;  // Semitones the channel's notes are moved by
 
-    public float level;      // Output level [0,1]
+    public float level;      // Output level in dB, full scale at 0
     public float pan;        // Across the image, -1 hard left to +1 hard right
     public float unison;     // How wide the detuned pair sits [0,1]; 0 is one voice
     public float gateScale;  // Multiplies the note's gate length
@@ -134,9 +134,13 @@ public struct FmPatch
     // gains below are normalized to render exactly as an unpanned note used to, and
     // unison starts at nothing, which is one voice per note and the same debt paid
     // the same way.
+    //
+    // Two decibels down is the four fifths this used to be spelled as, to within a
+    // sixteenth of a decibel: the number is round where the amplitude was, and nothing
+    // about a fresh patch is louder or quieter than it has been since there was one.
     public static FmPatch Default => new FmPatch
       { transpose = 0.0f,
-        level = 0.8f,
+        level = -2.0f,
         pan = 0.0f,
         unison = 0.0f,
         gateScale = 1.0f,
@@ -150,6 +154,43 @@ public struct FmPatch
         pitchDecay = 0.05f,
         reverbSend = 0.0f,
         delaySend = 0.0f };
+
+    // The two ends of the level, kept here rather than with every other target's in
+    // ParamTargets because the conversion below has to agree with them: the bottom is
+    // the one value that is a switch rather than a quantity, and the top is what the
+    // DSP is promised it will never be handed more than.
+    //
+    // Silence at the bottom rather than sixty decibels down, for the reason OutputVolume
+    // gives at its own floor: a level whose lowest setting still lets something through
+    // is one nothing can be silenced with, and a step that takes a channel out is worth
+    // being able to write. Sixty is where that lands because a thousandth of full scale
+    // is already past anything a room gives back.
+    //
+    // Six over the top, which is twice the amplitude a level could reach when it stopped
+    // at one, and it is there for the accent upwards: a channel is mixed at whatever it
+    // is worth against the rest of the piece, and a lock that lifts one step of it has
+    // to have somewhere to go from there. Nothing clips for it — the mix is staged so
+    // that full scale is four notes, see FmSynth.MasterGain — a note up here simply
+    // spends two of the four.
+    public const float MinLevel = -60.0f;
+    public const float MaxLevel = 6.0f;
+
+    // The level as the gain a voice multiplies by, which is the one place the decibels
+    // stop being a reading and become arithmetic.
+    //
+    // Decibels are what the field holds because that is what a *shift* has to be added
+    // in: six down is six down wherever it is applied, where a fifth off is nearly
+    // nothing at the top of the range and silence near the bottom of it. So the whole of
+    // the level is dialled, locked and saved in dB, and this runs once per note event on
+    // the way out.
+    //
+    // Spelled out rather than calling Limiter.Gain, which is the same power of ten, for
+    // the reason OutputVolume gives for its own copy: what this has that a threshold has
+    // not is the two ends, and folding them in here is what leaves every caller with
+    // nothing to clamp.
+    public static float Amplitude(float decibels)
+      => decibels <= MinLevel ? 0.0f
+         : MathF.Pow(10.0f, Math.Min(decibels, MaxLevel) / 20.0f);
 }
 
 // A note-on event: the complete patch alongside pitch, timing and the exact
@@ -163,7 +204,8 @@ public struct FmNoteEvent
 {
     public long startSample;
     public float frequency;
-    public float level;    // Peak output level [0,1]
+    public float level;    // Peak output amplitude, past one when the patch it
+                           // came from was over full scale
     public float pan;      // Across the image, -1 hard left to +1 hard right
     public float unison;   // How wide the detuned pair sits [0,1]; 0 is one voice
     public float duration; // Gate length in seconds; release follows it
@@ -411,16 +453,24 @@ public struct FmNoteEvent
     // parameter lock applied to it by the time this is called.
     public static FmNoteEvent FromPatch(in FmPatch patch, int note,
                                         float gateSeconds, long startSample)
-      => new FmNoteEvent
+    {
+        // Converted once. Both of the things that read a level read the same number:
+        // what comes out of the voice, and how hard the pool fights to keep it.
+        var level = FmPatch.Amplitude(patch.level);
+
+        return new FmNoteEvent
         { startSample = startSample,
           frequency = Pitch.ToFrequency(note),
-          level = Math.Clamp(patch.level, 0.0f, 1.0f),
+          level = level,
           pan = Math.Clamp(patch.pan, -1.0f, 1.0f),
           unison = Math.Clamp(patch.unison, 0.0f, 1.0f),
           duration = MathF.Max(gateSeconds * patch.gateScale, 0.005f),
           // Louder notes outrank quieter ones when the pool runs out of voices,
-          // so an accent survives a dense chord.
-          priority = (int)MathF.Round(Math.Clamp(patch.level, 0.0f, 1.0f) * 8.0f),
+          // so an accent survives a dense chord. Eight was the whole of the scale
+          // while a level stopped at an amplitude of one; a note over full scale
+          // ranks above eight and costs nothing for it, since every comparison on
+          // this number is against another one of these and never against a figure.
+          priority = (int)MathF.Round(level * 8.0f),
           modulatorRatio = patch.modulatorRatio,
           modulationIndex = patch.modulationIndex,
           feedback = patch.feedback,
@@ -431,6 +481,7 @@ public struct FmNoteEvent
           pitchDecay = patch.pitchDecay,
           reverbSend = patch.reverbSend,
           delaySend = patch.delaySend };
+    }
 }
 
 } // namespace Jacquard

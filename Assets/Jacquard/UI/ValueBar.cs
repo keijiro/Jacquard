@@ -64,21 +64,33 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
         // number.
         public readonly Func<float, string> Display;
 
+        // A range that straddles zero is drawn from where zero sits rather than from
+        // the left edge, so the sign of the value is visible at a glance. It is also
+        // dialled from there: half the travel each way, whichever direction the hand
+        // takes.
+        //
+        // Which is normally exactly the question of whether the ends have different
+        // signs, and is a field rather than that test because of the one quantity here
+        // that crosses zero without having two directions. A level in decibels runs from
+        // silence up to a little over full scale, and zero on it is the top of the useful
+        // range rather than the middle of anything — read off the ends it would be drawn
+        // outwards from the loudest setting a note has, and dialled with six decibels
+        // taking half the bar.
+        public readonly bool Bipolar;
+
         public Range(float low, float high, float curve = 1.0f, float snap = 0.0f,
                      float scale = 1.0f, string unit = null, int digits = 2,
-                     Func<float, string> display = null, float floor = 0.0f)
-          => (Low, High, Curve, Snap, Scale, Unit, Digits, Display, Floor) =
-             (low, high, curve, snap, scale, unit, digits, display, floor);
+                     Func<float, string> display = null, float floor = 0.0f,
+                     bool? bipolar = null)
+          => (Low, High, Curve, Snap, Scale, Unit, Digits, Display, Floor, Bipolar) =
+             (low, high, curve, snap, scale, unit, digits, display, floor,
+              bipolar ?? (low < 0.0f && high > 0.0f));
 
         public bool Geometric => Floor > 0.0f;
 
         // Where the ratios start counting from: the floor, unless the parameter's own
         // range begins above it and there is nothing below to reach.
         float Root => Low > Floor ? Low : Floor;
-
-        // A range that straddles zero is drawn from where zero sits rather than from
-        // the left edge, so the sign of the value is visible at a glance.
-        public bool Bipolar => Low < 0.0f && High > 0.0f;
 
         // Bar position [0,1] to value.
         public float ToValue(float position)

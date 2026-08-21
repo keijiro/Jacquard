@@ -1,3 +1,4 @@
+using System.Globalization;
 using UnityEngine;
 
 namespace Jacquard.App {
@@ -22,7 +23,9 @@ namespace Jacquard.App {
 //
 // The pitch sweep needs no case of its own: its range straddles zero, so the bar
 // draws itself from where zero sits and shows the direction of the offset along with
-// its size. Pan is drawn the same way and only reads out differently.
+// its size. Pan is drawn the same way and only reads out differently. The level
+// straddles zero too and is the one range here that has to say it means nothing by it —
+// zero on it is full scale, not a centre.
 
 static class ParamRanges
 {
@@ -70,6 +73,29 @@ static class ParamRanges
               new ValueBar.Range(low, high, curve: 2.0f, scale: 100.0f,
                                  unit: "%", digits: 0),
 
+            // Decibels, which the output volume and the limiter's threshold are
+            // already in and which the level is alone among the lock targets in being
+            // in, for the reason all three share: it is a ratio of amplitude, so a
+            // straight bar spends most of its travel inside the top doubling and reads
+            // out as a multiplier nobody thinks in.
+            //
+            // Curved the way the volume is and by the same exponent, since the choosing
+            // happens at the same end: the first six decibels down from full scale get a
+            // fifth of the travel rather than a twelfth of it, the middle of the bar
+            // lands at -10dB, and a pixel is worth about a sixth of a decibel up where a
+            // part is balanced against the rest of the piece. The whole of the room above
+            // full scale is the top fifth.
+            //
+            // The bottom is silence and says so, which is the one reading here that is a
+            // setting rather than a quantity: a step that takes a channel out is written
+            // by dialling the level to the end of its travel, and a bar printing -60.0 dB
+            // there would be telling the truth about the number and lying about the
+            // sound. Told outright that it is not bipolar, because its ends straddle zero
+            // without zero being anywhere near the middle of it — see ValueBar.Range.
+            ParamTargets.Level =>
+              new ValueBar.Range(low, high, curve: 0.4f, digits: 1, unit: "dB",
+                                 bipolar: false, display: Quiet),
+
             // A side and a distance, which is how a position is read: "L 50" says both
             // and "-0.50" says neither, and the centre is a place with a name rather
             // than a number that happens to be zero. The bar itself already grows out
@@ -96,6 +122,10 @@ static class ParamRanges
         return amount == 0 ? "C" : (amount < 0 ? "L " : "R ") + Mathf.Abs(amount);
     }
 
+    static string Quiet(float value)
+      => value <= FmPatch.MinLevel ? "off"
+         : value.ToString("F1", CultureInfo.InvariantCulture) + " dB";
+
     static string Signed(float value)
     {
         var amount = Mathf.RoundToInt(value);
@@ -116,6 +146,17 @@ static class ParamRanges
     // range is still at the ends.
     public static ValueBar.Range Relative(int target)
     {
+        // The level is the one target whose shift is not measured across its own span. A
+        // level runs from silence to over full scale, which is sixty-six decibels, and a
+        // bar reaching that far either way would spend almost all of its travel on shifts
+        // nothing in a piece asks for. Twenty-four is the end of what does: six is a firm
+        // accent, twelve is a different dynamic, and past twenty-four a note is gone
+        // rather than quiet — and silence, which is the one thing that wants the whole
+        // range, is what an absolute lock is for. Straight, because decibels are already
+        // the curve.
+        if (target == ParamTargets.Level)
+            return new ValueBar.Range(-24.0f, 24.0f, digits: 1, unit: "dB");
+
         var range = Of(target);
         var span = range.High - range.Low;
 

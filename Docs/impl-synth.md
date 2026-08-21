@@ -74,6 +74,14 @@ same change.** The FM decay is the case that established this — version 10 and
 `DecaySlope`, which converts an `md=` and an absolute lock to the same decay rate and
 deliberately leaves a relative one as written.
 
+The level is the second case, version 18, and it is the one that says **a relative lock
+is a separate question from the value it shifts.** A shift has no image in a new unit on
+its own — only against something the file also states. The FM decay had nothing to read
+one against and kept the number it was written with; a level shift has the level of the
+channel it stands on, so it converts exactly, and `ProjectFormat.LevelShifts` does it
+after the whole file rather than at the token, because a branch lane's channel is
+whichever lane jumps into it.
+
 Where the rest is written
 -------------------------
 

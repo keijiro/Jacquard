@@ -91,6 +91,13 @@ public static class ParamTargets
     // fraction of the note and the slope of a decay are both exactly the zero to one
     // the defaults already give. Pan names itself in one, since it runs to the same
     // one at the top and to its mirror image at the bottom.
+    //
+    // The level names itself in both and holds neither number, because it is the one
+    // target measured in decibels: what its two ends are is argued where the conversion
+    // that has to agree with them is, in FmPatch. A ratio of amplitude is dialled and
+    // *shifted* in dB or it is neither — a fifth off is a different thing at every point
+    // of the range, which is what a relative lock on it could not do anything useful
+    // with.
     public static float Min(int target) => target switch
     {
         // A twentieth, which is barely a ratio any more: down here the modulator turns
@@ -109,13 +116,14 @@ public static class ParamTargets
         // out from where the note is unpanned rather than from the left edge.
         Pan => -1.0f,
         PitchSweep => -8.0f,
+        Level => FmPatch.MinLevel,
         _ => 0.0f
     };
 
     public static float Max(int target) => target switch
     {
         Transpose => 24.0f,
-        Level => 1.0f,
+        Level => FmPatch.MaxLevel,
         Gate => 4.0f,
         ModIndex => 12.0f,
         ModRatio => 8.0f,

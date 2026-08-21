@@ -46,13 +46,15 @@ public sealed class FmSynth : System.IDisposable
     // that says how much of the mix is headroom.
     //
     // A quarter, which is to say **full scale is four notes**. The pan law is unity at
-    // the centre rather than at the ends, so a note at level 1 already arrives at the mix
+    // the centre rather than at the ends, so a note at 0dB already arrives at the mix
     // at full scale on both sides — the budget is therefore literally counted in notes,
     // and a gain anywhere near a whole is a budget of one. At four fifths it was: two
     // notes measured +4.1dBFS and a triad +7.6, and everything over the top of that was
     // rounded off by the soft clip at the end of the mix, which is why a plain fifth at
-    // level 1 sounded dirty. It was not the chord that was wrong. Four is a chord with a
-    // bass under it.
+    // 0dB sounded dirty. It was not the chord that was wrong. Four is a chord with a
+    // bass under it. A level reaches six decibels over full scale — FmPatch.MaxLevel,
+    // which is what an accent upwards is written with — so one note can spend two of the
+    // four, and the budget is counted in notes at 0dB rather than in voices.
     //
     // What it costs is 10.1dB, and the **threshold is where that comes back**: the
     // limiter's make-up is the inverse of it, so pulling the bar down hands the level

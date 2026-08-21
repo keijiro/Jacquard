@@ -13,14 +13,14 @@ namespace Jacquard {
 // answers to it, which is the same trick the mockup uses: there is nowhere to
 // write a second jump, so one to one holds by construction.
 //
-//   jacquard 17
+//   jacquard 18
 //   tempo 132
 //   meter 4 4
 //   fx rsize=0.5 rdamp=0.5 ...
 //   limiter ceiling=0 attack=0.005 release=0.15
 //   mutes muted=01000000 soloed=00000000
 //   scale notes=101011010101
-//   patch 1 transpose=0 level=0.8 index=3 ...
+//   patch 1 transpose=0 level=-2 index=3 ...
 //   lane 1 1 CHAN:1 div=16 on=1
 //     step C4/4 E4 G4
 //     step
@@ -30,6 +30,30 @@ namespace Jacquard {
 
 public static class ProjectFormat
 {
+    // Version 18 makes a level a number of decibels rather than an amplitude: level= on
+    // a patch line, and the level a lock names, now run from silence at -60 up to six
+    // over full scale. What forced it is the relative lock. A shift had to be *added* to
+    // an amplitude, so one and the same lock was five decibels off a loud channel and
+    // silence off a quiet one, and a channel mixed low could not be accented downwards at
+    // all — it was already against the floor. In decibels a shift is the ratio it sounds
+    // like wherever it lands, which is the whole of the change: the rule that a relative
+    // lock adds is untouched and only the space it adds in has moved.
+    //
+    // Three things in a file hold one, and all three are converted exactly. A patch
+    // line's amplitude and an absolute lock's are the same logarithm, taken where they
+    // are read. A relative lock holds a shift, which has no image on its own — but it has
+    // one against the channel it sits on, and the file states that: 20 log10((base + x) /
+    // base) is precisely the level the old lock arrived at. That one is LevelShifts,
+    // after the whole file rather than at the token, because a branch lane's channel is
+    // whichever lane jumps into it.
+    //
+    // The one thing deliberately not carried across is a shift that used to be clipped. A
+    // lock asking for more than an amplitude of one got one, so what it *sounded* was the
+    // clamp and not the number it was written with, and the conversion takes the sound —
+    // the shift is measured against the level the note actually came out at. An older
+    // piece therefore does not move at all, which is worth more than a number that never
+    // sounded; the room over full scale is for what is written next.
+    //
     // Version 17 stages the mix: the sum of the voices is scaled by a quarter on the way
     // out where it used to be scaled by four fifths, so that full scale is four notes
     // rather than one and there is room under it for a threshold to mean something. An
@@ -164,7 +188,7 @@ public static class ProjectFormat
     // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
     // reads, since a token nothing answers to is skipped, but the parameters that
     // no longer exist fall back to the default patch rather than being converted.
-    public const int Version = 17;
+    public const int Version = 18;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -408,6 +432,11 @@ public static class ProjectFormat
         if (version < 17)
             project.Limiter.ceiling = StagedThreshold(project.Limiter.ceiling);
 
+        // After the links above, and it has to be: a relative shift on the level is
+        // converted against the channel the lane sounds on, and a branch lane borrows
+        // that from whichever jump reaches it.
+        if (version < 18) LevelShifts(project);
+
         return project;
     }
 
@@ -575,6 +604,13 @@ public static class ProjectFormat
             if (version < 10 && target == ParamTargets.ModDecay &&
                 tile is AbsoluteParamTile) value = DecaySlope(value);
 
+            // And version 18's, which reaches an absolute lock the same way and for the
+            // same reason. A relative one is left as written here and converted once the
+            // file is read, since what it is worth in decibels depends on the level of
+            // the channel it stands on. See LevelShifts.
+            if (version < 18 && target == ParamTargets.Level &&
+                tile is AbsoluteParamTile) value = Decibels(value);
+
             tile.Engage(target, value);
         }
 
@@ -624,7 +660,12 @@ public static class ProjectFormat
             switch (key)
             {
                 case "transpose": patch.transpose = value; break;
-                case "level": patch.level = value; break;
+                // A version 17 amplitude as the decibels version 18 holds in its
+                // place. Zero is a channel that was silent and stays silent, which is
+                // the bottom of the new range rather than the bottom of a logarithm.
+                case "level":
+                    patch.level = version < 18 ? Decibels(value) : value;
+                    break;
                 case "pan": patch.pan = value; break;
                 case "uni": patch.unison = value; break;
                 case "gate": patch.gateScale = value; break;
@@ -733,6 +774,46 @@ public static class ProjectFormat
     // at 17, which is a fact about two builds and not about the current one. A later
     // change to the staging is a later version with a shift of its own.
     const float StagedHeadroom = 10.103f; // 20 log10(0.8 / 0.25)
+
+    // A version 17 amplitude as the level version 18 spells it, with the silent end
+    // landing on the bottom of the range rather than running off the logarithm.
+    static float Decibels(float amplitude)
+      => amplitude <= 0.0f ? FmPatch.MinLevel : 20.0f * MathF.Log10(amplitude);
+
+    // Every version 17 relative lock on the level, as the shift in decibels that does
+    // what it did.
+    //
+    // The shift is read against the channel's own level, which is the only thing it can
+    // be read against: an amplitude added to a level is a ratio that depends on the level
+    // it was added to. Where the sum ran past the ends the old synth clamped it, so the
+    // clamp is applied here too and what is converted is what was heard — an amplitude of
+    // one where more was asked for, and silence where the shift took the level under
+    // zero, which the bottom of the range holds exactly.
+    //
+    // The channel's level has already been converted by the time this runs, so it is
+    // turned back into the amplitude the shift was written against rather than being
+    // remembered from the line.
+    static void LevelShifts(Project project)
+    {
+        var score = project.Score;
+
+        foreach (var lane in score.Lanes)
+        {
+            var basis = FmPatch.Amplitude(project.Patches[score.ChannelOf(lane)].level);
+
+            foreach (var step in lane.Steps)
+                foreach (var tile in step.Tiles)
+                    if (tile is RelativeParamTile shift &&
+                        shift.IsEngaged(ParamTargets.Level))
+                        shift.Engage(ParamTargets.Level,
+                                     LevelShift(basis, shift[ParamTargets.Level]));
+        }
+    }
+
+    // What one of those shifts is worth: the ratio between the level the channel came out
+    // at with it and the level it stands at without it.
+    static float LevelShift(float basis, float shift)
+      => Decibels(Math.Clamp(basis + shift, 0.0f, 1.0f)) - Decibels(basis);
 
     static float StagedThreshold(float ceiling)
       => Math.Clamp(ceiling - StagedHeadroom, Limiter.MinCeiling, 0.0f);

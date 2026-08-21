@@ -249,7 +249,9 @@ static class SelfTest
         log.Append("  runners: ").Append(sequencer.Runners.Count).Append('\n');
         log.Append(jumped ? "  laps counted\n" : "  LAPS NOT COUNTED\n");
 
-        var plain = project.Patches[1].level;
+        // The patch holds decibels and an event holds the amplitude they are worth,
+        // so the comparison is made on the synth's side of the one conversion there is.
+        var plain = FmPatch.Amplitude(project.Patches[1].level);
         var loudest = 0.0f;
         var untouched = 0;
 
@@ -1090,7 +1092,7 @@ static class SelfTest
         var lane = project.Score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 1);
 
         var held = new AbsoluteParamTile();
-        held.Engage(ParamTargets.Level, 0.5f);
+        held.Engage(ParamTargets.Level, -6.0f);
         held.Engage(ParamTargets.ModIndex, 9.0f);
 
         // A lock holding nothing, which is what one looks like the moment it is
@@ -1113,8 +1115,11 @@ static class SelfTest
 
         var sounded = notes.Count > 0;
 
+        // Six decibels down is half the amplitude, which is the arithmetic the level
+        // now goes through on the way to an event and the reason to check a number here
+        // rather than that the lock arrived.
         Check(log, "a lock holding two parameters moved both",
-              sounded && Mathf.Abs(notes[0].level - 0.5f) < 0.001f &&
+              sounded && Mathf.Abs(notes[0].level - 0.5012f) < 0.001f &&
                          Mathf.Abs(notes[0].modulationIndex - 9.0f) < 0.001f,
               sounded ? "level=" + notes[0].level + " index=" + notes[0].modulationIndex
                       : "nothing sounded");
@@ -1198,7 +1203,53 @@ static class SelfTest
                               : absolute[ParamTargets.ModDecay].ToString()) +
               " relative=" + (relative == null ? "none"
                               : relative[ParamTargets.ModDecay].ToString()));
+
+        // Version 18 is the other one, on the level, and it is the harder shape: a
+        // relative lock there *does* have an image in the new unit, but only against the
+        // level of the channel it stands on, so it is converted after the file rather
+        // than at the token. Four tenths is -7.96dB and a tenth is -20; a fifth added to
+        // four tenths is half again, which is +3.5dB however the channel is mixed.
+        //
+        // The other two steps are the ends. A shift that ran past full scale is worth
+        // what it was clamped to and not what it was written as — nine tenths on top of
+        // four is an amplitude of one, so +7.96dB — and one that took the level under
+        // zero comes back as whatever lands the channel exactly on the bottom of the
+        // range, which is silence there as it was silence before.
+        var linear = ProjectFormat.Read(
+          "jacquard 17\ntempo 120\npatch 1 level=0.4\n" +
+          "lane 1 1 CHAN:1 div=16\n" +
+          "  step PABS:level,0.1 PREL:level,0.2 C5\n" +
+          "  step PREL:level,0.9 C5\n" +
+          "  step PREL:level,-0.5 C5\n");
+
+        var mixed = linear.Patches[1].level;
+        var cells = linear.Score.Lanes[0].Steps;
+
+        var set = Held<AbsoluteParamTile>(cells[0]);
+        var accent = Held<RelativeParamTile>(cells[0]);
+        var clipped = Held<RelativeParamTile>(cells[1]);
+        var gone = Held<RelativeParamTile>(cells[2]);
+
+        Check(log, "a version 17 level comes back as the same decibels",
+              Mathf.Abs(mixed + 7.9588f) < 0.01f &&
+              set != null && Mathf.Abs(set[ParamTargets.Level] + 20.0f) < 0.01f &&
+              accent != null &&
+              Mathf.Abs(accent[ParamTargets.Level] - 3.5218f) < 0.01f &&
+              clipped != null &&
+              Mathf.Abs(clipped[ParamTargets.Level] - 7.9588f) < 0.01f &&
+              gone != null &&
+              Mathf.Abs(mixed + gone[ParamTargets.Level] - FmPatch.MinLevel) < 0.01f,
+              "patch level=" + mixed + " absolute=" + Reads(set) +
+              " accent=" + Reads(accent) + " clipped=" + Reads(clipped) +
+              " gone=" + Reads(gone));
     }
+
+    // The one lock of a kind on a step, for a check that put it there.
+    static ParamTile Held<T>(Step step) where T : ParamTile
+      => step.Tiles.Find(tile => tile is T) as ParamTile;
+
+    static string Reads(ParamTile tile)
+      => tile == null ? "none" : tile[ParamTargets.Level].ToString();
 
     // Two lanes on different channels, each with its own patch, playing the same
     // note: what comes out has to differ, and differ per channel rather than per
@@ -1218,9 +1269,10 @@ static class SelfTest
             lane.Steps[0].Tiles.Add(new NoteTile { Note = 60 });
 
         // One value per channel, far enough apart to tell which note came from
-        // where. Level is enough: it reaches the event untouched.
-        project.Patches[1].level = 0.25f;
-        project.Patches[2].level = 0.75f;
+        // where. Level is enough: what the event holds is the amplitude those decibels
+        // are worth, which is the one conversion between the two.
+        project.Patches[1].level = -12.0f;
+        project.Patches[2].level = -2.0f;
 
         var sequencer = new Sequencer { Project = project };
         var notes = new System.Collections.Generic.List<FmNoteEvent>();
@@ -1233,8 +1285,8 @@ static class SelfTest
 
         foreach (var note in notes)
         {
-            if (Mathf.Abs(note.level - 0.25f) < 0.001f) quiet++;
-            if (Mathf.Abs(note.level - 0.75f) < 0.001f) loud++;
+            if (Mathf.Abs(note.level - 0.2512f) < 0.001f) quiet++;
+            if (Mathf.Abs(note.level - 0.7943f) < 0.001f) loud++;
         }
 
         Check(log, "each channel plays its own patch",
@@ -1246,17 +1298,18 @@ static class SelfTest
         var reloaded = ProjectFormat.Read(ProjectFormat.Write(project));
 
         Check(log, "the bank round trips",
-              Mathf.Abs(reloaded.Patches[1].level - 0.25f) < 0.001f &&
-              Mathf.Abs(reloaded.Patches[2].level - 0.75f) < 0.001f,
+              Mathf.Abs(reloaded.Patches[1].level + 12.0f) < 0.001f &&
+              Mathf.Abs(reloaded.Patches[2].level + 2.0f) < 0.001f,
               "ch1=" + reloaded.Patches[1].level + " ch2=" + reloaded.Patches[2].level);
 
         // A version 2 file had one patch for everything, and that is what its single
-        // line still means.
+        // line still means. Its half comes in as the -6.02dB that half an amplitude is,
+        // which is version 18's conversion reaching a line that predates it by sixteen.
         var legacy = ProjectFormat.Read("jacquard 2\ntempo 120\npatch level=0.5\n");
 
         Check(log, "a version 2 patch line fills the bank",
-              Mathf.Abs(legacy.Patches[1].level - 0.5f) < 0.001f &&
-              Mathf.Abs(legacy.Patches[PatchBank.Channels].level - 0.5f) < 0.001f,
+              Mathf.Abs(legacy.Patches[1].level + 6.0206f) < 0.001f &&
+              Mathf.Abs(legacy.Patches[PatchBank.Channels].level + 6.0206f) < 0.001f,
               "ch1=" + legacy.Patches[1].level +
               " ch" + PatchBank.Channels + "=" +
               legacy.Patches[PatchBank.Channels].level);
@@ -1274,15 +1327,16 @@ static class SelfTest
         var score = project.Score;
 
         // Two lanes of one step, told apart by their patch level the way the channel
-        // check tells its two apart.
+        // check tells its two apart — the levels in decibels and the notes in the
+        // amplitude those come to, for the same reason they are there.
         score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 1);
         score.AddLane(1, 3, new ChannelTile { Channel = 2 }, 1);
 
         foreach (var lane in score.Lanes)
             lane.Steps[0].Tiles.Add(new NoteTile { Note = 60 });
 
-        project.Patches[1].level = 0.25f;
-        project.Patches[2].level = 0.75f;
+        project.Patches[1].level = -12.0f;
+        project.Patches[2].level = -2.0f;
 
         var sequencer = new Sequencer { Project = project };
 
@@ -1291,7 +1345,7 @@ static class SelfTest
         var muted = Play(sequencer, sampleRate);
 
         Check(log, "a muted channel is silent and the other one is not",
-              muted.Count == 1 && Mathf.Abs(muted[0].level - 0.75f) < 0.001f,
+              muted.Count == 1 && Mathf.Abs(muted[0].level - 0.7943f) < 0.001f,
               muted.Count + " notes");
 
         // The lap the muted lane was on has to have turned over anyway, which is what
@@ -1310,7 +1364,7 @@ static class SelfTest
         var soloed = Play(sequencer, sampleRate);
 
         Check(log, "a solo overrules a mute rather than clearing it",
-              soloed.Count == 1 && Mathf.Abs(soloed[0].level - 0.25f) < 0.001f &&
+              soloed.Count == 1 && Mathf.Abs(soloed[0].level - 0.2512f) < 0.001f &&
               mutes.IsMuted(1),
               soloed.Count + " notes, and the mute is " +
               (mutes.IsMuted(1) ? "kept" : "GONE"));
@@ -1321,7 +1375,7 @@ static class SelfTest
         var restored = Play(sequencer, sampleRate);
 
         Check(log, "dropping the last solo gives the mutes back",
-              restored.Count == 1 && Mathf.Abs(restored[0].level - 0.75f) < 0.001f,
+              restored.Count == 1 && Mathf.Abs(restored[0].level - 0.7943f) < 0.001f,
               restored.Count + " notes");
 
         // And both sets have to survive the file, which is what version 12 is for. The
@@ -1420,14 +1474,15 @@ static class SelfTest
               " dsend=" + reloaded.Patches[1].delaySend);
 
         // A version 6 file has no fx line and no sends, and has to come back as a
-        // project that simply never touched either.
+        // project that simply never touched either. Its level arrives converted, since
+        // half an amplitude is what version 18 spells -6.02dB.
         var legacy = ProjectFormat.Read("jacquard 6\ntempo 120\npatch 1 level=0.5\n");
 
         Check(log, "a version 6 file reads with the effects at their defaults",
               Mathf.Abs(legacy.Fx.delayBeats -
                         DelayTime.Beats[DelayTime.Default]) < 0.001f &&
               legacy.Patches[1].reverbSend == 0.0f &&
-              Mathf.Abs(legacy.Patches[1].level - 0.5f) < 0.001f,
+              Mathf.Abs(legacy.Patches[1].level + 6.0206f) < 0.001f,
               "beats=" + legacy.Fx.delayBeats +
               " rsend=" + legacy.Patches[1].reverbSend +
               " level=" + legacy.Patches[1].level);

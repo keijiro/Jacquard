@@ -118,8 +118,8 @@ public sealed class Project
         // locks reach whatever this channel sounds later in the same instant, and
         // later means further down the plane, so this lane sits at the top.
         var accent = score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 4);
-        Fill(accent, 0, Lock(new RelativeParamTile(), ParamTargets.Level, 0.2f));
-        Fill(accent, 2, Lock(new RelativeParamTile(), ParamTargets.Level, -0.35f));
+        Fill(accent, 0, Lock(new RelativeParamTile(), ParamTargets.Level, 2.0f));
+        Fill(accent, 2, Lock(new RelativeParamTile(), ParamTargets.Level, -5.0f));
 
         var main = score.AddLane(1, 3, new ChannelTile { Channel = 1 }, 16);
 
