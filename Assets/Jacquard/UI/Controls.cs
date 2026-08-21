@@ -100,6 +100,14 @@ static class Controls
     // the lane's Move buttons — still fits.
     public static float PanelWidth => Touch ? 248.0f : 192.0f;
 
+    // What a bar comes out as on a panel: whatever the two insets and the caption
+    // column leave it. A number rather than the flex that already arrives at it, because
+    // the one bar that is not on a panel has nothing to be measured against — the tempo
+    // stands in a run of buttons on the transport row, so it is told this instead. A bar
+    // is a bar wherever it stands, and the tempo was two thirds of the length of every
+    // other one for no reason a hand can see.
+    public static float BarWidth => PanelWidth - Inset * 2 - LabelWidth;
+
     // The transport row: one row of controls with the same air over and under them.
     public static float ToolbarHeight => RowHeight + (Touch ? 16.0f : 12.0f);
 

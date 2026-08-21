@@ -293,9 +293,11 @@ sealed class JacquardUI
         // to it a beat at a time.
         _tempo = Controls.Bar(TempoRange, () => _editor.Project.Tempo,
                               value => _editor.Project.Tempo = value);
-        // Cut from 78 to pay for the wordmark. What it has to hold is three digits,
-        // which is a good deal less than it had.
-        _tempo.style.width = Controls.Width(62);
+        // As wide as a bar on a panel, since that is what it is. It was 62 — three
+        // digits and not much else, itself cut from 78 to pay for the wordmark — which
+        // read as a slot to type in rather than as a range to reach into, and the whole
+        // point of putting the tempo on a bar is the second thing.
+        _tempo.style.width = Controls.BarWidth;
         // The gap to whatever stands to its right, which every button on this row
         // carries and a bar does not: a ValueBar is built for a panel, where it is the
         // last thing on its row and the row carries the gap under it. Standing in a run
