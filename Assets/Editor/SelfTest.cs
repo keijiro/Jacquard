@@ -2160,21 +2160,33 @@ static class SelfTest
         Check(log, "pitch arrives at the note", Mathf.Abs(settled - 440.0f) < 5.0f,
               settled + "Hz");
 
-        // Steepness, which is what separates a kick's thump from an audible sweep:
-        // with a kick's own setting the pitch has to be all but home a fifth of the
-        // way into the decay, leaving the rest of it inaudible. A gentler curve
-        // fails this by a wide margin, which is the point of measuring it: the
-        // shape is the sound here, not just the two numbers.
+        // Where inside the decay the envelope lands, which is the one thing
+        // FmCurve.SnapCurve decides. It is not a shape control — an exponential scaled
+        // in time is still that exponential — so what the constant sets is how much of
+        // a dialled decay is spent moving, and that wants pinning from both sides. Too
+        // steep and the number is spent at once with the rest of it silent, which is
+        // the fault that made 16 read about four times long; too gentle and the note is
+        // still bending when it should be sitting on its pitch.
+        //
+        // So, with a kick's own setting: clearly still moving a fifth to two fifths of
+        // the way in, and home across the last half. At 8 those come out at 15% and
+        // 0.6%, so both thresholds sit about twice clear — and 12 fails the first where
+        // 6 fails the second, which is the bracket this is here to hold.
         var kick = plain;
         kick.frequency = 880.0f;    // High enough for 40ms to be many cycles
         kick.pitchSweep = 2.0f;
         kick.pitchDecay = 0.05f;
 
-        var rest = Frequency(Render(kick, 0.3f), Seconds(0.01f), Seconds(0.05f));
+        var swept = Render(kick, 0.3f);
+        var moving = Frequency(swept, Seconds(0.010f), Seconds(0.020f));
+        var rest = Frequency(swept, Seconds(0.025f), Seconds(0.050f));
 
-        Check(log, "the sweep is home early in the decay",
-              Mathf.Abs(rest / 880.0f - 1.0f) < 0.05f,
-              "over the last four fifths=" + rest + "Hz");
+        Check(log, "the sweep is still moving early in the decay",
+              moving / 880.0f - 1.0f > 0.07f,
+              "a fifth to two fifths in=" + moving + "Hz");
+        Check(log, "the sweep is home by half of the decay",
+              Mathf.Abs(rest / 880.0f - 1.0f) < 0.015f,
+              "over the last half=" + rest + "Hz");
 
         // And a note ends in silence rather than being cut off, which is what the
         // normalized fade is for.

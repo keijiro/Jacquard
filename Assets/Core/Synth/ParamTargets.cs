@@ -137,9 +137,13 @@ public static class ParamTargets
         // lives and the rest of the travel is for a sweep meant to be heard as one —
         // and heard for as long as the note is, which a second was not quite enough
         // for. The bar is curved, so lengthening it does not cost the short end its
-        // resolution. Zero is a meaningful setting at the other end, since it
-        // switches the envelope off, which is why the range runs down to it rather
-        // than to a shortest useful sweep.
+        // resolution. Two was settled on while FmCurve.SnapCurve was still 16, where a
+        // dialled decay was heard as roughly a quarter of itself; halving the curve
+        // doubled what the same number reaches, and the top was kept because 8 was
+        // chosen by ear against this range, so what is here is what was listened to.
+        // Zero is a meaningful setting at the other end, since it switches the envelope
+        // off, which is why the range runs down to it rather than to a shortest useful
+        // sweep.
         PitchDecay => 2.0f,
         _ => 1.0f
     };

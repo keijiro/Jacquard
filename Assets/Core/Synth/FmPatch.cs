@@ -11,18 +11,32 @@ namespace Jacquard {
 // elapsed note time and the gate length, so a voice keeps no envelope state and
 // needs no stage bookkeeping.
 //
-// Snap is the same shape with a far steeper curve: a tenth of the way in it is
-// already down to a fifth of its depth. That is too abrupt for a level, which is
-// why the amplitude envelopes do not use it, and exactly what a pitch envelope
-// needs to come out as a thump rather than as an audible sweep.
+// Snap is the same shape stood up steeper: a fifth of the way in it is already down
+// to a fifth of its depth. That is too abrupt for a level, which is why the amplitude
+// envelopes do not use it, and about what a pitch envelope wants.
+//
+// How much steeper is a decision about what pitchDecay's dial means rather than about
+// the curve's shape, and it cannot be anything else: an exponential scaled in time is
+// still that exponential, so the sound depends only on pitchDecay / SnapCurve, and
+// doubling the constant is indistinguishable from halving the dial. 16 came across from
+// the prototype and made the dial read about four times long — the envelope was over
+// inside the first quarter of whatever time it was given, so the top of a range widened
+// to two seconds was a sweep that could not be heard sweeping. At 8 the pitch is still
+// moving audibly three quarters of the way along and a decay entered as long is long.
+// Below that the shape does start to change, and for the worse: past the decay
+// PitchScale returns a flat 1, so whatever slope is left at x = 1 is a corner, and by 5
+// — Fade's constant — a deep sweep lands with an audible kink. A level can afford that
+// corner where a pitch cannot, which is most of why these are two constants and not one.
 
 static class FmCurve
 {
     const float Curve = 5.0f;
     const float Tail = 0.006737947f; // exp(-Curve)
 
-    const float SnapCurve = 16.0f;
-    const float SnapTail = 1.1253517e-7f; // exp(-SnapCurve)
+    // exp(-SnapCurve), and it has to stay that: it is what buys the exact landing
+    // above, and it is wrong the moment the curve is changed on its own.
+    const float SnapCurve = 8.0f;
+    const float SnapTail = 3.3546263e-4f;
 
     public static float Fade(float x)
       => (FastMath.Exp(-Curve * x) - Tail) / (1.0f - Tail);
