@@ -1759,10 +1759,17 @@ static class SelfTest
               LiveNoteAt(flat, 3) == 63, LiveNoteAt(flat, 3).ToString());
 
         // Both ends of the gate on their own first, since each one reaches the release
-        // as well and a stab whose tail is a quarter of a second is not a stab. The
-        // patch's release is 120ms, so the one is cut to ten and the other doubled.
+        // as well and a stab whose tail is a quarter of a second is not a stab.
+        //
+        // The three runs below are handed a 100ms release rather than taking the
+        // patch's, which is the five milliseconds a bare FmPatch.Default holds and is
+        // already shorter than a stab would make it. What is being checked here is what
+        // the buttons do to a tail, so the tail they are given is stated: at 100ms the
+        // one is cut to ten and the other doubled, and the case of a tail too short to
+        // cut is checked on its own further down.
         var stab = LiveRun((live, now) =>
-          { if (now == 0) live.Press(LiveEffect.Stab, origin); }, span, sampleRate);
+          { if (now == 0) live.Press(LiveEffect.Stab, origin); }, span, sampleRate,
+          GatedRelease);
 
         var stabbed = LiveEventAt(stab, 3);
 
@@ -1772,13 +1779,14 @@ static class SelfTest
               stabbed.duration + "s over " + stabbed.carrierRelease + "s");
 
         var sustain = LiveRun((live, now) =>
-          { if (now == 0) live.Press(LiveEffect.Sustain, origin); }, span, sampleRate);
+          { if (now == 0) live.Press(LiveEffect.Sustain, origin); }, span, sampleRate,
+          GatedRelease);
 
         var sustained = LiveEventAt(sustain, 3);
 
         Check(log, "a sustain stretches the tail with the gate",
               Mathf.Abs(sustained.duration - 0.25f) < 0.0001f &&
-              Mathf.Abs(sustained.carrierRelease - 0.24f) < 0.0001f,
+              Mathf.Abs(sustained.carrierRelease - 0.2f) < 0.0001f,
               sustained.duration + "s over " + sustained.carrierRelease + "s");
 
         // Together: Stab sets both and Sustain doubles whatever it finds, which is the
@@ -1787,7 +1795,7 @@ static class SelfTest
         var gated = LiveRun((live, now) =>
           { if (now > 0) return;
             live.Press(LiveEffect.Stab, origin);
-            live.Press(LiveEffect.Sustain, origin); }, span, sampleRate);
+            live.Press(LiveEffect.Sustain, origin); }, span, sampleRate, GatedRelease);
 
         var both = LiveEventAt(gated, 3);
 
@@ -2049,6 +2057,12 @@ static class SelfTest
     const long LiveLookahead = 6000;
     const long LiveLead = 1500;
     const long LiveFrame = 800;
+
+    // The tail the two gate effects are measured against, stated by the run rather than
+    // taken from the patch: what a fresh patch's release is, is the Sound panel's
+    // question and not this one. Long enough that a stab shortens it and a sustain
+    // lengthens it into something that could still be a note.
+    const float GatedRelease = 0.1f;
 
     // A lane with a different pitch on every step, so that a roll can be told from the
     // sequence it stood in for simply by reading the notes back.

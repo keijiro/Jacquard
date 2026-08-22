@@ -75,9 +75,9 @@ public sealed class Project
     public int SoundingPitch(in FmPatch patch, int note)
       => Scale.Snap(note + (int)System.MathF.Round(patch.transpose));
 
-    // What a score starts as: one lane of sixteen steps with a C4 on every fourth, which
-    // is what every empty slot on a fresh install holds and what a score is initialized
-    // to anywhere else.
+    // What a score starts as: one lane of sixteen steps with a C4 on every fourth and a
+    // tone to hear them in, which is what every empty slot on a fresh install holds and
+    // what a score is initialized to anywhere else.
     //
     // Not an empty lane, which is what this used to be. A lane with nothing in it is
     // silent, so the first press of Play on a new score answered with nothing at all —
@@ -103,7 +103,36 @@ public sealed class Project
         for (var step = 0; step < 16; step += 4)
             Fill(lane, step, new NoteTile { Note = N("C4") });
 
+        for (var channel = 1; channel <= PatchBank.Channels; channel++)
+            DialTheOpeningVoice(ref project.Patches[channel]);
+
         return project;
+    }
+
+    // The sound the four notes are heard in, which is a different question from what a
+    // parameter falls back to. FmPatch.Default is the nothing end of every bar — a
+    // plain sine, no FM at all — and it is deliberately not a sound to start a piece
+    // in: the first press of Play would answer with a test tone. So the tone is dialled
+    // here, on top of the bank the project was built with, and the difference between
+    // the two is exactly the four numbers below.
+    //
+    // A modulator three times the carrier and a radian deep is an odd harmonic and a
+    // thin one: a hollow tone a line can be written with, and one that goes somewhere
+    // in both directions when a hand starts moving the bars. Its decay halfway along
+    // its travel is a time constant of about a tenth of a second, so the colour is
+    // heard through the front of the note and the tail settles into the sine underneath
+    // it. A hundred milliseconds of release is a tail rather than a gate. All four were
+    // settled by ear against a written part.
+    //
+    // Every channel and not only the one with a lane on it, since the second lane a
+    // hand adds is on the second channel and has no more reason to be a test tone than
+    // the first. The whole bank is written to a file either way.
+    static void DialTheOpeningVoice(ref FmPatch patch)
+    {
+        patch.modulatorRatio = 3.0f;
+        patch.modulationIndex = 1.0f;
+        patch.modulatorDecay = 0.5f;
+        patch.carrierRelease = 0.1f;
     }
 
     // The worked example the specification was written against, which is also the

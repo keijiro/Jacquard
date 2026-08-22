@@ -126,14 +126,33 @@ public struct FmPatch
     public float reverbSend;      // How much of the note reaches the reverb [0,1]
     public float delaySend;       // How much of it reaches the delay [0,1]
 
-    // The pitch envelope starts out at no depth, so a fresh patch sounds like it
-    // did before there was one, but with a decay already set to something a kick
-    // would use: entering a depth is then enough to hear what it does. The sends
-    // start silent for the same reason: a project that never opens the Send FX panel
-    // sounds exactly as it did before there was one. Pan starts centred, which the
-    // gains below are normalized to render exactly as an unpanned note used to, and
-    // unison starts at nothing, which is one voice per note and the same debt paid
-    // the same way.
+    // Where every parameter rests when nothing has been said about it: the patch a bank
+    // is built from, and the value a row of the Sound panel goes back to when its name
+    // is double clicked.
+    //
+    // It is the nothing end of every bar rather than a sound anyone chose. The
+    // modulator is at the carrier's own frequency and nought deep, so a fresh patch is
+    // a plain sine and the FM is not switched on until a hand asks for it; its decay is
+    // laid flat, so the first depth dialled in is heard for the whole note rather than
+    // through an envelope nobody set. The release is the attack's five milliseconds,
+    // which is the shortest tail that does not click — a gate and no more.
+    //
+    // Which is deliberately not what a new score sounds like. A piece cannot be started
+    // in a bare sine, so the tone a fresh score comes up in is dialled on top of this,
+    // in Project.CreateInitial: this is where a parameter goes when it is taken back,
+    // and that is where the app begins. Splitting the two is what lets taking a
+    // parameter back mean *off* rather than mean some other patch's number.
+    //
+    // The pitch envelope starts at no depth for the same reason as the FM, and its
+    // decay is two hundred milliseconds — the one number here that is not the nothing
+    // end, because there is no nothing end to a duration. It is what makes the first
+    // depth entered a sweep to be heard rather than the click a kick's snap would give,
+    // and the drum is the shorter end of the same bar.
+    //
+    // The sends start silent, so a project that never opens the Send FX panel sounds
+    // exactly as it did before there was one. Pan starts centred, which the gains below
+    // are normalized to render exactly as an unpanned note used to, and unison starts
+    // at nothing, which is one voice per note and the same debt paid the same way.
     //
     // Two decibels down is the four fifths this used to be spelled as, to within a
     // sixteenth of a decibel: the number is round where the amplitude was, and nothing
@@ -144,14 +163,14 @@ public struct FmPatch
         pan = 0.0f,
         unison = 0.0f,
         gateScale = 1.0f,
-        modulatorRatio = 2.0f,
-        modulationIndex = 3.0f,
+        modulatorRatio = 1.0f,
+        modulationIndex = 0.0f,
         feedback = 0.0f,
-        modulatorDecay = 0.2f,
+        modulatorDecay = 1.0f,
         carrierAttack = 0.005f,
-        carrierRelease = 0.12f,
+        carrierRelease = 0.005f,
         pitchSweep = 0.0f,
-        pitchDecay = 0.05f,
+        pitchDecay = 0.2f,
         reverbSend = 0.0f,
         delaySend = 0.0f };
 
