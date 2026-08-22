@@ -156,6 +156,81 @@ public static class ParamTargets
         _ => 1.0f
     };
 
+    // What the synth will accept, which is a wider question than what the bar is for.
+    //
+    // Min and Max above are a dial: the travel is spent where the sound is chosen, and
+    // both ends were placed by ear against a written part. That is the right range for
+    // a hand and the wrong one for a score. A part sometimes wants moving further than
+    // any bar should spend its length on, a tail sometimes wants to run past where a
+    // bar would leave no resolution for the first ten milliseconds, and a file written
+    // by hand has never been held to either. So a bar reaches Min to Max, and this is
+    // what a number typed into one, read out of a file, or arrived at by a relative
+    // lock is held to instead.
+    //
+    // Only the targets with a reason to differ are named. Everything else falls through
+    // to the dial's own range, which is the honest answer where the two ends are the
+    // parameter's own: a pan of two is not a wider stereo image, a send of two is only
+    // a level, a modulator decay is a slope and 0 to 1 is the whole of it, and the
+    // level's ceiling is what the mix is promised it will never be handed more than
+    // (FmPatch.MaxLevel).
+    //
+    // Nothing here is generous for its own sake. Every ceiling below is either the
+    // point where the parameter stops meaning anything more or the point where the
+    // arithmetic under it stops holding, whichever comes first.
+    public static float Bound(int target, float value) => target switch
+    {
+        // As far as one note can be from another, which is the whole of what moving a
+        // part can be asked to do: a transpose that reaches from the bottom of what
+        // this program can hold to the top can put any part anywhere, and one that
+        // reaches further is only asking for a pitch there is no note at.
+        Transpose => Math.Clamp(value, -PitchSpan, PitchSpan),
+
+        // The three envelope times share a ceiling because they are three answers to
+        // one question — how long a part of a note takes — and there is no reason for
+        // a swell, a tail and a sweep to be allowed different amounts of it.
+        //
+        // Sixteen seconds is where a tail stops being part of a note. It is also well
+        // past what the voice pool can carry: a release is how long a note holds its
+        // slot, so a few seconds of it already outruns twenty-four voices at any tempo
+        // a piece is written at, and everything above that is the same trade made
+        // harder. The number is here to stop the absurd, not to promise the long ones
+        // will all sound.
+        CarAttack or CarRelease or PitchDecay => Math.Clamp(value, 0.0f, LongestTime),
+
+        // Sixteen times the length written on the cell, which is a note holding a bar
+        // of sixteenths on its own, and a hundredth of it at the other end, which is
+        // shorter than the shortest gate FmNoteEvent will make.
+        Gate => Math.Clamp(value, 0.01f, 16.0f),
+
+        // Sixty-four times the note, which is where the modulator leaves the band: from
+        // the middle of the keyboard up it is already past half the sample rate, so a
+        // higher ratio buys aliases rather than harmonics. Zero is allowed here where
+        // the bar stops short of it — a modulator that does not turn is a phase offset
+        // nobody can hear, which is a useless setting rather than a dangerous one.
+        ModRatio => Math.Clamp(value, 0.0f, 64.0f),
+
+        // Both are a depth in radians into the same sine, so they take the same number.
+        // A hundred radians is far past where the spectrum stops changing shape and
+        // only gets denser, and it is far short of where the sine's own range reduction
+        // gives out.
+        ModIndex or Feedback => Math.Clamp(value, 0.0f, 100.0f),
+
+        // Thirty-two octaves, which is a sweep from below hearing to above the sample
+        // rate and back, and is also the last round number the arithmetic survives:
+        // the envelope is a power of two, and past sixty-four the scale it hands the
+        // oscillator is float.MaxValue, whose phase increment poisons the voice.
+        PitchSweep => Math.Clamp(value, -32.0f, 32.0f),
+
+        _ => Math.Clamp(value, Min(target), Max(target))
+    };
+
+    // Read off the two ends of what a note can be, since that is what it means: the
+    // transpose is the one target the synth never sees — the sequencer applies it as it
+    // makes the note — so what bounds it is the keyboard and not a voice.
+    const float PitchSpan = Pitch.Highest - Pitch.Lowest;
+
+    const float LongestTime = 16.0f;
+
     public static float Get(in FmPatch patch, int target) => target switch
     {
         Transpose => patch.transpose,
@@ -178,7 +253,16 @@ public static class ParamTargets
 
     public static void Set(ref FmPatch patch, int target, float value)
     {
-        value = Math.Clamp(value, Min(target), Max(target));
+        // A number that is not one is not an edit, and it is refused here because here
+        // is where every write meets it. A clamp does not stop a NaN — both of its
+        // comparisons are false, so it passes through untouched — and nothing
+        // downstream survives one: a note whose total duration is NaN never reaches its
+        // end and holds its voice for the rest of the session, and a NaN reaching a
+        // send latches in the tail, which is recursive. Both entrances parse it
+        // willingly, since "NaN" is a number float.TryParse knows.
+        if (!float.IsFinite(value)) return;
+
+        value = Bound(target, value);
 
         switch (target)
         {

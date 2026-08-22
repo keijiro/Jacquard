@@ -884,9 +884,13 @@ public static class ProjectFormat
       => int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture,
                       out var value) ? value : 0;
 
+    // A number that is not one reads as nothing rather than as itself. NumberStyles
+    // .Float accepts "NaN" and "Infinity" as gladly as it accepts a digit, and a file is
+    // the widest way into this program: everything else on the way in is a clamp, and a
+    // clamp lets a NaN through untouched. See ParamTargets.Set for what one costs.
     static float ReadFloat(string text)
       => float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture,
-                        out var value) ? value : 0.0f;
+                        out var value) && float.IsFinite(value) ? value : 0.0f;
 
     static FormatException Fail(int line, string message)
       => new FormatException("line " + (line + 1) + ": " + message);

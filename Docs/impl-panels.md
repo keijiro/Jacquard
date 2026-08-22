@@ -58,6 +58,12 @@ player's names rather than the code's.
 through for the model, and once more when it settles for whatever should sound. See
 `ValueBar`, and `ScoreEditor.Preview` for what a settled bar is allowed to play.
 
+**A bar's range is where its travel is spent, not what the parameter is allowed to be.**
+A drag stays inside it; a typed number does not, and is held instead to whatever the
+model keeps of it — `ParamTargets.Bound` for a synth parameter, which is wider wherever
+there is a reason to be. So the bar reads the answer back after every change that is not
+a drag rather than standing at what was typed.
+
 **A name beside a bar is a control, and double clicking it takes the row back.** A lock
 lets go of its target and a channel's sound returns to the patch's default, which is one
 gesture because from the hand's side it is one thing: the row stops saying anything of

@@ -43,6 +43,22 @@ impressed by. Hence the self test that reads it and writes it back: that check s
 file is already what this build writes*, which is a different question from whether the
 format is self-consistent. Run **Jacquard > Run Self Test** after replacing it.
 
+What a file is allowed to say
+-----------------------------
+
+**A file may hold a value no bar could have been dragged to, and it is kept.** A bar's
+range is where a parameter is dialled; what the synth accepts is `ParamTargets.Bound`,
+which is wider wherever there is a reason, and a file is held to that and nothing else.
+This is deliberate — a hand-edited score is one of the ways a part gets moved further
+than the chrome will move it.
+
+**The one thing refused is a value that is not a number.** `NumberStyles.Float` accepts
+`NaN` and `Infinity` as readily as a digit, and a clamp does not stop either — both of
+its comparisons are false for a NaN, so it passes through untouched. One reaching the
+synth costs a voice for the session and latches in the effect tails, which are
+recursive. `ProjectFormat.ReadFloat` reads such a token as nothing, and
+`ParamTargets.Set` refuses one from any direction; both argue it where they do it.
+
 The folder is the list
 ----------------------
 

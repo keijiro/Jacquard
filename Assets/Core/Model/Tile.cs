@@ -92,9 +92,14 @@ public abstract class ParamTile : Tile
     public float this[int target]
       => InRange(target) && _engaged[target] ? _amounts[target] : 0.0f;
 
+    // The amount is whatever it is: a lock holds what was written and the synth decides
+    // at the note what it can do with it, which is what lets a shift be typed past the
+    // end of a bar and still be there after a save. The one thing refused is a value
+    // that is not a number, for the reason ParamTargets.Set gives — it is refused there
+    // as well, but a score is worth keeping clean of one.
     public void Engage(int target, float amount)
     {
-        if (!InRange(target)) return;
+        if (!InRange(target) || !float.IsFinite(amount)) return;
         (_engaged[target], _amounts[target]) = (true, amount);
     }
 

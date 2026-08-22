@@ -31,7 +31,7 @@ Using it
 | Stop or start a lane | Double click its `CHAN` cell, or Play on the panel that cell opens |
 | Branch | The `JUMP` button, which brings its `JDST` lane with it |
 | Details of a tile | The panel on the right follows the cursor; drag it up and down when it is longer than the screen |
-| Set a number | Drag its bar right or up, shift for fine; double click to type one |
+| Set a number | Drag its bar right or up, shift for fine; double click to type one. A typed number may go past the ends of the bar, which is how a part is moved further or a tail held longer than the bar reaches; past what the synth will take it is held there, and the bar says which it was |
 | Take a number back | Double click its name: a lock lets go of that parameter, and a channel's sound goes back to where a fresh patch holds it |
 | Timbre | Select a `CHAN` cell, which puts its channel's sound on the Tile panel, under the lane |
 | Move a channel in pitch | Transpose, the first row of its sound, in semitones |

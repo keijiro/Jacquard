@@ -23,8 +23,11 @@ namespace Jacquard.App {
 // to the row it goes in, which Controls builds like every other row here.
 //
 // Dragging is bounded by the range the bar was given, but typing is not: a range
-// only says where a parameter is useful, and a prototype has to be able to throw a
-// value from well outside one at the synth.
+// only says where a parameter is useful, and a part sometimes has to be moved further
+// than a bar should spend its travel on. What a typed number is held to is whatever
+// the other end keeps of it — for a synth parameter that is ParamTargets.Bound, which
+// is wider than the bar and is still somewhere — and the bar reads the answer back
+// rather than going on showing what was typed.
 
 sealed class ValueBar : VisualElement, INotifyValueChanged<float>
 {
@@ -342,7 +345,22 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
         {
             set(e.newValue);
 
-            if (_dragging) _scrubbed = true; else _settled?.Invoke();
+            if (_dragging) { _scrubbed = true; return; }
+
+            // What the model made of it, which is not always what was handed over: a
+            // typed number can be past what a parameter is held to — the range here
+            // only says where a bar spends its travel, and ParamTargets.Bound is a
+            // wider thing and still somewhere — and a readout standing at a number
+            // nothing holds is worse than one that answers with what was stored.
+            //
+            // Read here rather than after the typing, because a change is dispatched
+            // through the panel's queue: by the time this runs the write has happened,
+            // and anything asking the getter at the point of typing would be asking
+            // ahead of it. A drag skips it above, since it cannot leave its range and
+            // asking the getter under the hand would only fight it.
+            SetValueWithoutNotify(_get());
+
+            _settled?.Invoke();
         });
     }
 
@@ -622,7 +640,8 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
         _input.Blur();
 
         // A typed value is deliberately not clamped to the range, only snapped the
-        // way a drag would be, so extremes can still be tried out.
+        // way a drag would be, so extremes can still be tried out. What becomes of it
+        // past the range is the model's answer, and Bind is where that is read back.
         if (commit && _range.TryParse(_input.value, out var typed))
             value = _range.Round(typed);
 

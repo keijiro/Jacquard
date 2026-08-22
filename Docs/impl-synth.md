@@ -89,6 +89,7 @@ Where the rest is written
 | --- | --- |
 | The two envelopes' shapes, and why the modulator's decay is a slope and not a time | `FmPatch` — `ModulatorLevel` |
 | What a parameter falls back to, and why the tone a new score starts in is not the same thing | `FmPatch.Default`, `Project.CreateInitial` |
+| Where a bar spends its travel against what the synth will accept, and why they are two ranges | `ParamTargets` — `Min`/`Max`, `Bound` |
 | The equal-power pan law, and why unity sits at the centre rather than at the ends | `FmPatch.Gains` |
 | Unison: the detune as an interval, the spread finishing earlier, the gain law pinned at both ends | `FmPatch` — `DetuneRatio`, `Spread`, `Reach`, `UnisonGain` |
 | Why pan reaches the wall and the width is what gives way | `FmPatch.Reach` |

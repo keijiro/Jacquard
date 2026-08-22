@@ -30,6 +30,7 @@ static class SelfTest
         CopyStack(log);
         Tuning(log);
         Locks(log);
+        Ranges(log);
         Channels(log);
         Mutes(log);
         Sends(log);
@@ -1250,6 +1251,76 @@ static class SelfTest
 
     static string Reads(ParamTile tile)
       => tile == null ? "none" : tile[ParamTargets.Level].ToString();
+
+    // A bar's range and the synth's are two different ranges, and this is the seam
+    // between them: a number typed past the end of a bar has to survive as far as the
+    // sound, a number past all sense has to be held, and neither of them may be a NaN.
+    static void Ranges(System.Text.StringBuilder log)
+    {
+        var patch = FmPatch.Default;
+
+        // The two cases the split was asked for: a part moved further than a bar should
+        // spend its travel on, and a tail longer than one reaches.
+        ParamTargets.Set(ref patch, ParamTargets.Transpose, 60.0f);
+        ParamTargets.Set(ref patch, ParamTargets.CarRelease, 8.0f);
+
+        Check(log, "a value past the end of a bar is kept",
+              Mathf.Abs(patch.transpose - 60.0f) < 0.001f &&
+              Mathf.Abs(patch.carrierRelease - 8.0f) < 0.001f,
+              "transpose=" + patch.transpose + " release=" + patch.carrierRelease);
+
+        // And the wall behind the bar, which is where the parameter stops meaning any
+        // more or the arithmetic under it stops holding. The send is the case that
+        // proves the wall is not simply gone: its range is the parameter's own, so it
+        // is where it always was.
+        ParamTargets.Set(ref patch, ParamTargets.CarRelease, 100.0f);
+        ParamTargets.Set(ref patch, ParamTargets.PitchSweep, 60.0f);
+        ParamTargets.Set(ref patch, ParamTargets.ReverbSend, 4.0f);
+
+        Check(log, "a value past the synth's own range is held to it",
+              Mathf.Abs(patch.carrierRelease - 16.0f) < 0.001f &&
+              Mathf.Abs(patch.pitchSweep - 32.0f) < 0.001f &&
+              Mathf.Abs(patch.reverbSend - 1.0f) < 0.001f,
+              "release=" + patch.carrierRelease + " sweep=" + patch.pitchSweep +
+              " rsend=" + patch.reverbSend);
+
+        // A clamp cannot stop a NaN, since both of its comparisons are false, so the
+        // guard has to. What it leaves behind is whatever was there before the write:
+        // the release is still the sixteen it was held to above, and the feedback is
+        // still the nothing a fresh patch has rather than the hundred an infinity
+        // would have been clamped to.
+        ParamTargets.Set(ref patch, ParamTargets.CarRelease, float.NaN);
+        ParamTargets.Set(ref patch, ParamTargets.Feedback, float.PositiveInfinity);
+
+        Check(log, "a value that is not a number is not an edit",
+              Mathf.Abs(patch.carrierRelease - 16.0f) < 0.001f &&
+              patch.feedback == 0.0f,
+              "release=" + patch.carrierRelease + " feedback=" + patch.feedback);
+
+        // A relative lock adds to what the channel holds and the sum meets the same
+        // wall, not the bar's end: two shifts of three seconds are six, which is a tail
+        // no bar could have been dragged to.
+        var shifted = FmPatch.Default;
+        ParamTargets.Add(ref shifted, ParamTargets.CarRelease, 3.0f);
+        ParamTargets.Add(ref shifted, ParamTargets.CarRelease, 3.0f);
+
+        Check(log, "a relative lock sums past the end of a bar",
+              Mathf.Abs(shifted.carrierRelease -
+                        (FmPatch.Default.carrierRelease + 6.0f)) < 0.001f,
+              "release=" + shifted.carrierRelease);
+
+        // The file is the widest way into this program and the only one with nothing in
+        // front of it, so it is checked from the text: what it was given it keeps, and
+        // a number that is not one reads as nothing rather than as itself.
+        var read = ProjectFormat.Read("jacquard " + ProjectFormat.Version +
+                                      "\npatch 1 cr=8 fb=NaN\n");
+
+        Check(log, "a file keeps a tail past the bar and lands no NaN",
+              Mathf.Abs(read.Patches[1].carrierRelease - 8.0f) < 0.001f &&
+              float.IsFinite(read.Patches[1].feedback),
+              "release=" + read.Patches[1].carrierRelease +
+              " feedback=" + read.Patches[1].feedback);
+    }
 
     // Two lanes on different channels, each with its own patch, playing the same
     // note: what comes out has to differ, and differ per channel rather than per
