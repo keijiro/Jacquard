@@ -158,7 +158,30 @@ sealed class DspClock
         if (_baselineWindows < BaselineWindows)
         {
             if (peak > _baseline) _baseline = peak;
-            _baselineWindows++;
+
+            // What the baseline may hold is a margin and not a parting. The two clocks
+            // reading a few buffers apart is this machine showing its own shape, and it
+            // is kept; seconds apart is an interruption that happened before this run
+            // began, and adopting *that* as the shape of the machine is a run that can
+            // never make a sound — every note is stamped that far into the render job's
+            // past, triggered and released in the buffer it arrives in, and the pass
+            // below sees a clock that has not moved because the parting was already in
+            // the number it measures from.
+            //
+            // Measured 2026-08-22 in an editor that had been open for hours and cycled
+            // in and out of play mode through two audio interruptions: the render job's
+            // clock stood 110.21s ahead at the first frame of every new session, the
+            // baseline took all of it, and the app was silent for the whole session with
+            // nothing on the console. Capped, the first window past the baseline reads
+            // the parting as what it is and the coarse pass puts the clock back.
+            //
+            // The cap is the same band the coarse pass calls no doubt at all, which is
+            // where the two statements belong together: past a tenth of a second the
+            // clocks have parted, whether that happened while this run watched or
+            // before it started.
+            if (++_baselineWindows == BaselineWindows)
+                _baseline = System.Math.Clamp(_baseline, -(long)band, band);
+
             return;
         }
 
