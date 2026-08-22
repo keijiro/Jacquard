@@ -43,13 +43,20 @@ public sealed class PromoDirector
     // is meant to be redrawn between takes.
     public const string Slot = "score5";
 
-    // Laps per example, in the order the lanes are written down the plane. Four is
-    // enough to hear a figure; the gates take eight, since what a gate does is a pattern
-    // across laps and a pattern needs to come round twice before it is one.
+    // Laps per example, in the order the lanes are written down the plane.
+    //
+    // Eight for everything that sounds. Four was enough to hear what a figure is and not
+    // enough to sit with it — a reel is watched rather than read, and the eye wants the
+    // pattern to come round again after the ear has finished placing it. The gates take
+    // eight for a second reason as well: what a gate does is a pattern across laps, and
+    // a pattern has to come round twice before it is one.
+    //
+    // The empty rail keeps four. What it has to show is that nothing is happening yet,
+    // and eight laps of nothing is a wait rather than a statement.
     //
     // A lane the file has and this list does not is left running for the last figure
     // here, so an example added to the score plays without this having to be touched.
-    static readonly int[] Laps = { 4, 4, 4, 4, 8, 8 };
+    static readonly int[] Laps = { 4, 8, 8, 8, 8, 8 };
 
     // One answer per frame, because two paths watch for the same key: the plane's own
     // key handler and the app's poll. Both fire in the frame the key goes down, and a
