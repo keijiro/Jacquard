@@ -78,7 +78,7 @@ public sealed class PromoDirector
 
         // Before the app is taken apart, since taking it apart rebuilds the plane and
         // this is what the plane is about to be sized from.
-        _app.View.Plane = new Vector2Int(PlaneColumns, PlaneRows);
+        _app.View.Plane = _plane;
 
         // The app is taken apart before the transport is started, since the plane the
         // first lap is drawn on is the one this puts up.
@@ -208,12 +208,14 @@ public sealed class PromoDirector
         var head = new ChannelTile
           { Channel = first?.Channel ?? 1, Division = first?.Division ?? 16 };
 
+        _plane = PlaneFor(steps);
+
         // In the middle of the plane, which is what lets the scroll area put it in the
         // middle of the screen: an offset it will not take is a negative one, so half a
         // plane has to lie above and to the left of the picture.
         var score = new Score();
-        _lane = score.AddLane((PlaneColumns - steps - 2) / 2 + 1,
-                              (PlaneRows - _depth) / 2, head, steps);
+        _lane = score.AddLane((_plane.x - steps - 2) / 2 + 1,
+                              (_plane.y - _depth) / 2, head, steps);
 
         // The file's own project, with its tempo and its patches: what the reel sounds
         // like is set where the pictures are drawn.
@@ -524,6 +526,7 @@ public sealed class PromoDirector
 
     long _start;
     int _depth = 1;
+    Vector2Int _plane;
     Rect _frame;
     Vector2 _asked = new Vector2(float.NaN, float.NaN);
 
@@ -532,17 +535,31 @@ public sealed class PromoDirector
     // The frame the reel was last asked to change state on. See Toggle.
     int _toggled = -1;
 
-    // How big the plane is held while the reel runs, in cells. It is not a plane to
-    // write on: it is the ground the one picture is scrolled to the middle of, so what
-    // decides the number is the largest screen this might be filmed on. A hundred by
-    // sixty-four is 3400x2304 of the units the interface is laid out in, which at the
-    // reel's own doubling covers a screen of 6800x4608 pixels — and the picture sits
-    // exactly halfway across it, so the offset that centres it is always one the scroll
-    // area will take.
+    // How big the plane is held while the reel runs, in cells.
     //
-    // What it costs is a lattice of six thousand dots redrawn whenever a picture
-    // settles, which is six times in the whole reel.
-    const int PlaneColumns = 100, PlaneRows = 64;
+    // It is not a plane to write on: it is the ground the one picture is scrolled to the
+    // middle of, and the picture sits exactly halfway across it so that the offset which
+    // centres it is one the scroll area will take — it refuses a negative one, and half
+    // a plane therefore has to lie above and to the left of the picture.
+    //
+    // One screenful and a margin, rather than a large round number. Every cell of it is
+    // a dot in the lattice redrawn each time a picture settles, and a plane held at
+    // several screenfuls is thousands of dots drawn where nobody can see them. The
+    // margin is what the picture itself takes plus a few cells, since the plane has to
+    // hold the picture as well as the screen.
+    //
+    // Read at the top of the reel and not followed afterwards. A window resized
+    // mid-take is not a thing that happens while filming, and P twice picks up the new
+    // size.
+    Vector2Int PlaneFor(int steps)
+    {
+        var scale = Mathf.Max(1.0f, _app.PromoScale);
+
+        var columns = Mathf.CeilToInt(Screen.width / scale / Style.StrideX) + steps + 6;
+        var rows = Mathf.CeilToInt(Screen.height / scale / Style.StrideY) + _depth + 6;
+
+        return new Vector2Int(Mathf.Max(48, columns), Mathf.Max(28, rows));
+    }
 
     enum Motion { Moving, Arriving, Leaving }
 
