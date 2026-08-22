@@ -333,7 +333,8 @@ side. It is a matter to be settled at the stage the two are joined, not an open 
 on the sequencer side.
 
 **The separate window lists every target and shows the ones not being applied faintly.**
-Moving a bar is what makes that parameter locked, and clicking the name lets go of it.
+Moving a bar is what makes that parameter locked, and double clicking the name lets go
+of it.
 There is no operation called "apply" separate from entering a value, because **a value
 nobody has set is not a lock**; a faint row is exactly "the range this tile has not put
 a hand on". What a faint row reads out is what the channel would be without the lock —

@@ -270,13 +270,21 @@ sealed class InspectorPanel
         // burst of them, and a parameter is heard where it was left. There is no button
         // beside it asking for the same note again — a bar that has just been moved has
         // already played it, and one that has not is one nothing was asked about.
+        //
+        // And every name is double clicked to put its parameter back where a fresh patch
+        // holds it, which is the same gesture that lets a lock go of its target: a row
+        // taken back to saying nothing of its own. A whole patch cannot be reset in one
+        // press, and deliberately — a sound is arrived at one parameter at a time, and
+        // the way back from a dead end is the parameter that was last touched rather
+        // than everything that came before it.
         for (var target = 0; target < ParamTargets.Count; target++)
         {
             var index = target;
             body.Add(Controls.Bar(ParamTargets.Name(index), ParamRanges.Of(index),
                                   () => ParamTargets.Get(Patch(channel), index),
                                   value => Set(channel, index, value),
-                                  () => Audition(channel)));
+                                  () => Audition(channel),
+                                  () => ParamTargets.Get(FmPatch.Default, index)));
         }
 
         return body;
@@ -622,24 +630,10 @@ sealed class InspectorPanel
             style.flexShrink = 0;
             style.marginBottom = Controls.Gap;
 
-            _caption = Controls.Caption(ParamTargets.Name(target));
-
-            // Every label this UI builds is transparent to the pointer, so that the
-            // text on a cell does not eat the click meant for the cell and the readout
-            // on a bar does not eat the drag meant for the bar. This one is the
-            // exception: it is the control, not a label on one.
-            _caption.pickingMode = PickingMode.Position;
-
-            // And it is as tall as the bar beside it rather than as tall as its own
-            // line of text, so that what can be clicked is the row the name sits on
-            // and not a twelve pixel strip through the middle of it.
-            _caption.style.height = Controls.RowHeight;
-
-            _caption.RegisterCallback<PointerDownEvent>(OnCaptionDown);
-            _caption.RegisterCallback<PointerUpEvent>(OnCaptionUp);
-            _caption.RegisterCallback<PointerCaptureOutEvent>(_ => ReturnKeyboard());
-            _caption.RegisterCallback<PointerEnterEvent>(_ => SetHover(true));
-            _caption.RegisterCallback<PointerLeaveEvent>(_ => SetHover(false));
+            // The name is the control that lets go of the parameter, double clicked,
+            // and the hover is this row's rather than the caption's own because a held
+            // row already lights its name. See Controls.ActionCaption.
+            _caption = Controls.ActionCaption(ParamTargets.Name(target), Toggle, SetHover);
             Add(_caption);
 
             // An absolute lock holds a value the target could hold itself, so its bar
@@ -687,64 +681,16 @@ sealed class InspectorPanel
             _panel._editor.Commit();
         }
 
-        // Nothing is decided on the way down. The name is the one control in a panel
-        // that is not a Button, and a Button reports on the release for a reason this
-        // row is subject to as much as any of them: a column too tall for the screen is
-        // dragged by whatever is on it, and on a lock row the name is the only thing
-        // there is to drag — the bar beside it keeps its own gesture, so a hand that
-        // means to scroll a phone's panel has nowhere else to land. Decided here, that
-        // hand let go of every parameter it happened to start on.
-        //
-        // The pointer is captured for two things. It is what makes the release arrive
-        // here even if the hand slid off the name in between; and it is what lets the
-        // column cancel the press by taking the capture away, which is exactly how it
-        // cancels a click on a button. A pan then ends in a lost capture and no release
-        // ever reaches OnCaptionUp. See ScrollStrip.
-        void OnCaptionDown(PointerDownEvent e)
-        {
-            if (e.button != 0) return;
-
-            _caption.CapturePointer(e.pointerId);
-
-            e.StopPropagation();
-        }
-
         // Letting go is the only thing the name does that the bar cannot. Taking hold
         // from it as well is worth having anyway: a parameter is sometimes wanted
         // exactly where it already is, and there is no drag that says so.
-        //
-        // The capture is the whole of the test. A press that turned into a pan is a
-        // press the column is holding, so its release is delivered there and never
-        // seen here at all; one still held here is a press that stayed a press.
-        void OnCaptionUp(PointerUpEvent e)
+        void Toggle()
         {
-            if (!_caption.HasPointerCapture(e.pointerId)) return;
-
             if (Engaged) _tile.Release(_target); else _tile.Engage(_target, Get());
 
             Sync();
             _panel._editor.Commit();
-
-            // Which hands the keyboard back, in ReturnKeyboard.
-            _caption.ReleasePointer(e.pointerId);
-
-            e.StopPropagation();
         }
-
-        // The name is not focusable, so the press that reached it took the keyboard away
-        // from whatever had it and gave it to nothing. Handing it back is what every
-        // button on the toolbar does after being pressed, and for the same reason:
-        // letting go of a parameter must not quietly be the end of typing notes on the
-        // grid.
-        //
-        // Off the lost capture rather than off the release, the way Controls.Hold ends:
-        // that is the one ending a press and a pan have in common, and a press taken
-        // away by the column would otherwise leave the keyboard nowhere. Either way it
-        // is after the press, which is what makes the focus stick — the focus controller
-        // settles a press itself, after this element has seen it, so a Focus from the
-        // down handler is simply undone. ValueBar returns the keyboard at the end of a
-        // drag for the same reason.
-        void ReturnKeyboard() => _panel._editor.View.Focus();
 
         void SetHover(bool on)
         {

@@ -58,6 +58,13 @@ player's names rather than the code's.
 through for the model, and once more when it settles for whatever should sound. See
 `ValueBar`, and `ScoreEditor.Preview` for what a settled bar is allowed to play.
 
+**A name beside a bar is a control, and double clicking it takes the row back.** A lock
+lets go of its target and a channel's sound returns to the patch's default, which is one
+gesture because from the hand's side it is one thing: the row stops saying anything of
+its own. Two clicks rather than one because the name is also what a hand drags a long
+column by. It is written once, in `Controls.ActionCaption`, and a row that has no such
+place to go back to keeps a plain caption and does nothing.
+
 **A tile is placed from the panel**, since the cursor is already the answer to where. A
 cell that will take one offers the tiles; bare ground offers a lane. So there is no
 palette to keep in step with what the cursor can accept, and a tile only ever lands on

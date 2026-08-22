@@ -63,10 +63,10 @@ rather than of what is under it:
 
 - **Four pixels of travel separate a pan from a tap**, since a fingertip does not hold
   still. `ScrollStrip` uses the same distance.
-- **The double click interval lives on `Controls`**, so the plane and `ValueBar` cannot
-  disagree about how quick a double click is. Both also count the presses themselves: the
-  event's own count goes by the clock alone, and a press on one cell, one on its
-  neighbour and one back on the first arrives as a count of three.
+- **The double click interval lives on `Controls`**, so the plane, `ValueBar` and a
+  parameter's name cannot disagree about how quick a double click is. Each also counts the
+  presses itself: the event's own count goes by the clock alone, and a press on one cell,
+  one on its neighbour and one back on the first arrives as a count of three.
 
 A third thing is shared and it is not the hand's doing: **a touch drag arrives as two
 presses**, and the second one landed on the cell the drag started from, which every double

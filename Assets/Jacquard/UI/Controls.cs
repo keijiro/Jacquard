@@ -152,11 +152,12 @@ static class Controls
     // two things rather than as one with a line drawn across it.
     public const float PanelGap = 12.0f;
 
-    // How long after a press a second one still reads as the same gesture. Both places
-    // that ask — a bar being opened to be typed into, a cell being copied or a lane
-    // started — count it themselves rather than take the event's own clickCount, so the
-    // number has to be one number: two gestures on one screen that disagree about how
-    // quick a double click is would be a hand that cannot learn either.
+    // How long after a press a second one still reads as the same gesture. Everywhere
+    // that asks — a bar being opened to be typed into, a cell being copied or a lane
+    // started, a parameter's name taking back what its row says — counts it itself
+    // rather than take the event's own clickCount, so the number has to be one number:
+    // two gestures on one screen that disagree about how quick a double click is would
+    // be a hand that cannot learn either.
     public const long DoubleClickMilliseconds = 400;
 
     // A width given in the mouse profile's terms, stretched to hold the same words at
@@ -179,6 +180,100 @@ static class Controls
         label.style.width = LabelWidth;
         label.style.flexShrink = 0;
         return label;
+    }
+
+    // A caption that is also the control it names: double clicked, the row takes back
+    // whatever it says about that parameter. A lock lets go of the target; a channel's
+    // own setting goes back to what a fresh patch holds. One gesture for both, since
+    // from the hand's side they are the same thing — the row stops saying anything of
+    // its own — and one place it is written.
+    //
+    // Every label this UI builds is transparent to the pointer, so that the text on a
+    // cell does not eat the click meant for the cell and the readout on a bar does not
+    // eat the drag meant for the bar. This one is the exception: it is the control, not
+    // a label on one. And it is as tall as the bar beside it rather than as tall as its
+    // own line of text, so that what can be hit is the row the name sits on and not a
+    // twelve pixel strip through the middle of it.
+    //
+    // Two clicks rather than one, because the name is also where a hand lands meaning
+    // something else entirely: a column too tall for the screen is dragged by whatever
+    // is on it, and on a lock row the name is the only thing there is to drag, since the
+    // bar beside it keeps its own gesture. A drag the column claims is cancelled by the
+    // capture below and never becomes a click at all — but one that thought better of
+    // itself before travelling far enough to be a drag still lands here, and under a
+    // single click that hand let go of whatever parameter it happened to start on.
+    //
+    // hover is for the row that has a resting colour of its own to return to. Everything
+    // else lights the name under the pointer, since a name that does something has no
+    // other way of saying so.
+    public static Label ActionCaption(string text, Action action,
+                                      Action<bool> hover = null)
+    {
+        var caption = Caption(text);
+        caption.pickingMode = PickingMode.Position;
+        caption.style.height = RowHeight;
+
+        hover ??= on => caption.style.color = on ? Style.NoteText : Style.Label;
+
+        // The press that reaches a name takes the keyboard away from whatever had it
+        // and gives it to nothing, since a name is not focusable — so what had it is
+        // remembered here and handed back below. Read on the way down because the focus
+        // controller settles a press after this element has seen it, and remembered
+        // rather than named, so that this knows nothing about which element the app
+        // types on. ValueBar keeps its own for the same reason.
+        VisualElement keyboard = null;
+
+        // The release the next one is measured from. Nothing is decided on the way down:
+        // a press is not yet a click, and on a scrolling column it may well never become
+        // one.
+        var clicked = 0L;
+
+        caption.RegisterCallback<PointerDownEvent>(e =>
+        {
+            if (e.button != 0 || PressAlreadyHeld(caption, e)) return;
+
+            keyboard = caption.focusController?.focusedElement as VisualElement;
+
+            // The pointer is captured for two things. It is what makes the release
+            // arrive here even if the hand slid off the name in between; and it is what
+            // lets the column cancel the press by taking the capture away, which is
+            // exactly how it cancels a click on a button. A pan then ends in a lost
+            // capture and no release ever reaches the handler below. See ScrollStrip.
+            caption.CapturePointer(e.pointerId);
+
+            e.StopPropagation();
+        });
+
+        caption.RegisterCallback<PointerUpEvent>(e =>
+        {
+            // The capture is the whole of the test for whether this release is the
+            // name's: a press that turned into a pan is a press the column is holding,
+            // so its release is delivered there and never seen here at all.
+            if (!caption.HasPointerCapture(e.pointerId)) return;
+
+            // Counted here rather than taken from the event's clickCount, for the reason
+            // DoubleClickMilliseconds gives, and counted between the two releases rather
+            // than the two presses because a release is where this acts.
+            var doubled = e.timestamp - clicked < DoubleClickMilliseconds;
+            clicked = doubled ? 0 : e.timestamp;
+
+            // Which hands the keyboard back, through the lost capture below.
+            caption.ReleasePointer(e.pointerId);
+
+            e.StopPropagation();
+
+            if (doubled) action();
+        });
+
+        // Off the lost capture rather than off the release: that is the one ending a
+        // press and a pan have in common, and a press taken away by the column would
+        // otherwise leave the keyboard nowhere.
+        caption.RegisterCallback<PointerCaptureOutEvent>(_ => keyboard?.Focus());
+
+        caption.RegisterCallback<PointerEnterEvent>(_ => hover(true));
+        caption.RegisterCallback<PointerLeaveEvent>(_ => hover(false));
+
+        return caption;
     }
 
     public static Label Value(string text)
@@ -527,15 +622,23 @@ static class Controls
     //
     // settled is the optional second half of that: the same value once it has stopped
     // moving, for the row that has to sound a note about it. See ValueBar.Bind.
+    //
+    // reset is where a double click on the name puts the value back to, for the row that
+    // has such a place. It is written through the bar rather than around it, so the
+    // setter runs and the note sounds exactly as they do for a bar let go of by hand.
+    // A row already sitting at that value is left alone and sounds nothing, since a bar
+    // handed the number it already holds reports no change.
     public static VisualElement Bar(string caption, in ValueBar.Range range,
                                     Func<float> get, Action<float> set,
-                                    Action settled = null)
+                                    Action settled = null, Func<float> reset = null)
     {
         var row = Row();
-        row.Add(Caption(caption));
 
         var bar = Bar(range, get, set, settled);
         bar.style.flexGrow = 1;
+
+        row.Add(reset == null ? Caption(caption)
+                : ActionCaption(caption, () => bar.value = reset()));
         row.Add(bar);
 
         return row;

@@ -32,6 +32,7 @@ Using it
 | Branch | The `JUMP` button, which brings its `JDST` lane with it |
 | Details of a tile | The panel on the right follows the cursor; drag it up and down when it is longer than the screen |
 | Set a number | Drag its bar right or up, shift for fine; double click to type one |
+| Take a number back | Double click its name: a lock lets go of that parameter, and a channel's sound goes back to where a fresh patch holds it |
 | Timbre | Select a `CHAN` cell, which puts its channel's sound on the Tile panel, under the lane |
 | Move a channel in pitch | Transpose, the first row of its sound, in semitones |
 | Thicken a channel | Unison, under Pan in its sound: above zero every note sounds twice, detuned apart and spread across the image. The image opens over the first three tenths and the rest of the bar goes on detuning |
