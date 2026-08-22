@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 using CoreProject = Jacquard.Project;
@@ -121,6 +122,18 @@ public sealed class JacquardApp : MonoBehaviour
     [field:SerializeField]
     public PointerKind Pointer { get; set; } = PointerKind.Auto;
 
+    // How much larger than life the plane is drawn while the promotional reel runs —
+    // see PromoDirector. The reel is filmed rather than used, so the size that matters
+    // is the one a tile comes out on a video and not the one a finger wants.
+    [field:SerializeField, Range(1.0f, 4.0f)]
+    public float PromoScale { get; set; } = 2.0f;
+
+    // How long a tile takes to move from one picture to the next. It is spent at the
+    // end of a lap and lands on the beat, so anything much past half a lap begins
+    // before the lap it belongs to is over.
+    [field:SerializeField, Range(0.05f, 1.0f)]
+    public float PromoTransition { get; set; } = 0.25f;
+
     // Runtime state
 
     public CoreProject Project { get; private set; }
@@ -135,6 +148,13 @@ public sealed class JacquardApp : MonoBehaviour
     public ScoreView View { get; private set; }
     public ProjectStore Store { get; private set; }
     public FmSynthStatus Status { get; private set; }
+
+    // The promotional reel, which is not part of the app: it takes it apart and puts it
+    // back. See PromoDirector.
+    public PromoDirector Promo { get; private set; }
+
+    // The viewport the plane is looked at through, which the reel pins.
+    public ScrollArea Scroll => _ui?.Scroll;
 
     // Whatever the last file operation had to say.
     public string Message { get; private set; }
@@ -158,6 +178,115 @@ public sealed class JacquardApp : MonoBehaviour
         }
 
         View.RefreshPlayheads();
+    }
+
+    // Starts the transport from the top and answers the sample the first step lands
+    // on, which is the line every lap of the reel is counted from.
+    //
+    // The same two calls the play branch above makes, with the sample handed back: the
+    // reel has to know where its own clock starts, and reading it afterwards would be
+    // reading a clock that has since moved.
+    public long RestartTransport()
+    {
+        Sequencer.Stop();
+        Live.Stop();
+
+        var now = Synth.CurrentSample;
+
+        Sequencer.Play(now, LookaheadSamples);
+        Live.Start(now + LookaheadSamples);
+
+        View.RefreshPlayheads();
+
+        return now + LookaheadSamples;
+    }
+
+    // The promotional reel
+
+    // Takes the app apart for the reel: the chrome comes off, the plane loses the
+    // cursor and is drawn larger than life, and the score is replaced outright.
+    //
+    // The score goes in without waiting for a lap line. A seam is what two pieces of
+    // music want between them and this is a piece beginning, so the transport is
+    // restarted over the top of it by the caller.
+    public void EnterPromo(CoreProject project)
+    {
+        _ui.SetChrome(false);
+        View.ShowCursor = false;
+
+        SetPanelScale(PromoScale);
+
+        AdoptOutright(project);
+    }
+
+    // And puts it back, with the score that was being edited when the reel went up.
+    public void LeavePromo(CoreProject project)
+    {
+        Sequencer.Stop();
+        Live.Stop();
+
+        SetPanelScale(0.0f);
+
+        _ui.SetChrome(true);
+        View.ShowCursor = true;
+
+        AdoptOutright(project);
+        View.RefreshPlayheads();
+
+        // After the score is back, since this aims at where it has come to rest: the
+        // plane has spent the reel pinned to a lane that is no longer on it.
+        _ui.ShowScore();
+    }
+
+    // A project put in with nothing reconciled and nobody waited for, which is what a
+    // score arriving from outside the app's own editing is.
+    void AdoptOutright(CoreProject project)
+    {
+        Project = project;
+        Sequencer.Project = project;
+        Editor.Adopt(project);
+    }
+
+    // Two keys, read off the keyboard rather than off the plane: putting the chrome
+    // away moves the focus about, and the one key that puts it back has to work whatever
+    // the focus is. Anything being typed into keeps its letters.
+    void ReadTheReelKeys()
+    {
+        var keyboard = Keyboard.current;
+        if (keyboard == null || _ui.Typing) return;
+
+        if (keyboard.pKey.wasPressedThisFrame) Promo.Toggle();
+        else if (keyboard.escapeKey.wasPressedThisFrame) Promo.Stop();
+    }
+
+    // Draws the interface at a fixed multiple of a screen pixel instead of at the size
+    // a hand wants, and gives it back. Zero is the panel the app came up with.
+    //
+    // A copy rather than the asset, because the asset is on disk and the editor would
+    // keep whatever was written into it.
+    void SetPanelScale(float scale)
+    {
+        var ui = GetComponent<UIDocument>();
+
+        if (scale > 0.0f)
+        {
+            _beforePromo ??= ui.panelSettings;
+
+            _promoPanel = Instantiate(_beforePromo);
+            _promoPanel.scaleMode = PanelScaleMode.ConstantPixelSize;
+            _promoPanel.scale = scale;
+
+            ui.panelSettings = _promoPanel;
+            return;
+        }
+
+        if (_beforePromo == null) return;
+
+        ui.panelSettings = _beforePromo;
+        _beforePromo = null;
+
+        if (_promoPanel != null) Destroy(_promoPanel);
+        _promoPanel = null;
     }
 
     // Files
@@ -370,6 +499,9 @@ public sealed class JacquardApp : MonoBehaviour
 
         var document = ui.rootVisualElement;
         _ui = new JacquardUI(document.Q("root") ?? document, this);
+
+        // Last, since what it takes apart is everything above it.
+        Promo = new PromoDirector(this);
     }
 
     void Update()
@@ -381,6 +513,12 @@ public sealed class JacquardApp : MonoBehaviour
         // Next, because a score that has taken over is the score the rest of this frame
         // is about: the plane, the panels and the mix all read the project this puts in.
         FollowTheSwitch();
+
+        // Before the scheduler and after the clock: what the reel does at a lap line is
+        // rewrite the score the next line below is about to read, and the whole of its
+        // timing is that it does so in the frame before that line rather than after it.
+        ReadTheReelKeys();
+        Promo.Tick();
 
         // Run the sequence as far ahead as it has always run, but park what comes out
         // rather than handing it straight over: a live effect reaches what has not
@@ -448,6 +586,7 @@ public sealed class JacquardApp : MonoBehaviour
     void OnDestroy()
     {
         Synth?.Dispose();
+        if (_promoPanel != null) Destroy(_promoPanel);
 #if UNITY_EDITOR || UNITY_WEBGL
         if (_panelCopy != null) Destroy(_panelCopy);
 #endif
@@ -601,6 +740,10 @@ public sealed class JacquardApp : MonoBehaviour
 #if UNITY_EDITOR || UNITY_WEBGL
     PanelSettings _panelCopy;
 #endif
+
+    // The panel the reel is drawn on, and the one it was drawn on before — see
+    // SetPanelScale.
+    PanelSettings _promoPanel, _beforePromo;
 
     readonly List<FmNoteEvent> _pending = new();
     readonly List<FmNoteEvent> _released = new();

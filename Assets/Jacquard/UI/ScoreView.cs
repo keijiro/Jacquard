@@ -59,6 +59,29 @@ public sealed class ScoreView : VisualElement
 
     public GridPoint Cursor { get; private set; } = new GridPoint(1, 1);
 
+    // The cell layer, handed over whole to the promotional reel — see PromoDirector,
+    // which draws its own tiles into it and moves them about between laps. Nothing else
+    // has any business here: every other picture on this plane is a rebuild.
+    public VisualElement TileLayer => _tiles;
+
+    // Whether the cursor is drawn. Off for the reel, where there is no hand on the
+    // plane and so nothing for a cursor to be saying.
+    public bool ShowCursor { get; set; } = true;
+
+    // The plane's size in cells, when something other than the score is deciding it.
+    // Zero is the score deciding, which is every case but the reel — where the plane is
+    // held far larger than the picture on it so that the picture can be scrolled to the
+    // middle of any screen it is filmed on. See PromoDirector.Centre.
+    public Vector2Int Plane { get; set; }
+
+    // Redraws the painted layers without rebuilding the cells, which is what something
+    // that has changed the score behind this view's back has to ask for.
+    public void Repaint()
+    {
+        _lower.MarkDirtyRepaint();
+        _upper.MarkDirtyRepaint();
+    }
+
     public event Action CursorMoved;
     public event Action<KeyDownEvent> KeyPressed;
 
@@ -262,8 +285,8 @@ public sealed class ScoreView : VisualElement
     // empty ground to put a new lane on.
     void Resize()
     {
-        _columns = Mathf.Max(48, Score.Width + PadColumns);
-        _rows = Mathf.Max(28, Score.Height + PadRows);
+        _columns = Plane.x > 0 ? Plane.x : Mathf.Max(48, Score.Width + PadColumns);
+        _rows = Plane.y > 0 ? Plane.y : Mathf.Max(28, Score.Height + PadRows);
 
         var size = Style.PlaneSize(_columns, _rows);
         style.width = size.x;
@@ -441,15 +464,18 @@ public sealed class ScoreView : VisualElement
 
         // The cursor is drawn just outside the cell it is on, so that the cell
         // itself stays readable underneath.
-        painter.strokeColor = Style.Cursor;
-        painter.lineWidth = 1.0f;
-        painter.BeginPath();
+        if (ShowCursor)
+        {
+            painter.strokeColor = Style.Cursor;
+            painter.lineWidth = 1.0f;
+            painter.BeginPath();
 
-        var rect = Style.CellRect(Cursor);
-        RoundedRect(painter, new Rect(rect.x - 2.5f, rect.y - 2.5f,
-                                      rect.width + 5, rect.height + 5),
-                    Style.Radius + 2);
-        painter.Stroke();
+            var rect = Style.CellRect(Cursor);
+            RoundedRect(painter, new Rect(rect.x - 2.5f, rect.y - 2.5f,
+                                          rect.width + 5, rect.height + 5),
+                        Style.Radius + 2);
+            painter.Stroke();
+        }
 
         DrawDropCells(painter);
         DrawFlashCells(painter);

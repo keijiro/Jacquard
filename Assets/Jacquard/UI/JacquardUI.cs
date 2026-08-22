@@ -132,6 +132,38 @@ sealed class JacquardUI
         _view.Focus();
     }
 
+    // The viewport the plane is looked at through, for the promotional reel — see
+    // PromoDirector, which pins the plane rather than letting a hand pan it.
+    public ScrollArea Scroll => _scroll;
+
+    // Whether anything is being typed into, which is the one thing that must not have a
+    // key taken out from under it by the reel's own.
+    public bool Typing
+    {
+        get
+        {
+            var focused = _root.panel?.focusController?.focusedElement as VisualElement;
+
+            for (var element = focused; element != null; element = element.parent)
+                if (element is TextField) return true;
+
+            return false;
+        }
+    }
+
+    // Everything that is not the plane, taken off the screen for the reel. Not a mode
+    // this UI has: it is one thing being put away and brought back.
+    public void SetChrome(bool shown)
+    {
+        var display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+
+        _row.style.display = display;
+        _leftEdge.style.display = display;
+        _rightEdge.style.display = display;
+        _centre.style.display = display;
+        _dock.style.display = display;
+    }
+
     // Called every frame from the app.
     public void Update()
     {
@@ -818,6 +850,22 @@ sealed class JacquardUI
 
     void OnKey(KeyDownEvent evt)
     {
+        // The reel, on the same key that puts it away again. It is read here as well as
+        // off the keyboard — see JacquardApp.ReadTheReelKeys — because this path needs
+        // the plane to be focused and that one does not, and putting the chrome away
+        // moves the focus. Whichever arrives first has it; the second is dropped inside
+        // Toggle, which takes one answer per frame.
+        if (evt.keyCode == KeyCode.P)
+        {
+            _app.Promo.Toggle();
+            evt.StopPropagation();
+            return;
+        }
+
+        // Nothing else reaches the plane while the reel runs. There is no hand on the
+        // score: what is on the screen belongs to the reel.
+        if (_app.Promo.Running) { evt.StopPropagation(); return; }
+
         if (evt.keyCode == KeyCode.Space || evt.character == ' ')
         {
             if (evt.keyCode == KeyCode.Space) _app.TogglePlay();
@@ -876,10 +924,13 @@ sealed class JacquardUI
     // cursor starts at cell (1,1) and that is where a score used to begin — and now that
     // a score begins further in, where it begins has to be asked for.
     //
-    // Only at startup. A score that comes in at the turn of the piece must move neither:
-    // the seam is there so that two scores read as one, and the reframe has already put
-    // the incoming one at the same corner the outgoing one was at.
-    void ShowScore()
+    // Only at startup, and once more when the reel comes down — which is the same
+    // moment seen from the other side: the plane has been pinned somewhere else for a
+    // minute and a half and what comes back is a score that has to be found again. A
+    // score that comes in at the turn of the piece must move neither: the seam is there
+    // so that two scores read as one, and the reframe has already put the incoming one
+    // at the same corner the outgoing one was at.
+    public void ShowScore()
     {
         const int margin = 2;
 
