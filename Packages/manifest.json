@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "jp.keijiro.klutter-tools": "2.6.0",
     "com.unity.burst": "1.8.30",
     "com.unity.device-simulator.devices": "1.0.1",
     "com.unity.inputsystem": "1.20.0",
@@ -9,5 +10,14 @@
     "com.unity.modules.audio": "1.0.0",
     "com.unity.modules.uielements": "1.0.0",
     "com.unity.modules.vectorgraphics": "1.0.0"
-  }
+  },
+  "scopedRegistries": [
+    {
+      "name": "Keijiro",
+      "url": "https://registry.npmjs.com",
+      "scopes": [
+        "jp.keijiro"
+      ]
+    }
+  ]
 }

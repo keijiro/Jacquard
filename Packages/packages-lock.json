@@ -142,6 +142,13 @@
       },
       "url": "https://packages.unity.com"
     },
+    "jp.keijiro.klutter-tools": {
+      "version": "2.6.0",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {},
+      "url": "https://registry.npmjs.com"
+    },
     "com.unity.modules.adaptiveperformance": {
       "version": "1.0.0",
       "depth": 0,
