@@ -12,7 +12,7 @@ PlayerSettings:
   targetDevice: 2
   useOnDemandResources: 0
   accelerometerFrequency: 60
-  companyName: Keijiro
+  companyName: Radium Software
   productName: Jacquard
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
@@ -148,7 +148,7 @@ PlayerSettings:
   loadStoreDebugModeEnabled: 0
   visionOSBundleVersion: 1.0
   tvOSBundleVersion: 1.0
-  bundleVersion: 0.1
+  bundleVersion: 1.0.0
   preloadedAssets: []
   metroInputSource: 0
   wsaTransparentSwapchain: 0
@@ -171,7 +171,7 @@ PlayerSettings:
   applicationIdentifier:
     Android: jp.keijiro.jacquard
     Standalone: jp.keijiro.jacquard
-    iPhone: jp.keijiro.jacquard
+    iPhone: jp.radiumsoftware.jacquard
   buildNumber:
     Bratwurst: 0
     Standalone: 0
