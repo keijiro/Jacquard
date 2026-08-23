@@ -1,7 +1,7 @@
-jacquard 19
+jacquard 20
 tempo 129
 meter 4 4
-fx rsize=0.47277 rdamp=0.82673 rwidth=1 dbeats=0.5 dfb=0.61901 dtone=0.67351 dspread=1
+fx rsize=0.47277 rtone=0.17327 rspread=1 dbeats=0.5 dfb=0.61901 dtone=0.67351 dspread=1
 limiter ceiling=-10 attack=0.003 release=0.03
 mutes muted=00000000 soloed=00000000
 scale notes=111111111111

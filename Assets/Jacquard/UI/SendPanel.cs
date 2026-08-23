@@ -114,10 +114,10 @@ sealed class SendPanel
 
         _body.Add(Controls.Bar("Size", Unit,
                                () => Fx.reverbSize, v => Fx.reverbSize = v));
-        _body.Add(Controls.Bar("Damp", Unit,
-                               () => Fx.reverbDamp, v => Fx.reverbDamp = v));
-        _body.Add(Controls.Bar("Width", Unit,
-                               () => Fx.reverbWidth, v => Fx.reverbWidth = v));
+        _body.Add(Controls.Bar("Tone", Unit,
+                               () => Fx.reverbTone, v => Fx.reverbTone = v));
+        _body.Add(Controls.Bar("Spread", Unit,
+                               () => Fx.reverbSpread, v => Fx.reverbSpread = v));
     }
 
     void BuildDelay()

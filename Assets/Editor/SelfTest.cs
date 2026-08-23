@@ -1571,6 +1571,20 @@ static class SelfTest
               Mathf.Abs(silent.Fx.delayTone - SendFx.Default.delayTone) < 0.001f,
               "dtone=" + darkened.Fx.delayTone +
               " and a file without the line=" + silent.Fx.delayTone);
+
+        // And the reverb's, which is told by the spelling rather than by the version:
+        // a line saying rdamp= is a file from before the tone turned round, and one
+        // saying rwidth= is the same number under the older word. Read at the current
+        // version on purpose — the keys have to carry it on their own, since a hand
+        // editing a file is not going to touch the version line to say which it meant.
+        var older = ProjectFormat.Read(
+          "jacquard 20\ntempo 120\nfx rdamp=0.8 rwidth=0.25\n");
+
+        Check(log, "a version 19 reverb line comes back as the same room",
+              Mathf.Abs(older.Fx.reverbTone - 0.2f) < 0.001f &&
+              Mathf.Abs(older.Fx.reverbSpread - 0.25f) < 0.001f,
+              "rtone=" + older.Fx.reverbTone +
+              " rspread=" + older.Fx.reverbSpread);
     }
 
     // The pan law, which is two claims and both of them are audible if they are wrong.
@@ -2774,11 +2788,11 @@ static class SelfTest
         return trace;
     }
 
-    static float[] RenderReverb(float[] input, float size, float damp, float width)
+    static float[] RenderReverb(float[] input, float size, float tone, float spread)
     {
         var bus = ReverbBus.Create(SampleRate);
         var trace = Render(input, (i, l, r, n) =>
-          bus.Process(i, l, r, n, SampleRate, size, damp, width));
+          bus.Process(i, l, r, n, SampleRate, size, tone, spread));
         bus.Dispose();
         return trace;
     }

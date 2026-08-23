@@ -75,9 +75,9 @@ public static class DelayTime
 
 public struct SendFx
 {
-    public float reverbSize;  // Tail length, short room to long hall
-    public float reverbDamp;  // How fast the tail loses its top
-    public float reverbWidth; // Correlated pair to fully spread
+    public float reverbSize;   // Tail length, short room to long hall
+    public float reverbTone;   // How much of the tail's top survives a lap
+    public float reverbSpread; // Correlated pair to fully spread
 
     public float delayBeats;    // Time as a multiple of one beat
     public float delayFeedback; // How much of a repeat comes back, up to MaxFeedback
@@ -93,8 +93,8 @@ public struct SendFx
     // one before it — a tone wide open would hand back three copies of the note.
     public static SendFx Default => new SendFx
       { reverbSize = 0.5f,
-        reverbDamp = 0.5f,
-        reverbWidth = 1.0f,
+        reverbTone = 0.5f,
+        reverbSpread = 1.0f,
         delayBeats = DelayTime.Beats[DelayTime.Default],
         delayFeedback = 0.35f,
         delayTone = 0.6f,

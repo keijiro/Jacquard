@@ -106,8 +106,8 @@ public struct MixFxRuntime
 public struct SendFxRuntime
 {
     public float reverbSize;
-    public float reverbDamp;
-    public float reverbWidth;
+    public float reverbTone;
+    public float reverbSpread;
 
     public float delaySamples;
     public float delayFeedback;
@@ -117,16 +117,16 @@ public struct SendFxRuntime
     public static SendFxRuntime FromSettings(in SendFx fx, float tempo, float sampleRate)
       => new SendFxRuntime
         { reverbSize = fx.reverbSize,
-          reverbDamp = fx.reverbDamp,
-          reverbWidth = fx.reverbWidth,
+          reverbTone = fx.reverbTone,
+          reverbSpread = fx.reverbSpread,
           delaySamples = fx.DelaySeconds(tempo) * sampleRate,
           delayFeedback = fx.delayFeedback,
           delayTone = fx.delayTone,
           delaySpread = fx.delaySpread };
 
     public bool Equals(in SendFxRuntime other)
-      => reverbSize == other.reverbSize && reverbDamp == other.reverbDamp &&
-         reverbWidth == other.reverbWidth && delaySamples == other.delaySamples &&
+      => reverbSize == other.reverbSize && reverbTone == other.reverbTone &&
+         reverbSpread == other.reverbSpread && delaySamples == other.delaySamples &&
          delayFeedback == other.delayFeedback && delayTone == other.delayTone &&
          delaySpread == other.delaySpread;
 }

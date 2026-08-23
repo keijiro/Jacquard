@@ -16,7 +16,7 @@ namespace Jacquard {
 //   jacquard 18
 //   tempo 120
 //   meter 4 4
-//   fx rsize=0.5 rdamp=0.5 ...
+//   fx rsize=0.5 rtone=0.5 ...
 //   limiter ceiling=0 attack=0.005 release=0.15
 //   mutes muted=01000000 soloed=00000000
 //   scale notes=101011010101
@@ -30,6 +30,27 @@ namespace Jacquard {
 
 public static class ProjectFormat
 {
+    // Version 20 gives the reverb the same tone the delay has, turning the same way:
+    // rdamp= is gone and rtone= is how much of the tail's top survives, so both effects
+    // now darken as their bar comes down. A panel cannot hold two brightness controls
+    // that turn opposite ways — they are one lowpass in one feedback loop twice over,
+    // and the only reason they differed is that this one was named after the amount of
+    // damping and that one after the sound. Renamed with it: rwidth= is rspread=, which
+    // is the same number under the word the delay already used for it.
+    //
+    // Neither conversion needs the version, and the tone's is the reason why: an fx line
+    // saying rdamp= is an older file by the fact of the spelling, so it is read as the
+    // complement where it stands and rtone= is taken as it comes. rwidth= is read as
+    // rspread= untouched, since only the word moved. The default is the one number the
+    // rename leaves alone — half of the damping is half of the brightness — so a project
+    // that never touched the panel converts to itself.
+    //
+    // The bump is for the other direction, as in version 7 and version 19: an older
+    // build meets rtone= and rspread=, skips both as keys nothing answers to, and plays
+    // a dark narrow tail as a bright wide one. That is a wrong sound rather than a
+    // refusal, and the version line is what turns it into the message about a file from
+    // a newer version.
+    //
     // Version 19 turns the delay's tone the way a tone control is expected to turn:
     // dtone= on the fx line is now how much of a repeat's top survives rather than how
     // much of it is taken away, so the bar is open at one and darkens as it comes down.
@@ -206,7 +227,7 @@ public static class ProjectFormat
     // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
     // reads, since a token nothing answers to is skipped, but the parameters that
     // no longer exist fall back to the default patch rather than being converted.
-    public const int Version = 19;
+    public const int Version = 20;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -353,8 +374,8 @@ public static class ProjectFormat
 
     static string WriteFx(in SendFx fx)
       => "rsize=" + F(fx.reverbSize) +
-         " rdamp=" + F(fx.reverbDamp) +
-         " rwidth=" + F(fx.reverbWidth) +
+         " rtone=" + F(fx.reverbTone) +
+         " rspread=" + F(fx.reverbSpread) +
          " dbeats=" + F(fx.delayBeats) +
          " dfb=" + F(fx.delayFeedback) +
          " dtone=" + F(fx.delayTone) +
@@ -717,15 +738,23 @@ public static class ProjectFormat
             switch (key)
             {
                 case "rsize": fx.reverbSize = value; break;
-                case "rdamp": fx.reverbDamp = value; break;
-                case "rwidth": fx.reverbWidth = value; break;
+                case "rtone": fx.reverbTone = value; break;
+                case "rspread": fx.reverbSpread = value; break;
+
+                // The two spellings a version 19 file uses, which are their own mark of
+                // what they mean: nothing writes either one any more. See version 20.
+                case "rdamp": fx.reverbTone = 1.0f - value; break;
+                case "rwidth": fx.reverbSpread = value; break;
+
                 case "dbeats": fx.delayBeats = value; break;
                 case "dfb": fx.delayFeedback = value; break;
-                // The one key here that has changed what it means. See version 19.
+                case "dspread": fx.delaySpread = value; break;
+
+                // Spelled as it always was, so this one is told by the version rather
+                // than by the key. See version 19.
                 case "dtone":
                     fx.delayTone = version < 19 ? 1.0f - value : value;
                     break;
-                case "dspread": fx.delaySpread = value; break;
             }
         }
     }

@@ -194,8 +194,8 @@ struct FmSynthCore
                           fx.sends.delaySpread);
 
             reverb.Process(reverbIn, outL, outR, frameCount, sampleRate,
-                           fx.sends.reverbSize, fx.sends.reverbDamp,
-                           fx.sends.reverbWidth);
+                           fx.sends.reverbSize, fx.sends.reverbTone,
+                           fx.sends.reverbSpread);
 
             // The dry mix joins here, which is also where the two sides stop being wet
             // only, and the whole of it is what the limiter is across.

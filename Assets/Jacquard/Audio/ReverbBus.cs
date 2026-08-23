@@ -13,15 +13,15 @@ namespace Jacquard.App {
 //
 // It is here rather than a feedback delay network because of what the panel asks
 // for: a usable tail from two controls. Size is one number that every comb reads as
-// its feedback and damping is one number that every lowpass reads as its cutoff, and
+// its feedback and the tone is one number that every lowpass reads as its cutoff, and
 // between them they cover a tiled room and a hall without anything else having to be
 // dialled in. An FDN would sound better and would want a matrix, a diffusion amount
 // and a modulation depth to get there.
 //
 // Nothing here changes the length of a line, which is what makes the whole thing
-// safe to sweep: size and damping are coefficients, so moving one alters how the
+// safe to sweep: size and tone are coefficients, so moving one alters how the
 // signal already in the lines decays rather than where it is read from. Only the
-// width can step the output, since it is a gain, and the smoothing below covers all
+// spread can step the output, since it is a gain, and the smoothing below covers all
 // three rather than singling it out.
 //
 // The tunings are Freeverb's, measured at 44.1 kHz and scaled to whatever the device
@@ -35,7 +35,7 @@ public struct ReverbBus
     public NativeArray<int> starts;   // Lines + 1 entries, so a length is a subtraction
     public NativeArray<int> cursors;  // Where each line is being read and written
     public NativeArray<float> stores; // The lowpass inside each comb
-    public NativeArray<float> smooth; // Size, damping and width, on their way to target
+    public NativeArray<float> smooth; // Size, tone and spread, on their way to target
 
     public const int CombCount = 8;
     public const int AllpassCount = 4;
@@ -54,7 +54,15 @@ public struct ReverbBus
 
     // What the two normalized controls come to as coefficients. A room that never
     // quite stops and one that stops immediately are both useless, so the feedback
-    // covers the span between them rather than reaching either end.
+    // covers the span between them rather than reaching either end: measured, the size
+    // runs a tail of about three quarters of a second at the bottom of the bar, a
+    // second and a half in the middle and ten seconds at the top.
+    //
+    // The damping span stays where it is under the tone's new direction, because it was
+    // never the reach that was wrong. One lap of a comb at the darkest setting is a
+    // lowpass at about 7.6kHz, which sounds like nothing until it is remembered that a
+    // tail laps thirty times a second: four tenths of a second in, that is 5kHz down
+    // 19dB against 440Hz where an undamped tail is down 3dB.
     const float MinFeedback = 0.70f;
     const float FeedbackSpan = 0.28f;
     const float DampSpan = 0.4f;
@@ -128,19 +136,27 @@ public struct ReverbBus
     // steps that size.
     public void Process(NativeArray<float> input, NativeArray<float> wetL,
                         NativeArray<float> wetR, int frameCount, float sampleRate,
-                        float size, float damp, float width)
+                        float size, float tone, float spread)
     {
-        Approach(size, damp, width, frameCount / sampleRate);
+        Approach(size, tone, spread, frameCount / sampleRate);
 
         var feedback = MinFeedback + FeedbackSpan * math.saturate(smooth[0]);
-        var damping = DampSpan * math.saturate(smooth[1]);
-        var spread = math.saturate(smooth[2]);
+
+        // The tone is how much of the tail's top survives, so what the lowpasses take
+        // is its complement: at one nothing is taken and a comb rings on with its top
+        // intact, and the bar darkens as it comes down. The same way round as the
+        // delay's, which is the whole of why it is not called damping any more — the
+        // two are one lowpass in one feedback loop twice over, and a panel holding
+        // both of them cannot have them turning opposite ways. See version 20.
+        var damping = DampSpan * (1.0f - math.saturate(smooth[1]));
+
+        var image = math.saturate(smooth[2]);
 
         // The pair is turned from two independent channels into one image: at a
-        // width of zero both sides carry the mean and the tail sits in the middle,
+        // spread of zero both sides carry the mean and the tail sits in the middle,
         // and at one each side is entirely its own.
-        var direct = OutputGain * (spread * 0.5f + 0.5f);
-        var crossed = OutputGain * (1.0f - spread) * 0.5f;
+        var direct = OutputGain * (image * 0.5f + 0.5f);
+        var crossed = OutputGain * (1.0f - image) * 0.5f;
 
         for (var frame = 0; frame < frameCount; frame++)
         {
@@ -168,19 +184,19 @@ public struct ReverbBus
 
     // One pole per control, toward whatever the panel last said. The first block
     // after a Create jumps instead, which is what the sentinel in smooth[0] marks.
-    void Approach(float size, float damp, float width, float blockSeconds)
+    void Approach(float size, float tone, float spread, float blockSeconds)
     {
         if (smooth[0] < 0.0f)
         {
-            (smooth[0], smooth[1], smooth[2]) = (size, damp, width);
+            (smooth[0], smooth[1], smooth[2]) = (size, tone, spread);
             return;
         }
 
         var rate = 1.0f - math.exp(-blockSeconds / SmoothingSeconds);
 
         smooth[0] += (size - smooth[0]) * rate;
-        smooth[1] += (damp - smooth[1]) * rate;
-        smooth[2] += (width - smooth[2]) * rate;
+        smooth[1] += (tone - smooth[1]) * rate;
+        smooth[2] += (spread - smooth[2]) * rate;
     }
 
     // A comb whose feedback path is dulled by a one pole, which is what makes the
