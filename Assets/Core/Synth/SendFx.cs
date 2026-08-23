@@ -81,7 +81,7 @@ public struct SendFx
 
     public float delayBeats;    // Time as a multiple of one beat
     public float delayFeedback; // How much of a repeat comes back, up to MaxFeedback
-    public float delayTone;     // How much each repeat is darkened
+    public float delayTone;     // How much of a repeat's top survives a lap
     public float delaySpread;   // Straight stereo to full ping-pong
 
     // Short of one, so that the loop cannot run away however hard the bar is pushed.
@@ -89,14 +89,15 @@ public struct SendFx
 
     // A default that is audible the moment a send is raised, rather than one that
     // needs the panel visited first: a medium room, and an eighth note delay with
-    // enough feedback for two or three repeats.
+    // enough feedback for two or three repeats, each one a little duller than the
+    // one before it — a tone wide open would hand back three copies of the note.
     public static SendFx Default => new SendFx
       { reverbSize = 0.5f,
         reverbDamp = 0.5f,
         reverbWidth = 1.0f,
         delayBeats = DelayTime.Beats[DelayTime.Default],
         delayFeedback = 0.35f,
-        delayTone = 0.4f,
+        delayTone = 0.6f,
         delaySpread = 0.0f };
 
     // The delay time at a tempo. The same arithmetic a lane's step uses, since a

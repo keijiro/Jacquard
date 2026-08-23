@@ -23,6 +23,11 @@ could not be opened at all for four versions.
 in the same change.** A retired target is skipped and a new one defaults, but a live target
 holding a stale number looks exactly like a current one. See [impl-synth.md].
 
+This second one is about any value a file holds and not only a lock target. Version 19 is
+the case that is not a target at all: `dtone` on the `fx` line kept its spelling and its
+range and started meaning the other end of the same brightness, which no reader can tell
+from a current file. `ProjectFormat`'s header argues for where that conversion has to sit.
+
 [impl-synth.md]: impl-synth.md
 
 The sample score is a file, not code

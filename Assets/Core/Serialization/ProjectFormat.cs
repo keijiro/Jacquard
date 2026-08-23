@@ -30,6 +30,24 @@ namespace Jacquard {
 
 public static class ProjectFormat
 {
+    // Version 19 turns the delay's tone the way a tone control is expected to turn:
+    // dtone= on the fx line is now how much of a repeat's top survives rather than how
+    // much of it is taken away, so the bar is open at one and darkens as it comes down.
+    // A hand reaching for a tone control expects the top to come back as it goes up,
+    // and this one did the opposite of that for no reason beyond how the filter inside
+    // the loop happened to be written.
+    //
+    // An older file is converted where the key is read, by one minus it, which is exact
+    // — the number was only ever the far side of the same brightness — so a piece
+    // written before this sounds as it did. At the key and not after the file, because
+    // a file with no fx line at all has never touched the delay and has to keep the
+    // default rather than be handed its complement.
+    //
+    // The bump is what the rule in impl-files.md is for: the key is spelled the same
+    // and holds the same range, so nothing in the line itself says which way the number
+    // was meant. An older build reading a new file would find a value it accepts and
+    // darken by its complement, which is a wrong sound rather than a refusal.
+    //
     // Version 18 makes a level a number of decibels rather than an amplitude: level= on
     // a patch line, and the level a lock names, now run from silence at -60 up to six
     // over full scale. What forced it is the relative lock. A shift had to be *added* to
@@ -188,7 +206,7 @@ public static class ProjectFormat
     // ADSRs are gone, and a pitch envelope has arrived. A version 1 file still
     // reads, since a token nothing answers to is skipped, but the parameters that
     // no longer exist fall back to the default patch rather than being converted.
-    public const int Version = 18;
+    public const int Version = 19;
     public const string Extension = ".jacquard";
 
     // Writing
@@ -390,7 +408,7 @@ public static class ProjectFormat
                     break;
 
                 case "fx":
-                    ReadFx(ref project.Fx, tokens);
+                    ReadFx(ref project.Fx, tokens, version);
                     break;
 
                 case "limiter":
@@ -689,7 +707,7 @@ public static class ProjectFormat
     // the project was created with, which is the same tolerance a patch line gets:
     // a version 6 file has no line here at all and reads as a project whose effects
     // have never been touched.
-    static void ReadFx(ref SendFx fx, string[] tokens)
+    static void ReadFx(ref SendFx fx, string[] tokens, int version)
     {
         for (var i = 1; i < tokens.Length; i++)
         {
@@ -703,7 +721,10 @@ public static class ProjectFormat
                 case "rwidth": fx.reverbWidth = value; break;
                 case "dbeats": fx.delayBeats = value; break;
                 case "dfb": fx.delayFeedback = value; break;
-                case "dtone": fx.delayTone = value; break;
+                // The one key here that has changed what it means. See version 19.
+                case "dtone":
+                    fx.delayTone = version < 19 ? 1.0f - value : value;
+                    break;
                 case "dspread": fx.delaySpread = value; break;
             }
         }

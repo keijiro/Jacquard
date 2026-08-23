@@ -91,10 +91,23 @@ public struct DelayBus
         feedback = math.clamp(feedback, 0.0f, SendFx.MaxFeedback);
         spread = math.saturate(spread);
 
-        // Squared, so that the darkening is spread over the bar instead of happening
-        // all at once near the top of it. Tone at zero passes the repeat through.
-        var bright = 1.0f - math.saturate(tone);
-        var cutoff = bright * bright * 0.98f + 0.02f;
+        // The tone is how much of a repeat's top survives, so it is the brightness
+        // itself: at one the filter runs with a coefficient of one, which is a repeat
+        // passed straight through, and the bar darkens as it comes down. Squared, so
+        // that the darkening is spread over the bar instead of happening all at once
+        // near the bottom of it.
+        //
+        // The floor is what the bottom of the bar comes to, and it is a measured
+        // number rather than a small one. It used to be 0.02 — about 154Hz — from when
+        // the heard tap was read ahead of the filter and the bottom of the bar only
+        // ever thinned the tail. Now that the tap is filtered too, a floor that low
+        // spends the bottom fifth of the bar on a repeat already 10dB down and a tail
+        // 28dB down, which is a stretch of travel that turns the delay off rather than
+        // darkening it. At 0.06, about 473Hz, the bottom of the bar is a repeat 3.4dB
+        // down with a tail 15dB down: dark, short, and still there. Measured on the
+        // voice a new score opens in, an eighth note apart at the default feedback.
+        var bright = math.saturate(tone);
+        var cutoff = bright * bright * 0.94f + 0.06f;
 
         var write = cursors[0];
         var tap = state[Tap];
@@ -109,13 +122,21 @@ public struct DelayBus
             var left = Read(0, read);
             var right = Read(capacity, read);
 
-            wetL[frame] += left;
-            wetR[frame] += right;
-
             // Each repeat darker than the one before it, because the filter is inside
             // the loop and every lap passes through it again.
             state[LowpassL] += (left - state[LowpassL]) * cutoff;
             state[LowpassR] += (right - state[LowpassR]) * cutoff;
+
+            // And what is heard is taken after the filter rather than before it, so
+            // the first repeat is darkened along with the rest. Read ahead of it — as
+            // it was until now — the first repeat is whatever went in, untouched: with
+            // the tone at the bottom of the bar that is a full scale slap followed by
+            // a tail 43dB below it, which is one crisp echo and no tone control at
+            // all. What the change costs is the level of that first repeat, and on a
+            // note rather than an impulse it is small: 0.2dB at the default setting,
+            // 3.4dB at the bottom of the bar.
+            wetL[frame] += state[LowpassL];
+            wetR[frame] += state[LowpassR];
 
             var backL = state[LowpassL] * feedback;
             var backR = state[LowpassR] * feedback;

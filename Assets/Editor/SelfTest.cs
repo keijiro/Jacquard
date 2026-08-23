@@ -1557,6 +1557,20 @@ static class SelfTest
               "beats=" + legacy.Fx.delayBeats +
               " rsend=" + legacy.Patches[1].reverbSend +
               " level=" + legacy.Patches[1].level);
+
+        // Version 18 wrote the delay's tone as how much was taken away, so the same
+        // sound is one minus what it says. The second half is what decides where the
+        // conversion goes: a file with no fx line has never touched the delay, and
+        // handing it the complement of the default would darken a piece that says
+        // nothing about the matter. See version 19.
+        var darkened = ProjectFormat.Read("jacquard 18\ntempo 120\nfx dtone=0.3\n");
+        var silent = ProjectFormat.Read("jacquard 18\ntempo 120\n");
+
+        Check(log, "a version 18 delay tone comes back as the same brightness",
+              Mathf.Abs(darkened.Fx.delayTone - 0.7f) < 0.001f &&
+              Mathf.Abs(silent.Fx.delayTone - SendFx.Default.delayTone) < 0.001f,
+              "dtone=" + darkened.Fx.delayTone +
+              " and a file without the line=" + silent.Fx.delayTone);
     }
 
     // The pan law, which is two claims and both of them are audible if they are wrong.
@@ -2350,10 +2364,11 @@ static class SelfTest
         var fx = SendFx.Default;
         var tap = fx.DelaySeconds(tempo) * SampleRate;
 
-        // Tone off, so a repeat is the one before it times the feedback and nothing
-        // else. The lowpass inside the loop is what makes the repeats darken, and it
-        // would smear the impulse into a tail with no peak left to find.
-        var trace = RenderDelay(Impulse((int)(tap * 3.5f)), tap, feedback, 0.0f, 0.0f);
+        // Tone wide open, which is where a repeat passes through untouched, so it is
+        // the one before it times the feedback and nothing else. The lowpass inside
+        // the loop is what makes the repeats darken, and any of it would smear the
+        // impulse into a tail with no peak left to find.
+        var trace = RenderDelay(Impulse((int)(tap * 3.5f)), tap, feedback, 1.0f, 0.0f);
 
         var first = Peak(trace, (int)(tap * 0.5f), (int)(tap * 1.5f));
         var second = Peak(trace, (int)(tap * 1.5f), (int)(tap * 2.5f));
@@ -2379,6 +2394,36 @@ static class SelfTest
         Check(log, "changing the delay time does not splice the signal",
               moved < steady * 2.0f,
               "largest step " + moved + " while moving against " + steady + " steady");
+
+        // The first repeat is darkened like every other one, which is the whole of what
+        // reading the heard tap after the lowpass buys. An impulse is the right
+        // yardstick for this claim and the wrong one for the next: what is asked here is
+        // only whether the filter is in the path at all, and a tap read ahead of it
+        // hands back the same peak whatever the tone is set to.
+        var lit = RenderDelay(Impulse((int)(tap * 2.5f)), tap, feedback, 1.0f, 0.0f);
+        var dull = RenderDelay(Impulse((int)(tap * 2.5f)), tap, feedback, 0.0f, 0.0f);
+
+        var litPeak = Mathf.Abs(lit[Peak(lit, (int)(tap * 0.5f), (int)(tap * 1.5f))]);
+        var dullPeak = Mathf.Abs(dull[Peak(dull, (int)(tap * 0.5f), (int)(tap * 1.5f))]);
+
+        Check(log, "the first repeat is darkened along with the rest",
+              dullPeak < litPeak * 0.5f,
+              "first repeat peaks at " + dullPeak + " with the tone down against " +
+              litPeak + " with it open");
+
+        // And that it is still there with the tone all the way down, which is what the
+        // filter's floor is for. On a note rather than an impulse, and it has to be:
+        // an impulse is every frequency at once, so it reports a loss no note takes.
+        var note = Burst((int)(tap * 2.5f), Seconds(0.1f));
+
+        var quiet = Rms(RenderDelay(note, tap, feedback, 0.0f, 0.0f),
+                        (int)tap, (int)(tap * 2.0f));
+        var open = Rms(RenderDelay(note, tap, feedback, 1.0f, 0.0f),
+                       (int)tap, (int)(tap * 2.0f));
+
+        Check(log, "a repeat with the tone at the bottom of the bar is still there",
+              quiet > open * 0.5f,
+              "first repeat " + quiet + " against " + open + " with the tone open");
     }
 
     // The reverb, which is a feedback network and so has exactly one way of being
