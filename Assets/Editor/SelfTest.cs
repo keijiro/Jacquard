@@ -235,7 +235,7 @@ static class SelfTest
 
         sequencer.Play(0, 0);
 
-        // Sixteen steps at 132bpm, four laps, plus a margin.
+        // Sixteen steps at 120bpm, four laps, plus a margin.
         var length = (long)(16 * 4 * 60.0 / project.Tempo / 4.0 * sampleRate);
         var window = sampleRate / 10;
 

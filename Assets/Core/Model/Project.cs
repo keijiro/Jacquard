@@ -24,7 +24,12 @@ namespace Jacquard {
 
 public sealed class Project
 {
-    public float Tempo { get; set; } = 132.0f;
+    // The tempo a score opens at, chosen for being unremarkable rather than for being
+    // good: 120 is what every figure in Docs is written at and the rate a hand is
+    // likeliest to already be counting in, so a fresh score and a read example agree.
+    // A tempo is set once and typed over early, so what is wanted of the number it
+    // starts at is that it says nothing about the piece.
+    public float Tempo { get; set; } = 120.0f;
     public int BeatsPerBar { get; set; } = 4;
     public int BeatUnit { get; set; } = 4;
 

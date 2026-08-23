@@ -14,7 +14,7 @@ namespace Jacquard {
 // write a second jump, so one to one holds by construction.
 //
 //   jacquard 18
-//   tempo 132
+//   tempo 120
 //   meter 4 4
 //   fx rsize=0.5 rdamp=0.5 ...
 //   limiter ceiling=0 attack=0.005 release=0.15
