@@ -370,6 +370,11 @@ public sealed class JacquardApp : MonoBehaviour
 
         var document = ui.rootVisualElement;
         _ui = new JacquardUI(document.Q("root") ?? document, this);
+
+#if UNITY_EDITOR || UNITY_STANDALONE
+        // Optional localhost socket bridge for external controllers.
+        gameObject.AddComponent<RemoteBridge>().Initialize(this);
+#endif
     }
 
     void Update()
