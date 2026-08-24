@@ -255,6 +255,15 @@ public sealed class ScoreEditor
     int _notePitch = 60;
     float _noteLength = 1.0f;
 
+    // And it is also what a channel's own sound is auditioned with, for which see the
+    // Sound panel. A bar there is a question about a timbre with no cell behind it, so
+    // something has to be chosen for the patch to answer in — and the note last worked
+    // on is the register and the length the hand is already writing in, which a fixed
+    // middle C at a fixed sixteenth was not. A sound is arrived at for the notes it is
+    // going to carry.
+    public void PreviewRemembered(int channel)
+      => Preview(_notePitch, channel, _noteLength);
+
     public void Transpose(int semitones)
     {
         if (Locked || Selected is not NoteTile note) return;
@@ -350,6 +359,11 @@ public sealed class ScoreEditor
     // The locks and the live effects are still not here: those belong to a step and
     // to a hand on a button, and neither is what a cell is being asked about.
     //
+    // The length is in steps, the same as a note tile's, and a step here is a sixteenth
+    // rather than a lane's own division: a preview sits on no lane, so there is no
+    // division to be had. It is the one thing about a note that a preview cannot answer
+    // from the cell, and the default is what every lane holds until it is changed.
+    //
     // Two ways in, and the difference is who asked. An edit sounding a note about itself
     // is the auditioning the System panel switches off, and goes through Preview. A note
     // asked for outright — the Return key, which does nothing else — is not a remark
@@ -359,20 +373,20 @@ public sealed class ScoreEditor
     // apart.
     public void Preview(int note) => Preview(note, Channel);
 
-    public void Preview(int note, int channel)
+    public void Preview(int note, int channel, float steps = 1.0f)
     {
-        if (Audition.On) Sound(note, channel);
+        if (Audition.On) Sound(note, channel, steps);
     }
 
     public void Sound(int note) => Sound(note, Channel);
 
-    public void Sound(int note, int channel)
+    public void Sound(int note, int channel, float steps = 1.0f)
     {
         if (Synth == null) return;
 
         var patch = Project.Patches[channel];
         var start = Synth.CurrentSample + Synth.MinimumLead + Synth.SampleRate / 20;
-        var length = 60.0f / Math.Max(Project.Tempo, 1.0f) / 4.0f;
+        var length = steps * 60.0f / Math.Max(Project.Tempo, 1.0f) / 4.0f;
 
         Synth.Schedule(FmNoteEvent.FromPatch(patch, Project.SoundingPitch(patch, note),
                                              length, start));

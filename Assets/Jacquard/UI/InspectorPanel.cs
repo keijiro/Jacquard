@@ -300,7 +300,10 @@ sealed class InspectorPanel
     void Set(ChannelTile channel, int target, float value)
       => ParamTargets.Set(ref Patch(channel), target, value);
 
-    void Audition(ChannelTile channel) => _editor.Preview(60, channel.Channel);
+    // The note a new tile would arrive as rather than a middle C, so a patch is heard
+    // where the piece is being written: see ScoreEditor.PreviewRemembered, which owns
+    // the argument along with the note it reads.
+    void Audition(ChannelTile channel) => _editor.PreviewRemembered(channel.Channel);
 
     VisualElement BuildDelete()
     {
