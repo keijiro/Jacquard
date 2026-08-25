@@ -194,7 +194,6 @@ the socket suite deliberately tests only the transport boundary.
 Non-goals
 ---------
 
-This branch intentionally does not contain a CLI, SDK, audio/OGG/WAV export path,
-alternate score format, remote file API, or Internet service. A future client library
-should remain a thin JSON-RPC client over this endpoint rather than moving score or
-sequencer logic out of Jacquard.
+The socket layer contains no CLI, SDK, audio export path, alternate score format,
+remote file API or Internet service. A client remains a thin JSON-RPC client over this
+endpoint; score and sequencer logic stay in Jacquard.

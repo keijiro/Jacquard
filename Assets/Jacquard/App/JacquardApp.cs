@@ -372,7 +372,8 @@ public sealed class JacquardApp : MonoBehaviour
         _ui = new JacquardUI(document.Q("root") ?? document, this);
 
 #if UNITY_EDITOR || UNITY_STANDALONE
-        // Optional localhost socket bridge for external controllers.
+        // A desktop has a socket on which the editor can be controlled. The component
+        // owns no score state of its own, and its retry loop is inert without a peer.
         gameObject.AddComponent<RemoteBridge>().Initialize(this);
 #endif
     }

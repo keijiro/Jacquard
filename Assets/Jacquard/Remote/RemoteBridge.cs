@@ -11,8 +11,8 @@ namespace Jacquard.App {
 
 #if UNITY_EDITOR || UNITY_STANDALONE
 
-// Localhost JSON-RPC bridge. Networking stays off the Unity thread; requests are
-// applied from Update so project and transport state remain on the main thread.
+// A localhost client for the score editor. Networking stays off the Unity thread, and
+// requests are applied from Update so the project and transport keep their one owner.
 [DefaultExecutionOrder(-100)]
 sealed class RemoteBridge : MonoBehaviour
 {
@@ -194,6 +194,9 @@ sealed class RemoteBridge : MonoBehaviour
         _pendingProject = incoming;
         _pendingOperation = args.operationId;
         _saveAfterAdopt = args.persist;
+        // For the same reason as Load: a score waiting for the turn of the piece has to
+        // leave the outgoing score alone, since an edit would move the line the switch
+        // was measured on.
         _app.Editor.Locked = true;
         _app.Sequencer.SwitchTo(incoming);
 
