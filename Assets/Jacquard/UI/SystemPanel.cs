@@ -170,7 +170,7 @@ sealed class SystemPanel
         // kept, so it is also what puts the app into the state it was left in: the
         // caller has nothing to remember, and there is no second place the default is
         // written down to disagree with this one.
-        _visualizerOn = PlayerPrefs.GetInt(VisualizerKey, 0) != 0;
+        _visualizerOn = PlayerPrefs.GetInt(VisualizerKey, 1) != 0;
 
         Sync();
         _apply(_visualizerOn);
@@ -221,9 +221,13 @@ sealed class SystemPanel
                                        : v.ToString("F1", CultureInfo.InvariantCulture)
                                          + " dB");
 
-    // Off unless it was turned on, which is what everything raised from the transport
-    // row starts as: the plane is what the screen is for, and a thing that starts on is
-    // a decision nobody made. What is remembered here is somebody deciding otherwise.
+    // On unless it was turned off, which is the other way round from everything raised
+    // from the transport row. Those are panels, and a panel that came up by itself would
+    // be covering the plane the screen is for. This one is not in the way of anything —
+    // it is behind the score and the eye can ignore it — and it is the only thing on
+    // screen that says the synth is there before a note has been played. So it is what
+    // the app looks like on the first launch, and what is remembered here is somebody
+    // deciding they would rather it were not.
     const string VisualizerKey = "Jacquard.Visualizer";
 
     void ToggleVisualizer()

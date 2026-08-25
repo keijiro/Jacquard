@@ -62,9 +62,9 @@ project**; it is remembered for the machine it was set on.
 
 | | |
 | --- | --- |
-| Volume | How loud the whole thing leaves. See the table above |
-| Visualizer | Puts the synth behind the score in a wash the eye can ignore — the output as a trace across the middle, the twenty-four voice slots as a row along the bottom |
-| Audition | The one switch here that starts **on**. It is what makes an edit sound the note it just made: a bar let go of, a note written, a stack pasted, a transpose from the keys. Turned off, all of that goes quiet — but Return still sounds the note under the cursor, since that is a note asked for rather than one volunteered |
+| Volume | How loud the whole thing leaves. See the table above. It starts a decibel under full scale, which is headroom against what a converter does between samples rather than a level anybody is meant to hear as quiet |
+| Visualizer | Starts **on**. Puts the synth behind the score in a wash the eye can ignore — the output as a trace across the middle, the twenty-four voice slots as a row along the bottom |
+| Audition | Starts **on**. It is what makes an edit sound the note it just made: a bar let go of, a note written, a stack pasted, a transpose from the keys. Turned off, all of that goes quiet — but Return still sounds the note under the cursor, since that is a note asked for rather than one volunteered |
 | Buffer size | Reach for this if the sound bangs or drops out: how long a buffer the audio thread has to fill, from 256 frames — 5.3ms at the usual rate, which is what the app ships with — up to 1024. A longer buffer survives a busy moment and costs that much delay between a Live FX button and what comes out. **Taken up at the next launch**, which the panel says while the two disagree |
 | Open score folder | Desktop only — shows the directory the scores are written to |
 

@@ -21,9 +21,8 @@ namespace Jacquard.App {
 //
 // It only goes down, for the same reason. What arrives at it cannot exceed full scale,
 // so a volume above unity would be asking the device to clip what the soft clip was
-// careful not to, and squarely rather than roundly. Unity is the top of the bar and
-// where every machine starts, so an install that never opens the System panel sounds
-// exactly as it did before there was one.
+// careful not to, and squarely rather than roundly. Unity is the top of the bar, and a
+// decibel under it is where every machine starts — see Default.
 //
 // It belongs to the machine and not to the piece, which puts it in PlayerPrefs beside
 // the buffer size and the auditioning rather than in the file. The argument for the
@@ -51,9 +50,18 @@ namespace Jacquard.App {
 // end does, and it runs from the editor assembly.
 public static class OutputVolume
 {
-    // What every machine starts at: unity, which is what the output stage did before
-    // there was anything to set.
-    public const float Default = 0.0f;
+    // What every machine starts at: a decibel under unity.
+    //
+    // Not unity, and the decibel is headroom rather than taste. What reaches here has
+    // been through the soft clip, so no sample is over full scale — but a run of samples
+    // at full scale is not a waveform at full scale, and the converter that reconstructs
+    // them overshoots between them, by a decibel and more on anything with high end in
+    // it. At unity that overshoot is the device's problem, and what a device does with it
+    // is clip it squarely, which is the one thing the soft clip is there to avoid. A
+    // decibel back takes the ordinary case off the ceiling and is not a level anybody
+    // hears as quiet. It is a twenty-fifth of the way down a bar that spends a quarter of
+    // itself on the first six decibels, so it reads as full up as well as sounding it.
+    public const float Default = -1.0f;
 
     // The two ends of the bar. They are here rather than in the UI for the reason the
     // limiter's are: what a number is useful over belongs with the number.
