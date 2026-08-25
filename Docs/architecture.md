@@ -9,6 +9,7 @@ notes on each area of the code are the `impl-*.md` files listed in [README.md].
 [overview.md]: overview.md
 [sequencer-spec.md]: sequencer-spec.md
 [README.md]: README.md
+[socket-api.md]: socket-api.md
 
 Layout
 ------
@@ -69,3 +70,13 @@ the way the app drives it — the sequencer a window ahead and the handover a sh
 one, which is most of what there is to get wrong about it — and renders the two
 effect buses to measure that a repeat lands on the beat, that moving the delay time
 does not splice the signal, and that the reverb's tail settles.
+
+Socket control surface
+----------------------
+
+The optional localhost control surface is documented separately in [socket-api.md]. It
+is deliberately outside the score and audio architecture: the Unity bridge schedules
+all score changes through the existing `ProjectFormat`, `ScoreEditor` and `Sequencer`,
+while the .NET relay only authenticates peers and routes JSON-RPC messages. Its
+black-box integration test suite lives at `Tools/Jacquard.Socket.Tests` and does not
+require Unity or an audio device.

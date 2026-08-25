@@ -21,6 +21,7 @@ What it is
 | [overview.md] | The idea, what it takes from, the stack, and the two standing decisions |
 | [sequencer-spec.md] | The sequencer specification — terminology, rules, rejected alternatives, and what is still undecided |
 | [architecture.md] | The two assemblies, the engine-free core, and the editor menu items |
+| [socket-api.md] | The localhost WebSocket bridge, protocol, lifecycle and test contract |
 | [manual.md] | The gestures and keys, from the player's side |
 
 How it is built
@@ -45,6 +46,7 @@ How it is built
 [manual.md]: manual.md
 [sequencer-spec.md]: sequencer-spec.md
 [architecture.md]: architecture.md
+[socket-api.md]: socket-api.md
 [impl-sequencer.md]: impl-sequencer.md
 [impl-synth.md]: impl-synth.md
 [impl-mix.md]: impl-mix.md
