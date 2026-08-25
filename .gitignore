@@ -23,5 +23,13 @@ Desktop.ini
 /*.tgz
 /*_DoNotShip
 
-# asc working directory: plan and approval files for one metadata apply, not the metadata itself.
+# The store listing lives in App Store Connect and not here. Everything asc keeps on
+# disk is either a working file for one command or a local copy of what the store
+# already holds, and both are shaped by that one store: keywords cut to its hundred
+# characters, screenshots named by its display types. This repository is the base a
+# build for any platform comes off, so a store's own schema does not belong in it.
+# `asc metadata pull` fetches the listing whenever it is wanted, which is what makes
+# the copy a derivative rather than the original.
 .asc/
+/metadata/
+/screenshots/
