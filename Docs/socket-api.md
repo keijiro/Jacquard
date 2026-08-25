@@ -97,6 +97,155 @@ a runtime is currently connected. A second runtime receives `runtime_exists`. A 
 or incorrect token receives `unauthenticated`; handshake failures do not enter the
 connection registry.
 
+API reference
+-------------
+
+All calls use JSON-RPC 2.0 with a non-empty string `id`:
+
+```text
+call(method: string, params: object) -> result: object | error: RpcError
+```
+
+### `session.hello`
+
+```text
+session.hello(HelloParams) -> HelloResult
+
+HelloParams = {
+  protocolVersion: 1,
+  role: "runtime" | "controller" | "observer",
+  token?: string,
+  clientName?: string,
+  clientVersion?: string
+}
+
+HelloResult = {
+  protocolVersion: 1,
+  connectionId: string,
+  runtimeConnected: boolean
+}
+```
+
+Authenticates the connection and assigns its role. The runtime role is limited to one
+connected peer; controllers and observers may be multiple.
+
+### `session.get`
+
+```text
+session.get({ sessionId?: string }) -> {
+  revision: number,
+  pendingRevision: number,
+  projectName: string,
+  playing: boolean,
+  switchPending: boolean,
+  masterPass: number,
+  playingStep: number,
+  formatVersion: number
+}
+```
+
+Returns the current score and transport state. `pendingRevision` is zero when no score
+switch is waiting for a loop boundary.
+
+### `project.get`
+
+```text
+project.get({ sessionId?: string }) -> {
+  revision: number,
+  name: string,
+  formatVersion: number,
+  content: string
+}
+```
+
+Returns the complete current `.jacquard` document. `content` is never a partial patch.
+
+### `project.replace`
+
+```text
+project.replace({
+  sessionId?: string,
+  baseRevision: number,
+  content: string,
+  operationId?: string,
+  apply?: "next_loop",
+  persist?: boolean
+}) -> {
+  status: "queued" | "applied",
+  revision: number,
+  pendingRevision: number
+}
+```
+
+Validates and adopts a complete score. While playing, `apply: "next_loop"` switches at
+the next master-lane boundary. `baseRevision` prevents overwriting a newer edit;
+`persist` saves after adoption and `operationId` is returned in the project-changed
+event.
+
+### `project.save`
+
+```text
+project.save({ sessionId?: string }) -> {
+  status: string,
+  revision: number
+}
+```
+
+Persists the runtime's current project through Jacquard's normal store.
+
+### `transport.play` and `transport.stop`
+
+```text
+transport.play({ sessionId?: string }) -> {
+  status: "playing" | "stopped",
+  revision: number
+}
+
+transport.stop({ sessionId?: string }) -> {
+  status: "playing" | "stopped",
+  revision: number
+}
+```
+
+Both operations are idempotent. `play` starts only when stopped; `stop` stops only when
+playing.
+
+### Events
+
+Events are JSON-RPC notifications without an `id`:
+
+```text
+event.project.changed({
+  revision: number,
+  operationId?: string,
+  source: "controller" | "user"
+})
+
+event.transport.changed({
+  revision: number,
+  operationId?: string,
+  source: "playing" | "stopped"
+})
+
+event.runtime.disconnected({})
+```
+
+`event.project.changed` confirms that a score edit became the active project. Runtime
+events are broadcast to every connected controller and observer.
+
+### Errors
+
+```text
+RpcError = {
+  code: -32000,
+  message: string,
+  data: { kind: string }
+}
+```
+
+The stable `data.kind` values are listed in the [Errors and limits](#errors-and-limits)
+section below.
+
 Request routing
 ---------------
 
