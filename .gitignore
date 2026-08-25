@@ -22,3 +22,6 @@ Desktop.ini
 /*.apk
 /*.tgz
 /*_DoNotShip
+
+# asc working directory: plan and approval files for one metadata apply, not the metadata itself.
+.asc/
