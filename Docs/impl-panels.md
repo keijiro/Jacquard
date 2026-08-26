@@ -124,7 +124,7 @@ Where the rest is written
 | The bar: travel, tapers, the geometric ranges, the two bars a pitch takes | `ValueBar`, `ParamRanges` |
 | Cycle gate switches, and what a cell can show before the tile gives out | `InspectorPanel`, `TileIcons` |
 | The DSP buffer setting, and why it applies at the next launch | `DspBuffer`, `SystemPanel` |
-| Opening the score folder, and why only on a desktop | `SystemPanel` |
+| The two rows that leave the app — the guide link everywhere, the score folder on a desktop only | `SystemPanel` |
 | Scrolling a row or a column that holds more than the screen | `ScrollStrip` |
 | What the screen keeps for itself, and the four insets | `SafeArea`, `JacquardUI.FollowTheSafeArea` |
 | The wordmark, held off the corner rather than off the safe area | `JacquardUI.MarkAir` |
