@@ -33,3 +33,9 @@ Desktop.ini
 .asc/
 /metadata/
 /screenshots/
+
+# Profiler captures. One is 65MB of a few seconds of frames on one device, taken to
+# answer one question; what it is worth keeping is the number it settled, which belongs
+# in the comment that argues for the code it is about. The directory is a workbench, so
+# it stays out of the history and the captures stay to hand.
+/ProfilerCaptures/
