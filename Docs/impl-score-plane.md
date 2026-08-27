@@ -120,3 +120,4 @@ Where the rest is written
 | Why a copy is written by hand rather than through `ProjectFormat` | `Tile.Copy` |
 | Framing the startup score, and where the cursor lands on it | `ScoreView.ShowScore` |
 | Why the lattice and the rails are written as vertices rather than filled paths | `ScoreView.FillRects` |
+| Why a cell is moved rather than made again | `ScoreView.Rebuild` |

@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -13,29 +14,29 @@ namespace Jacquard.App {
 //
 // Cells take no input of their own: the plane below resolves a click into a grid
 // coordinate, which it has to do anyway to let an empty cell be typed into.
+//
+// A cell is built once and then repurposed. The constructor holds only what every
+// cell has in common, and Apply hands a standing element whatever tile the score now
+// has in its slot — the argument for that, and what it is worth, is in
+// ScoreView.Rebuild, which is the one caller that reuses them.
 
 sealed class TileElement : VisualElement
 {
-    public Tile Tile { get; }
+    public Tile Tile { get; private set; }
 
-    // The cell it was built for. A drag needs to find the elements standing on a
+    // The cell it is standing on. A drag needs to find the elements standing on a
     // run of cells, and the position is the only thing that tells two of them
     // apart: the terminator tile is one shared instance across every lane.
-    public GridPoint Point { get; }
+    //
+    // Off the plane to begin with, so that the first Apply writes a position even for
+    // an element that lands on the corner cell.
+    public GridPoint Point { get; private set; } = new GridPoint(-1, -1);
 
-    // off is for the one tile that has a state as well as a kind: a channel start that
-    // will not send a runner. It gives up the solid field for the grey one a lock or a
-    // gate sits on, which is the pair of colours this UI already says on and off with —
-    // Controls.SetActive dresses a switch in exactly these two.
-    public TileElement(Tile tile, GridPoint point, bool off = false)
+    // The shell: the part of a cell that is the same whichever tile stands on it.
+    // Everything else waits for Apply.
+    public TileElement()
     {
-        (Tile, Point) = (tile, point);
-
-        var origin = Style.CellOrigin(point);
-
         style.position = Position.Absolute;
-        style.left = origin.x;
-        style.top = origin.y;
         style.width = Style.CellWidth;
         style.height = Style.CellHeight;
         style.alignItems = Align.Center;
@@ -44,26 +45,110 @@ sealed class TileElement : VisualElement
 
         SetBorderRadius(this, Style.Radius);
 
+        // Built once and assigned rather than subscribed, so that Draw can hand the
+        // element its icon or take it away without allocating a delegate each time.
+        _draw = OnGenerateVisualContent;
+    }
+
+    // For the callers with one cell to show and no element to spare — a ghost under
+    // the hand, and the cell a rebuild finds past the end of the plane.
+    public TileElement(Tile tile, GridPoint point, bool off = false) : this()
+      => Apply(tile, point, off);
+
+    // Puts this element on a cell. Moving it is a couple of style writes and nothing
+    // else; the picture is redrawn only when what it is a picture of has changed.
+    //
+    // off is for the one tile that has a state as well as a kind: a channel start that
+    // will not send a runner. It gives up the solid field for the grey one a lock or a
+    // gate sits on, which is the pair of colours this UI already says on and off with —
+    // Controls.SetActive dresses a switch in exactly these two.
+    public void Apply(Tile tile, GridPoint point, bool off = false)
+    {
+        if (point != Point)
+        {
+            Point = point;
+            var origin = Style.CellOrigin(point);
+            style.left = origin.x;
+            style.top = origin.y;
+        }
+
+        var look = Look.Of(tile, off);
+
+        if (!look.Equals(_look))
+        {
+            (_look, Tile) = (look, tile);
+            Draw(tile, off);
+        }
+        else if (TileIcons.IsStateful(tile))
+            MarkDirtyRepaint();
+    }
+
+    // Private members
+
+    Color _color;
+    Look _look;
+
+    readonly Action<MeshGenerationContext> _draw;
+
+    // What a cell's picture is made of. Two equal looks draw the same thing, so an
+    // element whose look has not moved can be left standing as it is.
+    //
+    // The tile is in here and is not enough on its own: a tile is edited in place — a
+    // transpose writes the new pitch back into the same NoteTile — so the reference
+    // says the cell is showing the right tile and the numbers say it is showing the
+    // right thing about it. Nothing here allocates to compare.
+    //
+    // **A newly drawn field on a tile belongs here in the same change.** Left out, the
+    // cell goes on showing what it showed before the edit — which is the one failure
+    // this design can have, and the one the compiler cannot see. The exception is a
+    // field an icon draws: TileIcons.IsStateful covers those instead.
+    readonly struct Look : IEquatable<Look>
+    {
+        public static Look Of(Tile tile, bool off) => tile switch
+        {
+            NoteTile note => new Look(tile, off, note.Note, note.Length),
+            ChannelTile channel => new Look(tile, off, channel.Channel, 0.0f),
+            _ => new Look(tile, off, 0, 0.0f)
+        };
+
+        public bool Equals(Look other)
+          => _tile == other._tile && _off == other._off &&
+             _number == other._number && _length == other._length;
+
+        Look(Tile tile, bool off, int number, float length)
+          => (_tile, _off, _number, _length) = (tile, off, number, length);
+
+        readonly Tile _tile;
+        readonly bool _off;
+        readonly int _number;
+        readonly float _length;
+    }
+
+    // Draws the cell from scratch. The children go with the look, so they are made
+    // again here; the styles on the element itself are written whatever they are worth,
+    // including the zero border of a cell that has no border, so that after a cell's
+    // first draw every property it will ever need is already on it and every later
+    // write is free. Eight style writes at startup buys a repurposing that allocates
+    // nothing.
+    void Draw(Tile tile, bool off)
+    {
+        Clear();
+
         // Anything that does not simply carry on to the right is a solid cell.
         var inverted = tile is FlowTile && !off;
 
         _color = inverted ? Style.Background : Style.NoteText;
 
-        if (tile is NoteTile note)
-        {
-            style.backgroundColor = Style.Background;
-            SetBorderWidth(this, 1.0f);
-            SetBorderColor(this, Style.NoteLine);
-            Add(NoteLabel(note));
-        }
-        else if (inverted)
-        {
-            style.backgroundColor = Style.NoteLine;
-        }
-        else
-        {
-            style.backgroundColor = Style.ControlBackground;
-        }
+        // A note is the one cell that is drawn as an outline on the ground colour.
+        var outlined = tile is NoteTile;
+
+        style.backgroundColor = outlined ? Style.Background :
+                                inverted ? Style.NoteLine : Style.ControlBackground;
+
+        SetBorderWidth(this, outlined ? 1.0f : 0.0f);
+        SetBorderColor(this, Style.NoteLine);
+
+        if (tile is NoteTile note) Add(NoteLabel(note));
 
         if (tile is ChannelTile channel)
         {
@@ -73,13 +158,12 @@ sealed class TileElement : VisualElement
             Style.SetInk(label, inverted);
             Add(label);
         }
-        else if (TileIcons.HasIcon(tile))
-            generateVisualContent += OnGenerateVisualContent;
+
+        // Assigning null is how a cell that used to draw an icon stops. The property
+        // setter is not trusted to dirty the element, so say so.
+        generateVisualContent = TileIcons.HasIcon(tile) ? _draw : null;
+        MarkDirtyRepaint();
     }
-
-    // Private members
-
-    readonly Color _color;
 
     void OnGenerateVisualContent(MeshGenerationContext context)
       => TileIcons.Draw(context.painter2D, Tile, _color);

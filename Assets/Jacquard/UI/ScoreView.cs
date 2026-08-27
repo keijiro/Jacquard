@@ -109,9 +109,24 @@ public sealed class ScoreView : VisualElement
 
     // Refreshing
 
-    // Called whenever the score has been edited. Cells are rebuilt outright: an
-    // edit is a human-paced event and a score holds tens of tiles, so there is
-    // nothing to gain from reconciling them one by one.
+    // Called whenever the score has been edited, which is not the human-paced event it
+    // sounds like: a panel bar being scrubbed commits on every pointer-move frame, so
+    // this runs at the frame rate for as long as a hand is on one.
+    //
+    // Cells are moved rather than made again. The elements are the whole of the cost —
+    // an inline style write allocates the first time that property is set on an element
+    // and nothing afterwards, so a note cell, which is an element plus a column, a row
+    // and two or three labels, is about 6 KB the once and free to stand on a different
+    // cell later. Measured against the sample score's 94 cells: building them, 1.0 ms
+    // and 560 KB; writing left and top on the 94 already standing, 31 µs and nothing at
+    // all. On an iPad a lane move was a single frame of 25-31 ms against a 2.5 ms
+    // median, half of it script and half of it the repaint that the fresh elements
+    // dirtied — a dropped vsync for an edit that moved no cell's picture at all.
+    //
+    // So the walk below hands the element already standing in each slot to the tile the
+    // score now has there, and stands up a new one only past the end of what is on the
+    // plane. TileElement.Apply redraws only where the picture has actually changed,
+    // which is one cell for a note edited and none at all for a lane moved.
     public void Rebuild()
     {
         // Nothing can stay in hand across an edit: what a drag is holding is a
@@ -121,12 +136,10 @@ public sealed class ScoreView : VisualElement
         EndFlash();
 
         // Before the resize, which reads the positions this may have moved, and before
-        // the cells, which bake theirs in as they are built.
+        // the cells, which are placed from where it leaves the score.
         Reframe();
 
         Resize();
-
-        _tiles.Clear();
 
         // A channel start says whether its lane runs, and the master lane always runs
         // whatever its switch says, so the cell is drawn from what will happen rather than
@@ -138,23 +151,50 @@ public sealed class ScoreView : VisualElement
         // a lane playing, and there is no third look to draw.
         var master = Score.MasterLane;
 
+        // The cells in the order the score gives them up, counted as they go by. No
+        // list of built elements is kept alongside: the tree already knows what is on
+        // the plane, which is the argument ValueBar.SyncAll makes for the same thing.
+        //
+        // An index is enough to pair a slot with a cell because the lanes keep their
+        // order across the edits this is for. MoveLane writes a lane's coordinates and
+        // nothing else, ChannelLanes and MasterLane sort a projection rather than the
+        // list, and AddLane appends — so a lane moved, a note edited, a step or a stack
+        // changed all leave every earlier slot on the tile it had. A lane deleted out of
+        // the middle and a score arriving do shift the walk, and those two redraw about
+        // as much as this used to; the arriving score is a dimmed plane anyway.
+        var count = 0;
+
         foreach (var lane in Score.Lanes)
         {
-            _tiles.Add(new TileElement(
-              lane.Head, lane.HeadPoint,
-              lane.Channel is { Enabled: false } && lane != master));
-            _tiles.Add(new TileElement(Score.Terminator, lane.TermPoint));
+            Place(ref count, lane.Head, lane.HeadPoint,
+                  lane.Channel is { Enabled: false } && lane != master);
+            Place(ref count, Score.Terminator, lane.TermPoint);
 
             for (var i = 0; i < lane.Steps.Count; i++)
             {
                 var step = lane.Steps[i];
                 for (var d = 0; d < step.Depth; d++)
-                    _tiles.Add(new TileElement(step.Tiles[d], lane.CellPoint(i, d)));
+                    Place(ref count, step.Tiles[d], lane.CellPoint(i, d));
             }
         }
 
+        // Whatever the score no longer fills, taken off the back.
+        while (_tiles.childCount > count) _tiles.RemoveAt(_tiles.childCount - 1);
+
         _lower.MarkDirtyRepaint();
         _upper.MarkDirtyRepaint();
+    }
+
+    // Puts the next cell of the walk on the element standing in that slot, or on a new
+    // one if the walk has gone past the end of the plane.
+    void Place(ref int index, Tile tile, GridPoint point, bool off = false)
+    {
+        if (index < _tiles.childCount)
+            ((TileElement)_tiles[index]).Apply(tile, point, off);
+        else
+            _tiles.Add(new TileElement(tile, point, off));
+
+        index++;
     }
 
     // Checks the audible position of every runner and repaints the overlay when it

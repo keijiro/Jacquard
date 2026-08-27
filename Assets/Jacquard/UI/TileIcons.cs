@@ -23,6 +23,19 @@ static class TileIcons
     public static bool HasIcon(Tile tile)
       => tile is ParamTile or GateTile or TerminatorTile or JumpTile or JumpDestTile;
 
+    // Which of those icons are drawn from something the tile holds rather than from
+    // what kind of tile it is, so that a cell standing on one has to draw again after
+    // an edit even when nothing else about it moved. Both gates: the cycle gate's
+    // period and laps and the probability gate's chance are read off the tile down in
+    // Draw.
+    //
+    // Said here rather than carried in TileElement's look signature because this is the
+    // file that knows what an icon is drawn from — and because the lap mask is private
+    // to the tile, reachable only through Fires or the allocating Pattern, so there is
+    // nothing cheap to carry. A score holds a handful of gates and a mesh regenerated
+    // for each of them costs nothing.
+    public static bool IsStateful(Tile tile) => tile is GateTile;
+
     public static void Draw(Painter2D painter, Tile tile, Color color)
     {
         painter.strokeColor = color;
