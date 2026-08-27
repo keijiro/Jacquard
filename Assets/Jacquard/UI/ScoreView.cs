@@ -286,8 +286,8 @@ public sealed class ScoreView : VisualElement
 
         var painter = context.painter2D;
 
-        DrawLattice(painter);
-        DrawRails(painter);
+        DrawLattice(context);
+        DrawRails(context);
         DrawChains(painter);
         DrawLinks(painter);
         DrawMarkers(painter);
@@ -295,14 +295,12 @@ public sealed class ScoreView : VisualElement
 
     // The lattice shows through only where nothing else is: a step that holds
     // nothing gets a pass-through marker instead of a dot.
-    void DrawLattice(Painter2D painter)
+    void DrawLattice(MeshGenerationContext context)
     {
-        painter.fillColor = Style.Dot;
-        painter.BeginPath();
+        _rects.Clear();
 
-        // Square dots rather than round ones: a path holding hundreds of arc
-        // subpaths only fills the first of them, and at this size the difference
-        // is invisible anyway.
+        // Square dots rather than round ones: a square is the two triangles that
+        // FillRects writes anyway, and at this size nothing else was ever visible.
         for (var y = 0; y < _rows; y++)
             for (var x = 0; x < _columns; x++)
             {
@@ -310,19 +308,18 @@ public sealed class ScoreView : VisualElement
                 if (Score.At(point).Kind != CellKind.Empty) continue;
 
                 var center = Style.CellCenter(point);
-                Rect(painter, new Rect(center.x - Style.LatticeDot / 2,
-                                       center.y - Style.LatticeDot / 2,
-                                       Style.LatticeDot, Style.LatticeDot));
+                _rects.Add(new Rect(center.x - Style.LatticeDot / 2,
+                                    center.y - Style.LatticeDot / 2,
+                                    Style.LatticeDot, Style.LatticeDot));
             }
 
-        painter.Fill(FillRule.NonZero);
+        FillRects(context, _rects, Style.Dot);
     }
 
     // Each lane's own time axis, from its head to its terminator.
-    void DrawRails(Painter2D painter)
+    void DrawRails(MeshGenerationContext context)
     {
-        painter.fillColor = Style.Fade(Style.NoteLine, Style.RailOpacity);
-        painter.BeginPath();
+        _rects.Clear();
 
         foreach (var lane in Score.Lanes)
         {
@@ -331,10 +328,10 @@ public sealed class ScoreView : VisualElement
             var y = Mathf.Floor(Style.CellCenter(lane.HeadPoint).y) - Style.RailDot / 2;
 
             for (var x = from; x < to; x += Style.RailStep)
-                Rect(painter, new Rect(x, y, Style.RailDot, Style.RailDot));
+                _rects.Add(new Rect(x, y, Style.RailDot, Style.RailDot));
         }
 
-        painter.Fill(FillRule.NonZero);
+        FillRects(context, _rects, Style.Fade(Style.NoteLine, Style.RailOpacity));
     }
 
     // The vertical chain, which reads as one block from the top down. Only cells of
@@ -734,6 +731,9 @@ public sealed class ScoreView : VisualElement
     readonly List<(Lane lane, int step)> _paintedPlayheads = new();
     readonly List<Vector2> _path = new();
 
+    // Reused across rebuilds, so that an edit repainting the plane allocates nothing.
+    readonly List<Rect> _rects = new();
+
     int _columns = 48;
     int _rows = 28;
 
@@ -793,6 +793,48 @@ public sealed class ScoreView : VisualElement
         painter.LineTo(new Vector2(rect.xMax, rect.yMax));
         painter.LineTo(new Vector2(rect.xMin, rect.yMax));
         painter.ClosePath();
+    }
+
+    // Axis-aligned rectangles written straight into the mesh, two triangles each.
+    //
+    // Painter2D cannot have these. A filled path costs more than linearly in the number
+    // of subpaths it holds — the lattice's 1400 dots measured 58ms of tessellation on an
+    // iPad, against 16ms for the whole frame around it — and above about three thousand
+    // it stops drawing the far ones altogether. Written as vertices the cost is flat in
+    // the count, and the dots come out crisper because nothing antialiases them.
+    static void FillRects(MeshGenerationContext context, List<Rect> rects, Color color)
+    {
+        // An allocation holds 65535 vertices; batching well under it costs nothing and
+        // means a plane that grows never has to be thought about again.
+        const int BatchQuads = 16000;
+
+        for (var start = 0; start < rects.Count; start += BatchQuads)
+        {
+            var count = Mathf.Min(BatchQuads, rects.Count - start);
+            var mesh = context.Allocate(count * 4, count * 6);
+
+            for (var i = 0; i < count; i++)
+            {
+                var r = rects[start + i];
+                var v = (ushort)(i * 4);
+
+                mesh.SetNextVertex(new Vertex
+                  { position = new Vector3(r.xMin, r.yMax, Vertex.nearZ), tint = color });
+                mesh.SetNextVertex(new Vertex
+                  { position = new Vector3(r.xMin, r.yMin, Vertex.nearZ), tint = color });
+                mesh.SetNextVertex(new Vertex
+                  { position = new Vector3(r.xMax, r.yMin, Vertex.nearZ), tint = color });
+                mesh.SetNextVertex(new Vertex
+                  { position = new Vector3(r.xMax, r.yMax, Vertex.nearZ), tint = color });
+
+                mesh.SetNextIndex(v);
+                mesh.SetNextIndex((ushort)(v + 1));
+                mesh.SetNextIndex((ushort)(v + 2));
+                mesh.SetNextIndex((ushort)(v + 2));
+                mesh.SetNextIndex((ushort)(v + 3));
+                mesh.SetNextIndex(v);
+            }
+        }
     }
 
     static void RoundedRect(Painter2D painter, Rect rect, float radius)

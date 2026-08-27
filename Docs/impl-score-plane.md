@@ -119,3 +119,4 @@ Where the rest is written
 | Copying a stack, and why the flow tiles have no copy | `Tile.Copy`, `Score.PlaceStack` |
 | Why a copy is written by hand rather than through `ProjectFormat` | `Tile.Copy` |
 | Framing the startup score, and where the cursor lands on it | `ScoreView.ShowScore` |
+| Why the lattice and the rails are written as vertices rather than filled paths | `ScoreView.FillRects` |
