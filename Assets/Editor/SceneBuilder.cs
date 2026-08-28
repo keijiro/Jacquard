@@ -55,6 +55,16 @@ static class SceneBuilder
         // The default layer, which is where the visualizer's mesh is drawn and the only
         // thing there is to see: this was zero for as long as there was nothing at all.
         camera.cullingMask = 1;
+        // And no HDR target, which is not a quality setting here but the whole of what
+        // the frame costs. URP takes an intermediate colour attachment whenever the
+        // camera and the pipeline asset both allow HDR, because an HDR request cannot be
+        // met by the backbuffer an iOS device hands out — so the wash is drawn into a
+        // B10G11R11 attachment beside a depth attachment nothing writes or tests, and
+        // blitted out again, for a flat grey and a line a pixel and a half wide. Nothing
+        // in the palette exceeds one, so there is no range being kept. The renderer's
+        // intermediate texture mode is set to Auto beside this, and both are needed:
+        // either one on its own still forces the attachment.
+        camera.allowHDR = false;
         cameraObject.AddComponent<AudioListener>();
 
         var appObject = new GameObject("Jacquard");
