@@ -362,9 +362,13 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
     // down a bar crosses a hundred values, and a note per value is a machine gun
     // rather than an audition. Anything that is not a drag settles the instant it
     // changes, since a typed number arrives already decided.
+    //
+    // EndDrag is where the once is made, and OnPointerUp is where keeping it costs
+    // something: a gesture that writes the model twice would otherwise report twice.
     public void Bind(Func<float> get, Action<float> set, Action settled = null)
     {
         _get = get;
+        _set = set;
         _settled = settled;
 
         SetValueWithoutNotify(get());
@@ -538,13 +542,34 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
     // drag to the left lost a fiftieth of the range to the lift — always downwards,
     // always the same direction, never given back.
     //
-    // The value is written through rather than only shown, since the model has already
-    // been handed the drifted number and the settle that follows is what auditions it.
+    // The model is written and not only the bar, since it has already been handed the
+    // drifted number and the settle that follows is what auditions it — but written
+    // directly rather than through the value setter, which is where this used to go.
+    // A change dispatched from inside a pointer dispatch is queued by UI Toolkit rather
+    // than run inline, so it landed after EndDrag had already made the scrub's one
+    // report and reported a second time; and since the queued set had not yet reached
+    // the patch, the first of the two notes sounded the drifted value — the very number
+    // the correction exists to take back. Measured by hand on the iPad before it was
+    // fixed: eleven scrubs, ten of them two notes at the same sample and so six decibels
+    // rather than a flam, and the eleventh single only because the lift happened to land
+    // on the number the frame already held.
+    //
+    // That last one is why the write is guarded here. It is the setter's own early-out
+    // kept rather than lost with the setter: a correction that changes nothing writes
+    // nothing, and a gesture that drifted nowhere goes on reporting once.
+    //
+    // What is deliberately not done is Bind's read-back of the getter. That handler
+    // skips it under a drag on purpose, a drag being unable to leave its range, and this
+    // is a drag's own value arriving one moment later.
     void OnPointerUp(PointerUpEvent e)
     {
         if (!_dragging) return;
 
-        if (_dragFrame == Time.frameCount) value = _dragSteady;
+        if (_dragFrame == Time.frameCount && _dragSteady != _value)
+        {
+            SetValueWithoutNotify(_dragSteady);
+            _set?.Invoke(_dragSteady);
+        }
 
         this.ReleasePointer(e.pointerId);
         EndDrag();
@@ -773,6 +798,10 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
 
     Func<float> _get;
     Action _settled;
+
+    // Kept rather than only closed over by the change callback, since the lift
+    // correction has to reach the model without dispatching a change. See OnPointerUp.
+    Action<float> _set;
 
     float _value;
 
