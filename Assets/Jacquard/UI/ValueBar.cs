@@ -262,9 +262,6 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
         Overlay(_readout);
         Add(_readout);
 
-        _input = BuildInput();
-        Add(_input);
-
         RegisterCallback<PointerDownEvent>(OnPointerDown);
         RegisterCallback<PointerMoveEvent>(OnPointerMove);
         RegisterCallback<PointerUpEvent>(OnPointerUp);
@@ -276,12 +273,43 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
         RegisterCallback<PointerEnterEvent>(_ => SetHover(true));
         RegisterCallback<PointerLeaveEvent>(_ => SetHover(false));
 
+        // A bar taken off the screen goes back to rest.
+        //
+        // An edit cannot outlive the panel it was opened in: a bar that came back still
+        // editing would be holding the keyboard for a tile the cursor left. Neither can
+        // the lift under the pointer, which has no PointerLeaveEvent coming to end it —
+        // moving the cursor with the keys takes the panel out from under a pointer that
+        // never moved.
+        //
+        // Both used to be free. A rebuild threw the bar away along with its state, so
+        // neither could outlive its bar; now that InspectorPanel keeps its two long
+        // groups and only detaches them, the bar has to put itself back. A live drag is
+        // already covered, and in that order: UI Toolkit releases the pointer capture on
+        // the way out and only then sends this event, so PointerCaptureOutEvent has
+        // ended the drag before anything here runs.
+        RegisterCallback<DetachFromPanelEvent>(_ =>
+        {
+            EndEdit(false, true);
+            _hover = false;
+            UpdateBackground();
+        });
+
         UpdateBar();
     }
 
-    // The editor, kept around hidden rather than built on demand: it is one element,
-    // and creating it on the double click would mean focusing an element that has
-    // never been laid out.
+    // The editor, made on the first edit rather than kept around hidden against a
+    // double click that most bars never get.
+    //
+    // It is not one element. A TextField brings the theme's inner input and the text
+    // element inside that, and building one costs 10.8 KB — which on the Tile panel's
+    // fifteen sound bars was 162 KB of the 451 KB a showing of that panel spent, the
+    // largest single item in it.
+    //
+    // What argued for building it up front was that creating it on the double click
+    // would mean focusing an element that has never been laid out. That is the position
+    // a hidden field is in anyway, and BeginEdit already answers it: the focus is
+    // deferred a tick for exactly that reason, and one tick covers a field that has
+    // just been made as well as one that was only hidden.
     TextField BuildInput()
     {
         var input = new TextField();
@@ -373,9 +401,11 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
         if (_value != current) SetValueWithoutNotify(current);
     }
 
-    // Every bar under an element. The panels rebuild their bodies as the cursor
-    // moves, so a list of the bars they made would only be a second thing to keep in
-    // step; the tree already knows what is on screen.
+    // Every bar under an element. A list of the bars a panel made would only be a
+    // second thing to keep in step; the tree already knows what is on screen — and it
+    // knows it either way, whether the panel built its body afresh as the cursor moved,
+    // which the Send and Global panels do, or handed a group it had already built to
+    // another tile, which the Tile panel does with its two long ones.
     public static void SyncAll(VisualElement root)
     {
         foreach (var bar in root.Query<ValueBar>().Build()) bar.Sync();
@@ -559,6 +589,14 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
 
     void BeginEdit()
     {
+        // Made here rather than in the constructor, and added before anything below can
+        // focus it. RememberKeyboard tells a bar's own editor from whatever else held the
+        // keyboard by walking up to a ValueBar ancestor, and ScrollStrip.KeepsItsOwnDrag
+        // finds this bar the same way; an unparented field has no ancestor to find, so
+        // one focused before it is added would be remembered as the thing to hand the
+        // keyboard back to, and the score plane would never get it back.
+        if (_input == null) { _input = BuildInput(); Add(_input); }
+
         _editing = true;
 
         // Before the field is shown, so there is no frame of whatever was typed into
@@ -577,9 +615,11 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
         Style.SetInk(_input, true);
         UpdateBackground();
 
-        // Focus has to wait for the element to be laid out, which it has not been
-        // while it was hidden. Checked again on the way through, so an edit that is
-        // over by then does not leave the keyboard on a hidden field.
+        // Focus has to wait for the element to be laid out, which it has not been:
+        // either it was hidden until a moment ago, or, on the first edit this bar has
+        // ever had, it did not exist until a moment ago. The wait is the same one, and
+        // this is the only place it is argued for. Checked again on the way through, so
+        // an edit that is over by then does not leave the keyboard on a hidden field.
         //
         // The value is put in again here as well as above: it is what the edit starts
         // from, so it has to be there when the field takes the keyboard, and
@@ -726,7 +766,10 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
     readonly Range _range;
     readonly VisualElement _fill;
     readonly Label _readout;
-    readonly TextField _input;
+
+    // Null until the first edit. Only ever read from inside one — BeginEdit, EndEdit
+    // and SelectAllOnTouchKeyboard — so nowhere else has to ask. See BuildInput.
+    TextField _input;
 
     Func<float> _get;
     Action _settled;

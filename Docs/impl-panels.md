@@ -123,6 +123,8 @@ Where the rest is written
 | --- | --- |
 | The bar: travel, tapers, the geometric ranges, the two bars a pitch takes | `ValueBar`, `ParamRanges` |
 | Cycle gate switches, and what a cell can show before the tile gives out | `InspectorPanel`, `TileIcons` |
+| Why the Sound group and the lock rows are re-bound rather than made again | `InspectorPanel.Refresh` |
+| Why a bar's text field waits for the first edit | `ValueBar.BuildInput` |
 | The DSP buffer setting, and why it applies at the next launch | `DspBuffer`, `SystemPanel` |
 | The two rows that leave the app — the guide link everywhere, the score folder on a desktop only | `SystemPanel` |
 | Scrolling a row or a column that holds more than the screen | `ScrollStrip` |
