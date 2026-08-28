@@ -30,6 +30,15 @@ namespace Jacquard.App {
 // the switch on the transport row moves. Faint or not, this is the only thing on screen
 // that moves when nothing is being edited, and a background that is always on is a
 // background nobody chose.
+//
+// The geometry is built from nothing every frame and that is the right shape for it:
+// the picture genuinely differs every frame, so there is no rebuild here paying for a
+// picture that is the same picture. At the 512 columns every device this ships to
+// reaches, a frame is 511 ribbon quads and up to twenty-four slot quads — 2140 vertices
+// and 3210 indices. What has been taken out of it is the part that was *not* new every
+// frame: a colour space conversion that ran once a column for a result in which only
+// the alpha moved, an index buffer that spelled the same three thousand numbers out
+// again, and the trigger's habit of fetching every sample twice.
 
 [RequireComponent(typeof(JacquardApp))]
 public sealed class Visualizer : MonoBehaviour
@@ -63,9 +72,22 @@ public sealed class Visualizer : MonoBehaviour
 
         _mesh = new Mesh { name = "Visualizer" };
         _mesh.MarkDynamic();
-        // Nothing here is ever off screen, and the bounds are recomputed from vertices
-        // that move every frame, so they are simply given something that always holds.
+        // Nothing here is ever off screen, so the bounds are simply given something that
+        // always holds — and given it once, because nothing in the rebuild disturbs them.
+        // That was worth checking rather than assuming, since it reads like the kind of
+        // thing a Clear would reset: Mesh.Clear keeps whatever bounds it was holding,
+        // and the only thing that ever overwrote them was SetVertices recomputing them,
+        // which LateUpdate now tells it not to do. This is the value RenderMesh culls
+        // against on every frame of the app's life.
         _mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 1e4f);
+
+        // The trace's colour, converted the one time it can be. Alpha is all that
+        // varies down the trace, so Shaded was being asked the same question once a
+        // column for an answer that cannot change while the app runs. Here rather than
+        // as another static readonly beside the palette, because static initialisers
+        // run in declaration order and a converted colour declared above the colour it
+        // converts comes out black without saying so.
+        _traceColor = Shaded(TraceColor);
     }
 
     void LateUpdate()
@@ -79,6 +101,14 @@ public sealed class Visualizer : MonoBehaviour
         var scope = synth.Scope;
         if (!scope.IsCreated) return;
 
+        // The scope travels by value from here down rather than by `in`, which looks
+        // like the wrong way round and is not. None of At, Level, Head, Length or Slots
+        // is a readonly member, so `in` obliges the compiler to copy the whole struct —
+        // three NativeArrays, each carrying a safety handle in the editor — before every
+        // one of the several thousand reads a frame, where by value it is one copy per
+        // call. The pipeline hands the scope over by value already, so this is a copy of
+        // a copy and there is nothing here for `in` to protect.
+
         // What the camera can see, which is what everything below is measured in: an
         // orthographic size is the half height, and the aspect gives the rest.
         var halfHeight = camera.orthographicSize;
@@ -90,16 +120,23 @@ public sealed class Visualizer : MonoBehaviour
 
         _vertices.Clear();
         _colors.Clear();
-        _indices.Clear();
 
         BuildTrace(scope, synth.SampleRate, halfWidth, halfHeight, pixel);
         BuildSlots(scope, halfWidth, halfHeight, pixel);
 
+        // Everything above adds vertices four at a time, so the index buffer follows
+        // from the vertex count and nothing else.
+        var quads = _vertices.Count / 4;
+        GrowIndices(quads);
+
         _mesh.Clear(true);
-        _mesh.SetVertices(_vertices);
+        // No bounds recalculation over two thousand vertices, which is the one thing
+        // here that ever wrote the bounds — so with it off, the value Awake gave them
+        // is still standing when RenderMesh reads it below.
+        _mesh.SetVertices(_vertices, 0, _vertices.Count,
+                          MeshUpdateFlags.DontRecalculateBounds);
         _mesh.SetColors(_colors);
-        _mesh.SetIndices(_indices, MeshTopology.Triangles, 0, false);
-        _mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 1e4f);
+        _mesh.SetIndices(_indices, 0, quads * 6, MeshTopology.Triangles, 0, false);
 
         var parameters = new RenderParams(_material)
           { worldBounds = _mesh.bounds,
@@ -126,7 +163,7 @@ public sealed class Visualizer : MonoBehaviour
     // rising zero crossing before that point, the same note stands still and what moves
     // is only what actually changed. Which is a scope's trigger, and it is worth the
     // dozen lines here for the same reason it is on the front of an oscilloscope.
-    void BuildTrace(in FmSynthScope scope, int sampleRate, float halfWidth,
+    void BuildTrace(FmSynthScope scope, int sampleRate, float halfWidth,
                     float halfHeight, float pixel)
     {
         var span = Mathf.Clamp((int)(Window * sampleRate), 64, scope.Length / 2);
@@ -159,7 +196,7 @@ public sealed class Visualizer : MonoBehaviour
             var point = new Vector2(x, Mathf.Clamp(value, -1.0f, 1.0f) * height);
 
             if (column > 0)
-                Ribbon(previous, point, thickness, Fade(TraceColor, column, columns));
+                Ribbon(previous, point, thickness, Fade(_traceColor, column, columns));
 
             previous = point;
         }
@@ -169,14 +206,25 @@ public sealed class Visualizer : MonoBehaviour
     // the window would otherwise have begun. Nothing found inside a window's worth of
     // history means there is nothing periodic to hold still — silence, or a wash — and
     // the untriggered start is as good an answer as any.
-    static int Trigger(in FmSynthScope scope, int span)
+    //
+    // The walk carries the upper sample of the pair rather than fetching it again: each
+    // step's lower sample is the next step's upper one, so a scan that read twice per
+    // step now reads once. Nothing at all on a sounding mix, where the test passes
+    // inside a period or two — but in silence the test never passes and the walk runs
+    // the whole span, which is a window's worth of ring reads saved in the state the app
+    // rests in. Under the unsynchronised read FmSynthScope's header argues for, reading
+    // a sample once where it used to be read twice can only make a pair more consistent.
+    static int Trigger(FmSynthScope scope, int span)
     {
         var start = scope.Head - 1 - span;
+        var above = scope.At(start);
 
         for (var back = 0; back < span; back++)
         {
             var at = start - back;
-            if (scope.At(at - 1) <= 0.0f && scope.At(at) > 0.0f) return at;
+            var below = scope.At(at - 1);
+            if (below <= 0.0f && above > 0.0f) return at;
+            above = below;
         }
 
         return start;
@@ -194,7 +242,7 @@ public sealed class Visualizer : MonoBehaviour
     // anything is bent. A peak amplitude spends most of its life in the bottom quarter
     // of its range, so a bar drawn straight off one is a bar that flickers just above
     // the floor and says nothing about how loud the voice is.
-    void BuildSlots(in FmSynthScope scope, float halfWidth, float halfHeight,
+    void BuildSlots(FmSynthScope scope, float halfWidth, float halfHeight,
                     float pixel)
     {
         var slots = scope.Slots;
@@ -227,6 +275,9 @@ public sealed class Visualizer : MonoBehaviour
     }
 
     // Geometry
+    //
+    // Both of these add exactly four vertices in the order the index pattern expects,
+    // and that is the whole of the contract between them and GrowIndices below.
 
     // A segment of the trace, as a box between two points. Thickness is vertical rather
     // than perpendicular to the segment, which on a trace of a few hundred columns is a
@@ -235,7 +286,6 @@ public sealed class Visualizer : MonoBehaviour
     void Ribbon(Vector2 from, Vector2 to, float thickness, Color color)
     {
         var half = thickness * 0.5f;
-        var index = _vertices.Count;
 
         _vertices.Add(new Vector3(from.x, from.y - half, Depth));
         _vertices.Add(new Vector3(from.x, from.y + half, Depth));
@@ -243,56 +293,70 @@ public sealed class Visualizer : MonoBehaviour
         _vertices.Add(new Vector3(to.x, to.y - half, Depth));
 
         for (var i = 0; i < 4; i++) _colors.Add(color);
-
-        Triangles(index);
     }
 
     void Quad(Vector2 low, Vector2 high, Color color)
     {
-        var index = _vertices.Count;
-
         _vertices.Add(new Vector3(low.x, low.y, Depth));
         _vertices.Add(new Vector3(low.x, high.y, Depth));
         _vertices.Add(new Vector3(high.x, high.y, Depth));
         _vertices.Add(new Vector3(high.x, low.y, Depth));
 
         for (var i = 0; i < 4; i++) _colors.Add(color);
-
-        Triangles(index);
     }
 
-    void Triangles(int index)
+    // The indices, which are a fact about the shape of the mesh and not about what is
+    // in it: quad k is vertices 4k..4k+3 wound (0,1,2) and (0,2,3), whatever the quad
+    // turns out to be a picture of. So the list is extended to reach the widest frame
+    // the app has drawn so far and never written again, and each frame submits the
+    // prefix of it that its own quad count asks for. What that replaces is three
+    // thousand Add calls a frame spelling out numbers the list already held.
+    void GrowIndices(int quads)
     {
-        _indices.Add(index);
-        _indices.Add(index + 1);
-        _indices.Add(index + 2);
-        _indices.Add(index);
-        _indices.Add(index + 2);
-        _indices.Add(index + 3);
+        for (var quad = _indices.Count / 6; quad < quads; quad++)
+        {
+            var index = quad * 4;
+
+            _indices.Add(index);
+            _indices.Add(index + 1);
+            _indices.Add(index + 2);
+            _indices.Add(index);
+            _indices.Add(index + 2);
+            _indices.Add(index + 3);
+        }
     }
 
     // Colour
 
     // The trace goes out at both ends rather than stopping at the edge of the screen,
     // since what is at the edge is an arbitrary moment of the sound and not the start
-    // or the end of anything.
+    // or the end of anything. The colour arriving here is already converted, so this is
+    // the multiply it always was underneath.
     static Color Fade(Color color, int column, int columns)
     {
         var position = column / (columns - 1.0f);
         var edge = Mathf.Min(position, 1.0f - position) / FadeWidth;
-        return Shaded(color, Mathf.Min(edge, 1.0f));
+        return new Color(color.r, color.g, color.b,
+                         color.a * Mathf.Min(edge, 1.0f));
     }
 
     // The panel paints in sRGB whatever the project's colour space, and this does not:
     // a vertex colour reaches the shader as the number it was given. So a colour taken
     // from Style is converted here rather than being picked again by eye, which is what
-    // keeps one palette for both.
-    static Color Shaded(Color color, float alpha)
+    // keeps one palette for both. Called once, from Awake: the colour space cannot
+    // change under a running app, and reading QualitySettings and taking three pows for
+    // it once a column was answering a settled question five hundred times a frame.
+    //
+    // Only the trace comes through here. The slots are drawn from the sRGB numbers
+    // below as they stand, which is what the 73 recorded there was measured against —
+    // so sending them the same way is a change to the picture rather than to its cost,
+    // and it is left to hand.
+    static Color Shaded(Color color)
     {
         var shade = QualitySettings.activeColorSpace == ColorSpace.Linear
                     ? color.linear : color;
 
-        return new Color(shade.r, shade.g, shade.b, color.a * alpha);
+        return new Color(shade.r, shade.g, shade.b, color.a);
     }
 
     // Private members
@@ -301,6 +365,7 @@ public sealed class Visualizer : MonoBehaviour
     Material _material;
     Mesh _mesh;
     float[] _levels;
+    Color _traceColor;
 
     readonly List<Vector3> _vertices = new();
     readonly List<Color> _colors = new();
@@ -310,9 +375,12 @@ public sealed class Visualizer : MonoBehaviour
     // is drawn at all, so any depth would do.
     const float Depth = 1.0f;
 
+    // A column every three physical pixels, up to a ceiling that is not the headroom it
+    // reads as: the count reduces to clamp(Screen.width / 3, 64, 512), so it is met at
+    // 1536 across and the iPad is 2360. 512 is the operative number on every device this
+    // ships to, not a limit nobody reaches.
     const int MaxColumns = 512;
 
-    // A column every three pixels, so the ceiling is only reached on a very wide screen.
     const float TraceHeight = 0.42f;  // Of the half height, at full scale
     const float FadeWidth = 0.12f;    // Of the width, at either end
 
