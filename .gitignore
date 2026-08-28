@@ -39,3 +39,10 @@ Desktop.ini
 # in the comment that argues for the code it is about. The directory is a workbench, so
 # it stays out of the history and the captures stay to hand.
 /ProfilerCaptures/
+
+# Plan files. `plansDirectory` puts them beside the code they are about rather than in
+# ~/.claude, where a plan for this repository is filed under a path nothing here can
+# see. They are a working note for one change, superseded by the commit that carries it
+# out and by the comment that argues for it, so the directory is to hand and out of the
+# history.
+/plans/
