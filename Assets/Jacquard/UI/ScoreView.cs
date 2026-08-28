@@ -94,9 +94,12 @@ public sealed class ScoreView : VisualElement
         _upper = AddLayer(DrawUpper);
 
         // What is in hand rides above everything, including the cursor: it is the
-        // one thing on the plane that is not where the score says it is.
+        // one thing on the plane that is not where the score says it is. It is also the
+        // one layer that is moved on every frame of a drag, so it is told so — the header
+        // of ScrollArea has what the hint spares a subtree that travels.
         _ghosts = new VisualElement { pickingMode = PickingMode.Ignore };
         _ghosts.StretchToParentSize();
+        _ghosts.usageHints = UsageHints.GroupTransform;
         _ghosts.style.opacity = 0.85f;
         Add(_ghosts);
 

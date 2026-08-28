@@ -13,7 +13,10 @@ namespace Jacquard.App {
 // bottom of the screen is a parameter that cannot be set — so the strip moves instead.
 //
 // The content is moved with a transform rather than by layout, the way the score plane
-// is panned, so nothing is measured again while it travels.
+// is panned, so nothing is measured again while it travels. It takes the plane's usage
+// hint for the plane's reason — the argument and the numbers are in ScrollArea's header.
+// What travels here is a row of switches and not a plane of cells, so the saving is much
+// the smaller one; it is also the same single line.
 //
 // What separates this from ScrollArea is which press it moves on. The plane pans
 // whatever press its content lets through, because on the plane a press means an edit
@@ -54,6 +57,7 @@ sealed class ScrollStrip : VisualElement
         _content.style.position = Position.Absolute;
         _content.style.left = 0;
         _content.style.top = 0;
+        _content.usageHints = UsageHints.GroupTransform;
 
         if (vertical)
         {

@@ -9,6 +9,25 @@ namespace Jacquard.App {
 // transform rather than by layout, so panning stays cheap however large the plane
 // grows — and a score plane is meant to grow.
 //
+// A transform is not by itself enough to make that true, and what was missing is one
+// word. Told nothing about why an element moves, the renderer answers a moved subtree by
+// walking every vertex under it and writing each one out again — UIR.NudgeVertices — and
+// the plane is 22,690 of this UI's 30,000 vertices, so that walk is very nearly the whole
+// of it. UsageHints.GroupTransform gives the subtree a transform of its own instead, and
+// leaves the frame with a matrix to change.
+//
+// Measured in the editor against a 39x26 score, both arms in one session and thirty
+// frames apiece: the nudge (0.53ms), the buffer upload behind it (0.05), the transform
+// pass (0.06) and the longer AdvanceFrame (0.06) all go, and a pan frame comes to read
+// exactly like a frame with no pan in it. Two thirds of a millisecond of a hand on the
+// plane, for a hint — and it is spent per frame the hand moves, which on the device is
+// the thing to measure again. The picture is untouched: 1948x1814 pixels captured either
+// way, none of them different.
+//
+// It is not only a drag that pays it. A cursor reveal and a reframe move the plane
+// through the same offset, so a key that walks the cursor off the edge of the screen was
+// paying it too.
+//
 // Which drags reach here is not this element's business: it pans whatever press
 // its content let through. The score view stops the ones that mean an edit, so a
 // press on free ground arrives and a press on a tile does not.
@@ -71,6 +90,8 @@ public sealed partial class ScrollArea : VisualElement
         _content.style.position = Position.Absolute;
         _content.style.left = 0;
         _content.style.top = 0;
+        // What makes the transform cheap rather than merely correct. See the header.
+        _content.usageHints = UsageHints.GroupTransform;
         hierarchy.Add(_content);
 
         RegisterCallback<WheelEvent>(OnWheel);
