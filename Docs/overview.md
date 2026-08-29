@@ -64,4 +64,13 @@ where it sits on that ramp and by how much air is around it — see
 that stands in front of another panel rather than on the plane; `OnboardingPanel`
 argues for it.
 
+There is also one sheet laid over the whole screen, behind those same three
+pages, and it belongs beside that shadow rather than against this rule: it is
+one flat grey at one alpha with a hole cut in it, and what it says is what
+`Style.DimmedOpacity` already says everywhere else — that what is under it is
+not what is being talked about. It is a cover and not an opacity because the
+visualizer is drawn behind the interface by the camera and is not an element to
+dim, and it is grey rather than black so that what is under it is flattened
+rather than erased; `OnboardingShade` argues for both.
+
 [impl-style.md]: impl-style.md

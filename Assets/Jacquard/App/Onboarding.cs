@@ -20,9 +20,9 @@ namespace Jacquard.App {
 // nothing to remember until they have. So a fresh install comes up on the pages, and
 // so does the launch after it, and the one after that.
 //
-// Only the box writes this. Skip closes the panel for the launch it is pressed on and
-// leaves nothing behind, and Done on the last page does the same — a player who read
-// all three pages and did not tick the box has said nothing about the next launch.
+// Only the box writes this. Done on the last page closes the panel for the launch it is
+// pressed on and leaves nothing behind — a player who read all three pages and did not
+// tick the box has said nothing about the next launch.
 // And there is no way back: nothing on the System panel resets it, because a switch
 // for *show me the three pages again* would be a control on the machine's own panel
 // for something a player does once and never revisits.

@@ -122,6 +122,14 @@ sealed class JacquardUI
         body.Add(_dock);
         ShowLive(false);
 
+        // The grey the three pages leave one hole in, built here because the order it is
+        // added in is the whole of what it has to get right: after every panel in this
+        // body, so it covers all of them, and before the layer the panel below stands in,
+        // so the panel it belongs to is the one thing it does not cover. Its two bands go
+        // on the transport row rather than in here, which is the same split the paragraph
+        // under this one is about. See OnboardingShade.
+        _shade = new OnboardingShade(body, _row);
+
         // In the middle as well, and in a layer of its own added after everything else
         // so it draws over both edges and the dock. It shares nothing with the two
         // above: those take turns being raised by a switch and are centred as a pair
@@ -133,6 +141,14 @@ sealed class JacquardUI
         // sibling of this body rather than a thing inside it, so nothing here can cover
         // the controls the three pages point at, and a hand that would rather press
         // Play than read can.
+        //
+        // That is also why the screen around it goes under a grey rather than out of
+        // reach. The three pages name controls, and a paragraph naming a control is worth
+        // whatever the reader's search of the row is worth; the shade above answers that
+        // by leaving the named control at its own brightness and putting the rest under
+        // one flat grey. It picks nothing at all, so nothing in the sentence before this
+        // one stops being true — see OnboardingShade, which argues the difference from a
+        // shield.
         _onboarding = new OnboardingPanel(_app.OnboardingPages,
                                           () => ShowOnboarding(false), Refocus);
         _front = PanelCentre(_onboarding.Root);
@@ -173,6 +189,7 @@ sealed class JacquardUI
 
         FollowTheSafeArea();
         FollowTheLock();
+        FollowTheSubject();
         Report();
     }
 
@@ -295,9 +312,80 @@ sealed class JacquardUI
         _load.style.opacity = _locked ? Style.DimmedOpacity : 1.0f;
     }
 
+    // Cuts the shade's hole around whatever the page on screen is about, and brings that
+    // control onto the row when it is off the end of it.
+    //
+    // Read every frame the panel is up and written when it moves, the way the two above
+    // are. What moves it is a page turning, and past that a rotation or a change of
+    // profile: nothing else touches the row's layout while three pages are being read.
+    void FollowTheSubject()
+    {
+        if (!_onboardingShown) return;
+
+        var (first, last) = Subject(_onboarding.Page);
+
+        // Not before the row has been laid out and has a width to be measured against,
+        // and it has neither on the frame the panel goes up — the panel is raised from
+        // the constructor and the layout that answers it has not run yet.
+        if (float.IsNaN(first.layout.xMin) || _row.contentRect.width <= 0.0f) return;
+
+        // Once for each page rather than every frame, so a row dragged by hand after the
+        // page arrived stays where the hand left it.
+        if (_pointedAt != _onboarding.Page)
+        {
+            _pointedAt = _onboarding.Page;
+            RevealOnTheRow(first, last);
+        }
+
+        _shade.Follow(first, last);
+    }
+
+    // What each page is about, as the run of controls the shade leaves lit.
+    //
+    // A run and not a list, because the row is what it is: the things one page names
+    // stand next to each other on it, and a hole cut in two pieces would read as two
+    // holes. Held as its two ends so that giving a page another control to point at is a
+    // matter of moving one of them — the tempo bar joining Play on the first page is one
+    // word here and nothing anywhere else.
+    (VisualElement First, VisualElement Last) Subject(int page)
+      => page switch
+      {
+          0 => (_play, (VisualElement)_play),
+          1 => (_chooser, (VisualElement)_load),
+          _ => (_guide, (VisualElement)_guide)
+      };
+
+    // Brings a run of controls onto the part of the row that is on screen, which is what
+    // Reveal does for a cell on the plane.
+    //
+    // A rule for every page rather than the third page's own fix. That page is what asks
+    // for it — the guide button stands last on a row longer than any screen this ships to,
+    // so it is past the edge on all of them — but the second page's chooser is past the
+    // edge of a phone held in landscape as well, and a page pointing at something that is
+    // not on the screen is the same failure whichever page it is.
+    //
+    // The far end first and the near end second, so that a run wider than the screen comes
+    // to rest on the control it starts at: what the words name first is where they name it.
+    void RevealOnTheRow(VisualElement first, VisualElement last)
+    {
+        var view = _row.contentRect.width;
+        var offset = _row.Offset;
+
+        // The same air either side of the run that the shade cuts its hole at, so a
+        // control brought to the edge arrives with the gap the hole gives it rather than
+        // flush against the grey.
+        var right = last.layout.xMax + Controls.Gap;
+        if (right > offset + view) offset = right - view;
+
+        var left = first.layout.xMin - Controls.Gap;
+        if (left < offset) offset = left;
+
+        _row.Offset = offset;
+    }
+
     // Construction
 
-    VisualElement BuildTransportRow()
+    ScrollStrip BuildTransportRow()
     {
         var row = Bar();
 
@@ -399,10 +487,10 @@ sealed class JacquardUI
         // RefreshSlots.
         _slots = _app.Store.Slots();
 
-        var chooser = Controls.Chooser(_slots,
-                                       () => Mathf.Max(0, _slots.IndexOf(_app.Store.Name)),
-                                       index => _app.Store.Name = _slots[index],
-                                       out _syncSlots);
+        _chooser = Controls.Chooser(_slots,
+                                    () => Mathf.Max(0, _slots.IndexOf(_app.Store.Name)),
+                                    index => _app.Store.Name = _slots[index],
+                                    out _syncSlots);
         // The widest thing on the row, and the first place to look when the row runs
         // out of screen. What it has to hold is a slot name between two arrows, and a
         // name longer than the box draws past it rather than being clipped — where a
@@ -440,9 +528,9 @@ sealed class JacquardUI
         // characters they are standing either side of grow by the ratio: the name is
         // squeezed from both directions at once. 126 is what leaves eight of them room
         // there, which leaves seven pixels going spare under a mouse.
-        chooser.style.width = Controls.Width(126);
-        chooser.style.marginBottom = 0;
-        row.Add(chooser);
+        _chooser.style.width = Controls.Width(126);
+        _chooser.style.marginBottom = 0;
+        row.Add(_chooser);
 
         row.Add(Controls.Push("Save", () => { _app.Save(); Refocus(); }, 46));
 
@@ -472,11 +560,12 @@ sealed class JacquardUI
         // The row is a ScrollStrip and is dragged, which is what the strip is for and
         // what the inset on its content is for — see FollowTheSafeArea; dragged to the
         // end it puts this button fully on screen with the content's trailing gap to
-        // spare, which is what the strip owes whatever stands last on it. It is also
-        // why the third onboarding page points at a control that has to be dragged to,
-        // and says so.
+        // spare, which is what the strip owes whatever stands last on it. It is also why
+        // the third onboarding page, which is about this button, sends the row to its end
+        // as it comes up rather than asking anybody to find it — see RevealOnTheRow.
         row.Add(Separator());
-        row.Add(GuideButton());
+        _guide = GuideButton();
+        row.Add(_guide);
 
         return row;
     }
@@ -631,7 +720,7 @@ sealed class JacquardUI
     // can be shortened: every switch on it raises something no cell can ask for, so a
     // narrow screen has to be able to reach all of them rather than the first few. See
     // ScrollStrip — on a screen the row fits, it is a row.
-    static VisualElement Bar()
+    static ScrollStrip Bar()
     {
         var row = new ScrollStrip(vertical: false);
         row.style.flexShrink = 0;
@@ -940,7 +1029,19 @@ sealed class JacquardUI
     // what puts it down is a button on the panel itself — the only panel here that has
     // one, because it is the only one with nothing else that could.
     void ShowOnboarding(bool shown)
-      => _onboarding.Root.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+    {
+        _onboardingShown = shown;
+
+        _onboarding.Root.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+
+        // And the grey around it, which is the one panel here that brings the rest of the
+        // screen with it when it goes up and down.
+        _shade.Show(shown);
+
+        // Nothing has been pointed at yet, so the page that is up is read again from
+        // scratch on the next frame — which is what brings its subject onto the row.
+        _pointedAt = -1;
+    }
 
     void OnKey(KeyDownEvent evt)
     {
@@ -1050,7 +1151,10 @@ sealed class JacquardUI
     // The boxes that answer to the screen's own edges, kept because what they are told
     // changes with the way the thing is held. See FollowTheSafeArea.
     readonly VisualElement _root;
-    readonly VisualElement _row;
+    // The transport row, held as what it is rather than as a box: the onboarding shade
+    // asks it where its content has travelled to and moves it when a page names a control
+    // that is off the end of it. See RevealOnTheRow.
+    readonly ScrollStrip _row;
     readonly VisualElement _leftEdge;
     readonly VisualElement _rightEdge;
     readonly VisualElement _centre;
@@ -1064,6 +1168,7 @@ sealed class JacquardUI
     readonly SystemPanel _system;
     readonly LivePanel _live;
     readonly OnboardingPanel _onboarding;
+    readonly OnboardingShade _shade;
 
     Button _play;
     // The name of the thing, at the left of the row, when there is one to draw.
@@ -1083,6 +1188,19 @@ sealed class JacquardUI
     bool _systemShown;
     ValueBar _tempo;
     Button _load;
+    // The two the onboarding pages point at that nothing else here needed a name for:
+    // the score chooser, which the second page's run starts at, and the guide button,
+    // which is the whole of the third page's. See Subject.
+    VisualElement _chooser;
+    Button _guide;
+
+    // Whether the three pages are up, since the shade is only followed while they are.
+    bool _onboardingShown;
+
+    // Which page the row was last aimed at, so that a page is revealed once and a row
+    // dragged afterwards is left alone. Before any page, which is what a panel going up
+    // is put back to.
+    int _pointedAt = -1;
 
     // The score folder as the chooser has it, and the way to make the chooser say what
     // is in it again.

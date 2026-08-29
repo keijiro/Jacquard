@@ -23,6 +23,22 @@ behind it rather than the plane. It is drawn rather than asked for — USS here 
 text-shadow and no other shadow at all — and what it costs and why it is a stack of
 rings is argued in `OnboardingPanel.Shadow`.
 
+The one thing laid over the whole screen is the fog behind those same three pages, and it
+is neither a shadow nor a gradient: it is one flat grey at one alpha, with a hole in it
+around the control the page names. Grey and not black, because black heavy enough to be
+noticed takes the plane, the row and the panels to the same near-nothing and leaves a
+dialog on an empty ground; a grey takes them to the same grey, so the screen is flattened
+rather than put out. Which grey is the palette's business and not taste's: it sits over
+`Style.Background` and under `Style.ControlBackground`, so the control in the hole is
+still the lightest ground and the brightest ink on the row, and light still means
+*engaged*. It has to be a cover and cannot be an opacity written on what is under it,
+because the visualizer is drawn by the camera behind the interface and is not an element
+anything here can dim. `Style.DimmedOpacity` is the rule for a control that is out of
+reach; this is the same idea aimed the other way — nothing under it is out of reach, and
+what is left alone is what is being pointed at. See `OnboardingShade`, which keeps its
+own two numbers for the reason `OnboardingPanel.ShadowAlpha` keeps its own: a sheet laid
+over the ramp is not an entry in the ramp.
+
 What a thing is saying is said by **where it sits on the ramp** and by **how much air is
 around it**. Two consequences that reach every control:
 

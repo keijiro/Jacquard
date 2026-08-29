@@ -92,7 +92,7 @@ The panels, and what raises each
 | Global | Transport switch | Centre |
 | System | Transport switch | Centre |
 | Live FX | Transport switch | Across the bottom, centred |
-| Onboarding | The first launch | Centre, in a layer over all of them |
+| Onboarding | The first launch | Centre, in a layer over all of them, with the screen behind it under a grey |
 
 **Everything the transport row switches starts off**, and they stand in the order of how
 much each one reaches. A switch that starts on is a decision nobody made — the one
@@ -107,6 +107,17 @@ See `Onboarding` for what that box writes and `OnboardingPanel` for why it is th
 thing on the panel that reaches disk. It shields nothing and locks nothing: the transport
 row is a sibling of the body the panel stands in, so the three pages cannot cover the
 controls they point at.
+
+**The screen behind it goes under one flat grey with one hole in it**, and the hole is
+around the control the page on screen names. It is a sheet laid over rather than an
+opacity taken off — the visualizer is drawn by the camera behind the whole interface, so
+half of what has to go under is not an element at all. The hole is a vertical slot and
+not a frame, since every subject stands on the transport row and fills its height; which
+means the dark is in two parts for the same reason the panel cannot cover what it points
+at, one sheet over the body and two bands inside the row. Nothing in it is picked, so
+darkening the screen does not quietly make the panel the modal it is not. See
+`OnboardingShade`, and `JacquardUI.FollowTheSubject` for the page-by-page subject and
+for the row being sent to its end when the control a page names is off it.
 
 `System` is the row's own way of not growing: the next question of its kind arrives as a
 row on that panel rather than as a sixth switch. What belongs there is what is about the
@@ -149,6 +160,7 @@ Where the rest is written
 | The one row that leaves the app — the score folder, on a desktop only | `SystemPanel` |
 | Why the guide is a button on the row rather than a row on a panel, and the page it opens | `JacquardUI.BuildTransportRow`, `JacquardUI.GuideUrl` |
 | The three pages a first launch opens on, and how their pictures are taken | `OnboardingPanel` |
+| Darkening everything but the control a page names, while those pages are up | `OnboardingShade` |
 | Scrolling a row or a column that holds more than the screen | `ScrollStrip` |
 | What the screen keeps for itself, and the four insets | `SafeArea`, `JacquardUI.FollowTheSafeArea` |
 | The wordmark, held off the corner rather than off the safe area | `JacquardUI.MarkAir` |

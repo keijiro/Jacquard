@@ -56,12 +56,17 @@ row from `CHAN` to `TERM`** whether anything is written on it yet or not, so not
 grow across it. A new note arrives at the pitch and length of the last note edited.
 
 **The first launch opens on three pages** in the middle of the screen — Play, the scores
-and the guide — with Skip and Next under them. They are up again on the next launch and
-on every one after it until **Don't show this again** is ticked, which is the only thing
-on the panel that is remembered: Skip and Done close it for the launch they are pressed
-on and say nothing about the next. Once the box is ticked there is no way to bring the
-pages back. Nothing on the panel is in the way — the row and the plane behind it can be
-used with it still up.
+and the guide — with Next under them. They are up again on the next launch and on every
+one after it until **Don't show this again** is ticked, which is the only thing on the
+panel that is remembered: Done on the last page closes it for the launch it is pressed on
+and says nothing about the next. Once the box is ticked there is no way to bring the
+pages back.
+
+**The rest of the screen goes under a grey while they are up, except the control the page
+is about** — Play on the first, the score controls on the second, the `?` on the third —
+and where that control is off the end of the row, the row is sent along to bring it into
+view. Nothing on the panel is in the way, and neither is the grey: the row and the plane
+behind it can be dragged and pressed with the pages still up, and Play works through it.
 
 The System panel
 ----------------

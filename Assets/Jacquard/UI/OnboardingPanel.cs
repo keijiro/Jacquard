@@ -20,8 +20,22 @@ namespace Jacquard.App {
 // It is not modal and takes no SetLocked shield. Nothing on this screen is modal, and
 // the transport row is a sibling of the body this stands in rather than a thing under
 // it — so the panel cannot cover the very controls the three pages point at, and a
-// player who would rather press Play than read can do it with the panel still up. That
-// is also why Skip is a way out and not the way out.
+// player who would rather press Play than read can do it with the panel still up.
+//
+// Which is also why there is no Skip on it. A way out is what a panel in the way owes
+// whoever it is in the way of, and nothing here is being kept from anybody; three pages
+// of Next is short enough to sit through, and a button offering to leave the first thing
+// a first launch shows is a button arguing against the panel it is on. See the foot in
+// the constructor, which is where that argument is written down.
+//
+// What it does have behind it is one flat grey, with a hole in it around the control the
+// page on screen names. A page saying where a control is is only worth the search that
+// follows it, and the row is a dozen switches wide; the grey answers that by taking the
+// search away rather than by describing the place better. It changes nothing about the
+// paragraph above — the shade picks nothing at all, so the row, the plane and Play are
+// as reachable through it as they were without it. It is not this panel's: JacquardUI
+// owns it, because the hole is cut on the transport row and the row is not down here.
+// See OnboardingShade, and Page below for the one thing it asks this panel.
 //
 // It is also the only panel here with an edge and a shadow. Every other one is read
 // against the plane, where a lighter ground with air around it is the whole of what
@@ -32,9 +46,9 @@ namespace Jacquard.App {
 // constructor for the line and Shadow for what a shadow costs where there is no
 // box-shadow to ask for.
 //
-// Only the box reaches disk. Skip closes it for this launch, Done on the last page
-// does the same, and neither writes anything — see Onboarding, which also says why
-// there is no way back once the box is ticked.
+// Only the box reaches disk. Done on the last page closes it for this launch and writes
+// nothing — see Onboarding, which also says why there is no way back once the box is
+// ticked.
 //
 // How the pictures are made
 // -------------------------
@@ -49,10 +63,63 @@ namespace Jacquard.App {
 //   the row is built at the tablet's metrics, and the panel's own scale set to 2 by
 //   hand — left alone the editor resolves the Mac's dpi and the crop comes out at some
 //   fraction of a device pixel to the unit.
+// - With a game view the row does not fit on — 960 units against the row's own 1115 —
+//   and, for the two pages about the score controls and the guide, with the row dragged
+//   to its end, which is where those controls actually stand on any screen this ships
+//   to. Dragged there, the last of the row is the screen's own right edge, which is
+//   what the third page's band is cut against.
+// - With the Tile panel put down. It is never down in the app — it is the panel the
+//   cursor answers to and something is always selected — but it stands twelve units
+//   under the row at the right of the screen, so on two of the three bands it, and not
+//   the plane, would be what the strip below the row is a strip of.
+// - With the plane scrolled so that a row of the lattice falls inside that strip. Where
+//   the dots land is wherever the plane happens to be scrolled to, and they are 36 units
+//   apart down the screen against a strip of 24 — so left alone it is even money whether
+//   the plane in the picture has anything in it at all.
 // - ScreenCapture.CaptureScreenshot, and wait for the file: it is written at the end
 //   of the frame after the call and is not there when the call returns.
-// - Cut out the controls that page is about, taking the whole height of the row so the
-//   band reads as a piece of the interface rather than as a button on a grey field.
+// - Cut the band described below.
+//
+// What the band is
+// ----------------
+//
+// The subject, the rules either side of it, and the neighbouring control where one fits
+// — plus the whole height of the row and 24 units of the plane under it, which is the
+// row's own bottom rule and one row of the lattice.
+//
+// With one thing taken back off: the second page stops at the rule after Load rather
+// than running on to the "?" past it, because that button is the third page's whole
+// subject. Cut to the rule the two bands came out all but identical, which is three
+// pages the eye cannot tell apart on the one thing that changes between them.
+//
+// And one thing put on, on the first page only: it begins at the screen's own left edge
+// and takes the wordmark with it. That page is about the first control on the row, and
+// the mark standing in the corner is the one landmark in this interface that says which
+// corner without anything else in the shot having to. What it costs is the right hand
+// end of the band, since the mark, its air, Play and the tempo bar come to 384 units
+// against the 350 the panel can draw — so the band is cut at the cap and the tempo bar
+// runs off the edge of it with its reading still whole. A control cut by the edge of a
+// crop is the row carrying on, which it does; the alternative was to start at the mark
+// instead of at the screen's edge, which fits to the unit and puts the mark flush
+// against the picture's own border, and a wordmark that looks clipped is worse than a
+// bar that looks like it continues.
+//
+// It began as the subject alone at the row's full height, which is a picture of a
+// control on a grey field: it says what the control looks like and nothing about where
+// on the screen to find it. The rule either side of it is the nearest thing the row has
+// to a landmark, and the strip of plane under it is what says this band is the top of
+// the screen rather than a piece cut out of the middle of it — an edge of the picture
+// that is also an edge of the interface, without having to put the screen's own corner
+// in the shot. It is the same argument the shade behind the panel makes, done in the
+// picture rather than on the screen, and the two are meant to be read together: the
+// picture says what it looks like and the grey says which one it is.
+//
+// A cap of CaptureScale * 350 pixels on the width, which is what the touch profile
+// leaves for a picture — see ContentWidth. Past that a crop is shrunk rather than cut,
+// and a picture of a row that has been resampled is a picture of a row with soft type
+// in it. There is no such cap under a mouse and there cannot be: that profile leaves
+// 266 units, so all three are drawn small on a desktop and always were. Picture is
+// built for that; 1:1 is what the touch screens get.
 //
 // That leaves each master at exactly two device pixels to the unit, which is what
 // Picture below then relies on: it draws a page at half its pixel size, so a capture
@@ -60,10 +127,21 @@ namespace Jacquard.App {
 // resampled nowhere else. A crop wider than the panel's content is shrunk to fit
 // instead, which is a picture that has been cut too wide rather than a layout that has
 // gone wrong.
+//
+// The shade is not in the shot. The picture says what the control looks like and the
+// shade says which one on the screen it is; a picture of the screen already under the grey
+// would be answering the second question twice and the first one not at all.
 
 sealed class OnboardingPanel
 {
     public VisualElement Root { get; }
+
+    // Which page is up, for the one thing outside this panel that has to know: the shade
+    // behind it cuts its hole around the control the page on screen is about. The panel
+    // does not tell anybody it turned — nothing here has an event and the page turns
+    // three times in the life of the app — so it is read rather than announced, on the
+    // frames the caller is already spending on the safe area and the lock.
+    public int Page => _page;
 
     // pages is JacquardApp.OnboardingPages, which may be short or absent — a page whose
     // picture is missing shows its words and nothing else. close lowers the panel, and
@@ -173,15 +251,24 @@ sealed class OnboardingPanel
         boxRow.Add(caption);
         panel.Add(boxRow);
 
-        // Skip on the left, where a way out goes; the reading in the middle, so it is
-        // read as a position rather than as a control; and the one button that moves
-        // the panel on at the right, under the thumb that will press it three times.
+        // The reading at the left, where it is read as a position rather than as a
+        // control, and the one button that moves the panel on at the right, under the
+        // thumb that will press it three times.
+        //
+        // There was a Skip beside the reading, and taking it out is what left the row
+        // with two things on it. A way out is what a panel in the way owes whoever it is
+        // in the way of, and this one is in nobody's way: it covers no control the three
+        // pages point at, and the row and the plane behind it work with it still up. So
+        // the button was an exit from something nothing was being kept from — offered at
+        // the foot of the panel, under the thumb, on the one screen a first launch opens
+        // on, which is close to the last place a player should be invited to leave. And
+        // there was nowhere better to put it: every other position on this panel says
+        // less about what it does than that one did. Three pages is short enough to sit
+        // through, so Next three times is the whole of the way out now.
         var foot = Controls.Foot();
 
-        foot.Add(Controls.Push("Skip", Close, ButtonWidth));
-
         _count = Controls.Value("");
-        _count.style.unityTextAlign = TextAnchor.MiddleCenter;
+        _count.style.unityTextAlign = TextAnchor.MiddleLeft;
         foot.Add(_count);
 
         _next = Controls.Push("", Next, ButtonWidth);
@@ -294,9 +381,9 @@ sealed class OnboardingPanel
     const float TextMarginX = Controls.Gap * 2;
     const float TextMarginY = Controls.Gap * 3;
 
-    // As wide as the file buttons on the transport row, which is what these two are:
-    // one word each, and no reason for the pair at the foot to measure differently
-    // from the pair the page before them is a picture of.
+    // As wide as the file buttons on the transport row, which is what this one is: one
+    // word on it, and no reason for the button at the foot to measure differently from
+    // the pair the page before it is a picture of.
     const float ButtonWidth = 46.0f;
 
     // What the panel has to draw a page in, which is what a picture is fitted to. The
@@ -324,9 +411,10 @@ sealed class OnboardingPanel
         Close();
     }
 
-    // Skip and Done are the same act and are one method: the panel goes down and
-    // nothing is written. What was going to be remembered was written when the box was
-    // pressed — see Onboarding.
+    // Done on the last page: the panel goes down and nothing is written. What was going
+    // to be remembered was written when the box was pressed — see Onboarding. It is a
+    // method of its own rather than a line inside Next because what it means is its own
+    // thing, and because it is what the caller's close callback is named after.
     void Close()
     {
         _close();
