@@ -346,8 +346,8 @@ sealed class JacquardUI
         _onboarding.Root.style.display = up ? DisplayStyle.Flex : DisplayStyle.None;
     }
 
-    // Cuts the shade's hole around whatever the page on screen is about, and brings that
-    // control onto the row when it is off the end of it.
+    // Cuts the shade's hole around whatever the page on screen is about, and sends the row
+    // to where that control is read from.
     //
     // Read every frame the panel is up and written when it moves, the way the two above
     // are. What moves it is a page turning, and past that a rotation or a change of
@@ -368,7 +368,7 @@ sealed class JacquardUI
         if (_pointedAt != _onboarding.Page)
         {
             _pointedAt = _onboarding.Page;
-            RevealOnTheRow(first, last);
+            RevealOnTheRow(_onboarding.Page);
         }
 
         _shade.Follow(first, last);
@@ -389,32 +389,33 @@ sealed class JacquardUI
           _ => (_guide, (VisualElement)_guide)
       };
 
-    // Brings a run of controls onto the part of the row that is on screen, which is what
-    // Reveal does for a cell on the plane.
+    // Takes the row to its far end for every page after the first, which is where all of
+    // the controls those pages name stand.
     //
-    // A rule for every page rather than the third page's own fix. That page is what asks
-    // for it — the guide button stands last on a row longer than any screen this ships to,
-    // so it is past the edge on all of them — but the second page's chooser is past the
-    // edge of a phone held in landscape as well, and a page pointing at something that is
-    // not on the screen is the same failure whichever page it is.
+    // It was a reveal before — the run brought onto the screen by the least it took, the
+    // way Reveal brings a cell onto the plane — and a phone is what asked for the change.
+    // Moved by the least it takes, a control comes to rest hard against the edge of the
+    // screen, and the row stands along the top of it where that edge is turning into a
+    // corner. Reported on a phone: the second page's chooser arrived with its corner
+    // under the curve of the display, which is a page pointing at something the reader
+    // cannot see all of.
     //
-    // The far end first and the near end second, so that a run wider than the screen comes
-    // to rest on the control it starts at: what the words name first is where they name it.
-    void RevealOnTheRow(VisualElement first, VisualElement last)
+    // Nothing is lost by going all the way over, because the amount of travel is no longer
+    // saying anything. The shade cuts its hole around the subject and puts a light in it,
+    // so which control the words are about is answered on the screen rather than by where
+    // the row came to rest. The end of the row is a place every one of those controls can
+    // be read at whole on every screen this ships to, and it is the same place for the
+    // second page and the third, which is one fewer thing for two pages to differ on that
+    // the reader is not meant to be reading. It is also where the pictures on those two
+    // pages were cut from — see how they are made, in OnboardingPanel.
+    //
+    // The first page leaves the row where it is. Play stands at the head of the row and a
+    // launch opens there, so there is nothing to bring on; and writing the head of the row
+    // here would take a row the reader had dragged and put it back, which is the thing
+    // FollowTheSubject's once-per-page rule is written to avoid.
+    void RevealOnTheRow(int page)
     {
-        var view = _row.contentRect.width;
-        var offset = _row.Offset;
-
-        // The same air either side of the run that the shade cuts its hole at, so a
-        // control brought to the edge arrives with the gap the hole gives it rather than
-        // flush against the grey.
-        var right = last.layout.xMax + Controls.Gap;
-        if (right > offset + view) offset = right - view;
-
-        var left = first.layout.xMin - Controls.Gap;
-        if (left < offset) offset = left;
-
-        _row.Offset = offset;
+        if (page > 0) _row.Offset = _row.Travel;
     }
 
     // Construction
@@ -595,8 +596,9 @@ sealed class JacquardUI
         // what the inset on its content is for — see FollowTheSafeArea; dragged to the
         // end it puts this button fully on screen with the content's trailing gap to
         // spare, which is what the strip owes whatever stands last on it. It is also why
-        // the third onboarding page, which is about this button, sends the row to its end
-        // as it comes up rather than asking anybody to find it — see RevealOnTheRow.
+        // the onboarding pages about the score controls and about this button send the row
+        // to its end as they come up rather than asking anybody to find it — see
+        // RevealOnTheRow.
         row.Add(Separator());
         _guide = GuideButton();
         row.Add(_guide);
@@ -1192,8 +1194,8 @@ sealed class JacquardUI
     // changes with the way the thing is held. See FollowTheSafeArea.
     readonly VisualElement _root;
     // The transport row, held as what it is rather than as a box: the onboarding shade
-    // asks it where its content has travelled to and moves it when a page names a control
-    // that is off the end of it. See RevealOnTheRow.
+    // asks it where its content has travelled to, and a page whose controls stand past the
+    // end of the screen takes it to the end of its travel. See RevealOnTheRow.
     readonly ScrollStrip _row;
     readonly VisualElement _leftEdge;
     readonly VisualElement _rightEdge;
