@@ -190,6 +190,13 @@ sealed class JacquardUI
         FollowTheSafeArea();
         FollowTheLock();
         FollowTheSubject();
+
+        // After the hole has been cut, so a page that turned this frame is painted at its
+        // new place on it, and outside the test that cuts it: the fog is still on screen
+        // for the best part of a second after the pages have gone, and FollowTheSubject
+        // has returned at its first line for every frame of that.
+        _shade.Tick();
+
         Report();
     }
 
@@ -1035,7 +1042,10 @@ sealed class JacquardUI
         _onboarding.Root.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
 
         // And the grey around it, which is the one panel here that brings the rest of the
-        // screen with it when it goes up and down.
+        // screen with it when it goes up and down — and the one thing here that does not
+        // do it on this frame. The panel itself arrives and leaves at once, which is what
+        // a panel answering a press owes; the fog takes the best part of a second either
+        // way, and on a launch waits a moment before it starts down. See OnboardingShade.
         _shade.Show(shown);
 
         // Nothing has been pointed at yet, so the page that is up is read again from

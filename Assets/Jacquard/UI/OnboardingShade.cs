@@ -17,11 +17,33 @@ namespace Jacquard.App {
 // lattice and leave the waveform under it exactly as bright as it was. A cover works on
 // whatever is behind it and does not care whose it is.
 //
-// Three elements in two parents, because the row is a sibling of the body rather than a
+// It comes down rather than simply being there. The one thing a fog over a screen has to
+// say is that it *arrived*: a reader who was not watching it happen is looking at a dark
+// screen with a panel on it, and a screen that has always been this way has nothing to do
+// with the sentence on the panel. So the app comes up at its own brightness,
+// waits half a second while a hand settles, and then takes eight tenths of a second to go
+// under — long enough to be watched, and short enough that nobody waits for it. The wait
+// pays for something else on the way past. The bands cannot be cut to the row until the
+// row has been laid out, and on the frame the panel goes up Follow has NaN to work with
+// and returns, which leaves _after standing at left 0 with its whole overhang and the
+// head of the row, Play included, grey for a frame. Half a second puts that frame
+// somewhere nobody is looking.
+//
+// And the hole has a light in it. A hole on its own is a negative mark: it says "not
+// here" about everything else and leaves the reader to find the one place that was not
+// covered, which on a row of switches is a search rather than an answer. So the shape the
+// fog is cut out of is painted white again, swelling from nothing to half and back while
+// the page is read. It is the only thing in this interface that moves, and that exception
+// is kept to this one file on purpose — the control the words are naming is the one thing
+// on screen worth spending motion on. Docs/impl-style.md says as much where it says the
+// palette carries meaning by position and air alone.
+//
+// Four elements in two parents, because the row is a sibling of the body rather than a
 // thing inside it — the same fact that keeps the onboarding panel from covering the very
 // controls it points at, argued at the panel's construction in JacquardUI and in
 // Docs/impl-panels.md. One sheet over the body covers the plane, both edges of panels and
-// the dock; two bands inside the row cover the row either side of the subject.
+// the dock; two bands inside the row cover the row either side of the subject, and the
+// light stands in the row between them.
 //
 // The hole is a vertical slot and not a frame of four sides. Every subject the three pages
 // name stands on the transport row and fills its height, so a band to the left of the
@@ -75,22 +97,87 @@ sealed class OnboardingShade
         _after.style.top = -Overhang;
         _after.style.bottom = -Overhang;
 
+        // The light goes in last of the three and is therefore over everything the row
+        // holds, the bands included: nothing here asks for an order it does not already
+        // have from being added last. Its top and bottom are the bands' own, so the
+        // strip's overflow cuts all three at one edge and the white comes out exactly the
+        // shape the grey is not; its left and width are Follow's, written on the line the
+        // hole is written on.
+        //
+        // Cover leaves it transparent to the pointer, as it does the other three, and
+        // that matters more here than anywhere else in this file: a white rectangle laid
+        // over Play that took the pointer would be the one way this could stop Play being
+        // pressed, which is the whole of what the paragraph at the top of the file says
+        // must not happen.
+        _light = Cover();
+        _light.style.backgroundColor = HighlightWhite;
+        _light.style.top = -Overhang;
+        _light.style.bottom = -Overhang;
+
         row.Add(_before);
         row.Add(_after);
+        row.Add(_light);
 
+        // Down, and out of the picture rather than merely clear. The four fields all
+        // start at nothing, so this only has to write what they already mean.
         Show(false);
+        Paint();
     }
 
-    // Up and down with the panel it belongs to, and by the same means: display, which
-    // takes the sheet out of the picture entirely rather than leaving a transparent
-    // element in front of the screen.
+    // Up and down with the panel it belongs to, but not on the panel's own frame: this
+    // says which way it is going and Tick spends the time getting there.
+    //
+    // Display is still what takes it out of the picture — a fog at nothing is still an
+    // element standing in front of the screen, and Paint drops it the moment it has
+    // nothing left to draw — but what decides display is now the level rather than the
+    // caller.
     public void Show(bool shown)
     {
-        var display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+        _wanted = shown;
 
-        _sheet.style.display = display;
-        _before.style.display = display;
-        _after.style.display = display;
+        // The wait belongs to the launch and not to the panel. Going up, the app has just
+        // arrived and no hand is near anything; coming down, a button has been pressed and
+        // the answer to a press is owed at once.
+        _delay = shown ? RaiseDelay : 0.0f;
+    }
+
+    // Where the fog has got to, every frame, from JacquardUI.Update.
+    //
+    // Time.deltaTime is the clock the one other moving thing in the app is written
+    // against — see the visualizer's SlotFall — and there is no schedule here to keep
+    // beyond it: this is a level moved towards a target and a phase turned over, both of
+    // which survive a frame of any length.
+    public void Tick()
+    {
+        var dt = Time.deltaTime;
+
+        // The wait is spent before anything at all is written, so the screen the app
+        // launches on is the screen it would have had with none of this in it.
+        if (_delay > 0.0f)
+        {
+            _delay = Mathf.Max(_delay - dt, 0.0f);
+            if (_delay > 0.0f) return;
+        }
+
+        var target = _wanted ? 1.0f : 0.0f;
+
+        // Down and staying down, which is every frame of the app's life bar the ones a
+        // first launch spends on these three pages. Written only when it moves, the way
+        // Follow and FollowTheLock are.
+        if (_level == 0.0f && target == 0.0f) return;
+
+        _level = Mathf.MoveTowards(_level, target, dt / FadeSeconds);
+
+        // The light breathes only while there is a fog for it to be a hole in. Past that
+        // the phase is left where it stopped, and Follow sets it back to dark whenever the
+        // hole moves.
+        if (_level > 0.0f)
+        {
+            _phase += dt;
+            if (_phase >= PulseSeconds) _phase -= PulseSeconds;
+        }
+
+        Paint();
     }
 
     // Where the hole is, given the run of controls the page is about — one control, or
@@ -121,6 +208,16 @@ sealed class OnboardingShade
 
         _before.style.width = left + Overhang;
         _after.style.left = right;
+
+        // The light is the same cut seen from the other side: it fills exactly what the
+        // two bands leave, so one pair of numbers cuts the hole and paints what is in it.
+        _light.style.left = left;
+        _light.style.width = right - left;
+
+        // From dark, every time the hole moves. A page that turns should be seen lighting
+        // its new subject up rather than found with it already lit, since the rise is what
+        // the reader's eye is being asked to follow.
+        _phase = 0.0f;
     }
 
     // Private members
@@ -128,6 +225,15 @@ sealed class OnboardingShade
     readonly VisualElement _sheet;
     readonly VisualElement _before;
     readonly VisualElement _after;
+    readonly VisualElement _light;
+
+    // Which way it is going, what is left of the wait before it starts, how far down it
+    // has come, and where the light is in its cycle. Show writes the first two and Tick
+    // spends them; the last two are what Paint is written from.
+    bool _wanted;
+    float _delay;
+    float _level;
+    float _phase;
 
     // What the hole was last cut to. NaN so that the first real layout is a move.
     float _left = float.NaN;
@@ -165,6 +271,56 @@ sealed class OnboardingShade
     // than any screen this is drawn on rather than measured against one — it is cut by the
     // strip's overflow whatever it is, so the only thing it has to be is too big.
     const float Overhang = 2000.0f;
+
+    // The fog's own clock: half a second before it starts down, and eight tenths of a
+    // second from nothing to everything or back. The wait is argued at the top of this
+    // file and is the launch's alone — Show gives it to the way up and not to the way
+    // down.
+    const float RaiseDelay = 0.5f;
+    const float FadeSeconds = 0.8f;
+
+    // And the light's. One turn, dark to half-lit and back, in a second and a fifth: the
+    // rate of a slow breath rather than of a blink, which holds a place at the edge of the
+    // eye for as long as three paragraphs take to read instead of pulling at it. Half and
+    // not full, because what is under it is a lit control on a dark row and white laid over
+    // that at full strength is a white rectangle rather than a control pointed at.
+    //
+    // It swells on a cosine rather than on a triangle. A triangle turns at a corner at
+    // each end of its travel, and a corner in a brightness is seen as a tick — the eye
+    // finds a break in a rate more readily than it reads the rate itself. A cosine comes
+    // to rest at both ends, which is what "smoothly" is worth writing down as.
+    const float PulseSeconds = 1.2f;
+    const float HighlightAlpha = 0.5f;
+
+    // The only full white in the interface: the ramp's own ink stops at Style.NoteText and
+    // nothing is set in this. It is neither ink nor a ground — it is light let into a hole,
+    // over a control that is already the lightest ground on the row — which is also why it
+    // is not in Style, for the reason given above ShadeGrey.
+    static readonly Color HighlightWhite = Style.Grey(0xff);
+
+    // What the four elements are drawn at, given the level and the phase.
+    void Paint()
+    {
+        // Nothing transparent is left standing in front of the screen: at nothing the fog
+        // is gone rather than clear, which is what the display in Show used to say on the
+        // caller's frame and now says on the level's.
+        var display = _level > 0.0f ? DisplayStyle.Flex : DisplayStyle.None;
+
+        _sheet.style.display = display;
+        _before.style.display = display;
+        _after.style.display = display;
+        _light.style.display = display;
+
+        _sheet.style.opacity = _level;
+        _before.style.opacity = _level;
+        _after.style.opacity = _level;
+
+        // The level is a factor here rather than a gate, so the light arrives with the fog
+        // and leaves with it: half a fog is half a light, and the hole never holds a mark
+        // brighter than the grey that makes it a hole.
+        _light.style.opacity = _level * HighlightAlpha * 0.5f *
+                               (1.0f - Mathf.Cos(2.0f * Mathf.PI * _phase / PulseSeconds));
+    }
 
     static VisualElement Cover()
     {

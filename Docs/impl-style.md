@@ -39,6 +39,15 @@ what is left alone is what is being pointed at. See `OnboardingShade`, which kee
 own two numbers for the reason `OnboardingPanel.ShadowAlpha` keeps its own: a sheet laid
 over the ramp is not an entry in the ramp.
 
+**That fog is the one thing in this interface that moves.** It comes down a moment after a
+launch rather than being there when the screen arrives, it lifts when the pages go, and
+the hole in it holds a white that swells and falls while a page is being read. Nothing
+else here animates — not a panel, not a switch, not a bar, not a cell — and the exception
+is kept inside one file on purpose: the control a page is naming is the one thing on
+screen worth spending motion on, and everywhere else position on the ramp and the air
+around it are still the whole of what carries meaning. The numbers and the arguments for
+them are `OnboardingShade`'s.
+
 What a thing is saying is said by **where it sits on the ramp** and by **how much air is
 around it**. Two consequences that reach every control:
 

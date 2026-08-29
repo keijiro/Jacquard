@@ -117,7 +117,10 @@ means the dark is in two parts for the same reason the panel cannot cover what i
 at, one sheet over the body and two bands inside the row. Nothing in it is picked, so
 darkening the screen does not quietly make the panel the modal it is not. See
 `OnboardingShade`, and `JacquardUI.FollowTheSubject` for the page-by-page subject and
-for the row being sent to its end when the control a page names is off it.
+for the row being sent to its end when the control a page names is off it. It is also the
+one thing in this interface that moves — the fog fades in and out, and the hole has a
+light in it that swells while the page is read; see `OnboardingShade` for why, and
+[impl-style.md] for the exception being kept to that one file.
 
 `System` is the row's own way of not growing: the next question of its kind arrives as a
 row on that panel rather than as a sixth switch. What belongs there is what is about the
