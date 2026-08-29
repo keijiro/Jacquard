@@ -40,15 +40,19 @@ namespace Jacquard.App {
 // settings and sends it on when it has moved, so the bar writes a number and nothing
 // here knows what happens next.
 //
-// Under all of it are the two buttons here that set nothing, and what they have in
-// common is that pressing one leaves the app for a moment. The first is the user guide,
-// which is a page on the web rather than anything carried inside the build; the second
-// is the folder the scores are written to, handed to whatever the desktop opens folders
-// with. Both belong on this panel for the reason the settings above them do — where a
-// file lands, and where the thing that explains the app is kept, are facts about this
-// machine and not about the piece — and they part company on the platform: every target
-// this ships to has something that opens a link, and only a desktop has a window a
-// folder can be shown in.
+// Under all of it is the one button here that sets nothing, and what it does is leave
+// the app for a moment: it is the folder the scores are written to, handed to whatever
+// the desktop opens folders with. It belongs on this panel for the reason the settings
+// above it do — where a file lands is a fact about this machine and not about the piece
+// — and it is a desktop's alone, since only a desktop has a window a folder can be
+// shown in.
+//
+// The user guide used to stand over it, on the same argument and rightly: where the
+// thing that explains the app is kept is not a fact about the piece either. What that
+// argument never settled was whether anybody would look here for it, and the answer was
+// no — so the guide is an icon at the right end of the transport row now and this is
+// the only button left. JacquardUI.BuildTransportRow argues where it went, and
+// JacquardUI.GuideUrl carries what used to be written here about the page it opens.
 //
 // It comes up in the middle of the screen, the way Global does and for the same reason:
 // nothing here is read against the plane, so there is no edge it wants to be near, and
@@ -153,22 +157,6 @@ sealed class SystemPanel
             SyncRestart();
         }
 
-        // At the foot, since neither of the two is one of the settings above them and
-        // neither wants to be read as the end of that list: what they do is leave the
-        // app for a moment. The air that says so is carried by the first of them, and
-        // the second stands on a row of its own rather than beside it — inside its inset
-        // the panel is a hundred and seventy-two pixels wide, and the two words together
-        // ask for more than that.
-        //
-        // The guide is the first of the two because it is the one that is always here. A
-        // foot that led with the folder would lose its first line on a phone, and a row
-        // order that changes with the build target is a difference nobody holding either
-        // one can account for.
-        var foot = Controls.Foot();
-        foot.Add(Controls.Push("User guide",
-                               () => { Application.OpenURL(GuideUrl); _refocus(); }, 73));
-        Root.Add(foot);
-
 #if UNITY_EDITOR || UNITY_STANDALONE
         // Both halves of the condition are meant. A standalone player is a machine with
         // a file manager on it; the editor is one as well whatever it is currently
@@ -178,12 +166,16 @@ sealed class SystemPanel
         // is not built at all, rather than built and dimmed: a dimmed control says
         // *not now*, and this one is *not here*.
         //
-        // A plain row and not a second foot: the air above the pair belongs above the
-        // first of them, and a foot here would put it between the two instead.
-        var folder = Controls.Row();
-        folder.Add(Controls.Push("Open score folder",
-                                 () => { OpenFolder(store); _refocus(); }, 108));
-        Root.Add(folder);
+        // At the foot, since it is not one of the settings above it and does not want
+        // to be read as the end of that list: what it does is leave the app for a
+        // moment. It was a plain row while the guide stood over it carrying the air
+        // that says so; with the guide gone it is the first thing down here and takes
+        // that air itself. On a build where this is not compiled in, the last setting
+        // is the last thing on the panel and there is no foot to be missing.
+        var foot = Controls.Foot();
+        foot.Add(Controls.Push("Open score folder",
+                               () => { OpenFolder(store); _refocus(); }, 108));
+        Root.Add(foot);
 #endif
 
         // Read once, here, and handed straight on. The panel is where the setting is
@@ -296,18 +288,6 @@ sealed class SystemPanel
     // frame than the figure itself.
     static readonly ValueBar.Range BufferRange =
       new ValueBar.Range(DspBuffer.Min, DspBuffer.Max, snap: DspBuffer.Step, digits: 0);
-
-    // The guide is a page on the web and not a copy of one inside the build. A manual
-    // that shipped with the app would be the manual as it stood on the day that build
-    // left, and this one is rewritten whenever what it describes moves; it is also the
-    // page the store listing points at, so there is one of it to keep right instead of
-    // two to disagree.
-    //
-    // Handed straight to Application.OpenURL, which is a browser on the desktop, the
-    // sheet over the app on iOS and a new tab on the Web — and on the Web it is the
-    // press that makes that allowed, since a tab opened outside a hand's own gesture is
-    // a tab the browser blocks.
-    const string GuideUrl = "https://www.keijiro.tokyo/jacquard-doc/";
 
 #if UNITY_EDITOR || UNITY_STANDALONE
     // Handed to the desktop as a URL, which is all Application.OpenURL takes and is

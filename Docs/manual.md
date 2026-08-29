@@ -47,12 +47,21 @@ Using it
 | Tempo | The bpm bar beside Play, which the delay is in time with |
 | Pan the plane | Drag from an empty cell, two finger swipe, or command+drag |
 | Reach a control off the edge | Drag the row or the panel it is on: the transport slides sideways and a column of panels slides up and down whenever it holds more than the screen does |
+| Read the guide | The book at the right end of the transport row, which opens it in a browser. On a phone it is the first thing past the edge, so drag the row to reach it |
 
 Two things a tile placement will not do, which is what makes the panel's offer worth
 reading: **a tile goes on free ground only** — a lane's empty step, the cell under a
 stack, or the `TERM` cell, which grows the lane by a step — and **a lane holds its whole
 row from `CHAN` to `TERM`** whether anything is written on it yet or not, so nothing can
 grow across it. A new note arrives at the pitch and length of the last note edited.
+
+**The first launch opens on three pages** in the middle of the screen — Play, the scores
+and the guide — with Skip and Next under them. They are up again on the next launch and
+on every one after it until **Don't show this again** is ticked, which is the only thing
+on the panel that is remembered: Skip and Done close it for the launch they are pressed
+on and say nothing about the next. Once the box is ticked there is no way to bring the
+pages back. Nothing on the panel is in the way — the row and the plane behind it can be
+used with it still up.
 
 The System panel
 ----------------

@@ -84,6 +84,31 @@ public sealed class JacquardApp : MonoBehaviour
     [field:SerializeField]
     public Texture2D Logo { get; set; }
 
+    // The book at the right of the transport row, on the button that opens the guide.
+    // A bitmap for the reason the wordmark is one and for no other: it is cut on the
+    // same cell grid, so what a Painter2D drawing of it would produce is the same grid
+    // of squares the texture already holds. Branding/make_guide_icon.py writes it, and
+    // it is white on a transparent ground because the button tints it — see
+    // JacquardUI.GuideButton.
+    //
+    // Unassigned is a row that ends at Load, and a guide nothing on screen points at.
+    [field:SerializeField]
+    public Texture2D GuideIcon { get; set; }
+
+    // The three pictures the onboarding panel shows, in the order it shows them: Play,
+    // the score controls, the guide button. They are crops of real captures of this
+    // app's own transport row, and how they are retaken is written down where the panel
+    // that reads them is — see OnboardingPanel.
+    //
+    // An array rather than three fields, since they are three of one thing and the panel
+    // walks them: a page is a picture, a header and a line, and only the first of those
+    // comes from outside the code.
+    //
+    // Unassigned, or short, is a panel whose pages carry their words and no picture,
+    // which is what the first launch looked like before any of them were taken.
+    [field:SerializeField]
+    public Texture2D[] OnboardingPages { get; set; }
+
     // What every word on screen is set in, from the transport row down to the note
     // names in the cells. It is put on the root and inherited from there rather than
     // named by each control, since a control that chose its own face would be a place

@@ -664,7 +664,16 @@ sealed class InspectorPanel
     // there can be in four lines. Four to a line would read against the cell, whose
     // boxes go four across, but it would also stand thirty-two switches eight lines
     // deep in a column that has to reach the bottom of the shortest screen this runs
-    // on; eight is where a switch is still square and a line is still a phrase.
+    // on; eight is where a line is still a phrase.
+    //
+    // It is also where the switch stops being square under a mouse, and this is the
+    // one run in the interface that goes past that. Measured at a panel scale of 2:
+    // eight to a line comes out 25 by 25 on a touch screen, which is the screen the
+    // number was chosen for, and 18 by 22 under a mouse, where the box asks for less
+    // height than a button's own padding and border will give it — see Controls.Switch
+    // for the floor. A run of slightly tall boxes is what that costs, and it is cheaper
+    // than the eight lines the alternative stands in a column that has nowhere to put
+    // them.
     const int LapsPerRow = 8;
 
     // The laps of a cycle gate, one switch each.

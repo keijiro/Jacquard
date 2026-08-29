@@ -108,8 +108,8 @@ static class Controls
     // other one for no reason a hand can see.
     public static float BarWidth => PanelWidth - Inset * 2 - LabelWidth;
 
-    // The transport row: one row of controls with the same air over and under them.
-    public static float ToolbarHeight => RowHeight + (Touch ? 16.0f : 12.0f);
+    // One row of controls, with the same air over and under them.
+    public static float TransportRowHeight => RowHeight + (Touch ? 16.0f : 12.0f);
 
     // The corner a control's box is cut to, a shade tighter than a cell's so that a
     // row of them does not read as more tiles.
@@ -581,8 +581,9 @@ static class Controls
     }
 
     // One switch of a run that fills the panel's width, sized so that perRow of them
-    // fit across it and square so that a run of them reads as a row of slots rather
-    // than as a row of buttons.
+    // fit across it, and square wherever the size it comes out at is one a button can
+    // be — which is what makes a run of them read as a row of slots rather than as a
+    // row of buttons.
     //
     // Nothing is written on it. What a switch stands for is its position in the run —
     // the third box is the third lap — so a caption on each would be a number
@@ -595,8 +596,15 @@ static class Controls
         var button = Push("", onClick);
         button.style.width = size;
         button.style.height = size;
-        // The padding a word needs is what a blank box does not: it is what would
-        // stop the box being square.
+        // The padding a word needs is what a blank box does not, and taking it off the
+        // sides is what lets the box be as narrow as it was told. What it cannot take
+        // off is the padding over and under: that, with the border, floors every button
+        // at 22 units, so a size under 22 comes out that wide and 22 tall and it is the
+        // shape that is lost rather than the switch. Measured at a panel scale of 2,
+        // both runs there are: the seven scale keys are 22 by 22 under a mouse and 30
+        // by 30 on a touch screen, and the eight laps of a cycle gate are 25 by 25 on a
+        // touch screen but 18 by 22 under a mouse, which is the one run here the floor
+        // catches. JacquardUI.GuideButton meets the same floor from the other side.
         button.style.paddingLeft = 0;
         button.style.paddingRight = 0;
         button.style.marginBottom = Gap;

@@ -26,7 +26,9 @@ the tile's rows, the lane a head carries, the sound of the channel a `CHAN` name
 parameters a lock takes hold of. There is no window to open, and so no state on screen
 that the score does not decide. The send effects are the one exception and are the
 exception because they have to be: one reverb for the whole project answers to no cell.
-See `InspectorPanel` and `SendPanel`.
+The three onboarding pages are the other, and are the exception the opposite way round:
+what they are about is the interface rather than anything written on the plane, so there
+was never a cell for them to have followed. See `InspectorPanel` and `SendPanel`.
 
 **A panel's header is its subject, not its name** — *Note Tile*, *Channel Start Tile* —
 since which panel it is was never in doubt and the thing changes under the cursor.
@@ -87,16 +89,31 @@ The panels, and what raises each
 | Global | Transport switch | Centre |
 | System | Transport switch | Centre |
 | Live FX | Transport switch | Across the bottom, centred |
+| Onboarding | The first launch | Centre, in a layer over all of them |
 
 **Everything the transport row switches starts off**, and they stand in the order of how
 much each one reaches. A switch that starts on is a decision nobody made — the one
 exception is the auditioning, and `SystemPanel` argues why that one is the rule rather
 than an exception to it.
 
+**Onboarding is raised by no switch at all**, which makes it the one panel here that can
+be up before anything has been pressed: it is up because a first launch has never been
+read. It goes down from a button on itself — the only panel with one, since it is the
+only panel with nothing else that could — and what stops it coming back is a box on it.
+See `Onboarding` for what that box writes and `OnboardingPanel` for why it is the only
+thing on the panel that reaches disk. It shields nothing and locks nothing: the transport
+row is a sibling of the body the panel stands in, so the three pages cannot cover the
+controls they point at.
+
 `System` is the row's own way of not growing: the next question of its kind arrives as a
 row on that panel rather than as a sixth switch. What belongs there is what is about the
 app or the machine rather than about the piece, which is the same test the output volume
 was moved by — see [impl-mix.md].
+
+The guide button is the one thing that ever went the other way, and it could because it
+is not a switch: it raises nothing, it carries an icon rather than a word, and it stands
+past the score controls at the far end of the row rather than among the five. What sent
+it there is argued in `JacquardUI.BuildTransportRow`.
 
 [impl-mix.md]: impl-mix.md
 
@@ -126,7 +143,9 @@ Where the rest is written
 | Why the Sound group and the lock rows are re-bound rather than made again | `InspectorPanel.Refresh` |
 | Why a bar's text field waits for the first edit | `ValueBar.BuildInput` |
 | The DSP buffer setting, and why it applies at the next launch | `DspBuffer`, `SystemPanel` |
-| The two rows that leave the app — the guide link everywhere, the score folder on a desktop only | `SystemPanel` |
+| The one row that leaves the app — the score folder, on a desktop only | `SystemPanel` |
+| Why the guide is a button on the row rather than a row on a panel, and the page it opens | `JacquardUI.BuildTransportRow`, `JacquardUI.GuideUrl` |
+| The three pages a first launch opens on, and how their pictures are taken | `OnboardingPanel` |
 | Scrolling a row or a column that holds more than the screen | `ScrollStrip` |
 | What the screen keeps for itself, and the four insets | `SafeArea`, `JacquardUI.FollowTheSafeArea` |
 | The wordmark, held off the corner rather than off the safe area | `JacquardUI.MarkAir` |

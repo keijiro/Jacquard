@@ -26,6 +26,12 @@ namespace Jacquard.App {
 // Every one of them is down until it is asked for. The plane is what the screen is for,
 // and a switch that starts on is a decision nobody made.
 //
+// One panel here is not on that row at all and comes up by itself: the three pages a
+// first launch opens on, which are up because nobody has read them rather than because
+// anything was pressed. Nothing switches it, so it is in a layer of its own over the
+// lot and carries the one button on any panel here that puts its own panel away. See
+// OnboardingPanel.
+//
 // The specification leaves the application level UI to be designed here, so it is
 // kept to what a prototype has to prove: that every kind of tile can be put down, tuned
 // and heard, that a score survives a save and a load, and that the plane can be
@@ -116,6 +122,23 @@ sealed class JacquardUI
         body.Add(_dock);
         ShowLive(false);
 
+        // In the middle as well, and in a layer of its own added after everything else
+        // so it draws over both edges and the dock. It shares nothing with the two
+        // above: those take turns being raised by a switch and are centred as a pair
+        // when both are up, and this one answers to no switch at all — a pair it was
+        // stacked with would be a panel shifted off centre by whatever a hand happened
+        // to have raised behind it on the launch it came up on.
+        //
+        // It is deliberately not a shield over the screen. The transport row is a
+        // sibling of this body rather than a thing inside it, so nothing here can cover
+        // the controls the three pages point at, and a hand that would rather press
+        // Play than read can.
+        _onboarding = new OnboardingPanel(_app.OnboardingPages,
+                                          () => ShowOnboarding(false), Refocus);
+        _front = PanelCentre(_onboarding.Root);
+        body.Add(_front);
+        ShowOnboarding(false);
+
         _editor.Changed += OnChanged;
 
         _view.Rebuild();
@@ -130,6 +153,12 @@ sealed class JacquardUI
         ShowScore();
 
         _view.Focus();
+
+        // Last of all, and after the keyboard has been given to the plane rather than
+        // before: the panel is not modal, so what has focus while it is up is what has
+        // focus without it, and a player who reads the first page and then presses
+        // Space should hear the thing start.
+        if (!Onboarding.Dismissed) ShowOnboarding(true);
     }
 
     // Called every frame from the app.
@@ -210,7 +239,7 @@ sealed class JacquardUI
 
         _safe = safe;
 
-        _row.style.height = Controls.ToolbarHeight + safe.Top;
+        _row.style.height = Controls.TransportRowHeight + safe.Top;
         _row.style.paddingTop = safe.Top;
 
         // The mark's air is its own and owes this nothing — see MarkAir — so a row with a
@@ -230,6 +259,10 @@ sealed class JacquardUI
         _centre.style.left = safe.Left;
         _centre.style.right = safe.Right;
         _centre.style.bottom = safe.Bottom;
+
+        _front.style.left = safe.Left;
+        _front.style.right = safe.Right;
+        _front.style.bottom = safe.Bottom;
 
         // The gap under the dock is the panel's own margin, so this is the inset and
         // nothing more.
@@ -375,8 +408,17 @@ sealed class JacquardUI
         // name longer than the box draws past it rather than being clipped — where a
         // switch that does not fit is a switch that cannot be pressed. Cut from 190 when
         // the row grew its fourth and fifth switch, which is what put the touch profile
-        // back inside an iPad mini's 917 units, and from 170 when the wordmark arrived
-        // at the left of the row and had to be paid for from somewhere.
+        // back inside an iPad mini's 917 units at the time, and from 170 when the
+        // wordmark arrived at the left of the row and had to be paid for from somewhere.
+        //
+        // It is not inside 917 any more, and has not been since the widening below.
+        // Measured in the editor at the touch profile, the row's content comes to 1114
+        // units, so the last of it is reached by dragging the strip on every screen this
+        // ships to rather than on a phone alone — see the note beside the guide button
+        // in this method, which is what stands last on it now. That is a row that has to
+        // be dragged and not a control that cannot be pressed, which is the line this
+        // paragraph is about: a name too long for the box still draws past it, and this
+        // number is still what decides where that line falls.
         //
         // The caption is gone rather than narrowed, and the box gives back exactly what
         // it took: the name between the arrows is as long as it ever was. What the word
@@ -406,6 +448,38 @@ sealed class JacquardUI
 
         _load = Controls.Push("Load", () => { _app.Load(); Refocus(); }, 46);
         row.Add(_load);
+
+        // And past the last rule, the one control up here that is not about the piece
+        // at all: what everything else on this row does is play it, set it or save it,
+        // and this leaves the app. That is the argument that put System last among the
+        // switches, taken one step further — the guide is not even about the app, it is
+        // about how to use it — so it stands after the score controls rather than among
+        // them, with a rule of its own in front of it.
+        //
+        // It is here rather than at the foot of the System panel, which is where it
+        // was. A player who has never opened this app has no reason to press *System*:
+        // that panel is where a setting about the machine goes, and the guide is the
+        // one thing that was on it that somebody wants before they have found any panel
+        // at all. Nothing about it was a setting, so nothing about it was lost by
+        // leaving.
+        //
+        // What it costs is that the row is already longer than any touch screen it is
+        // drawn on, and being last makes this the first thing past the right edge on
+        // every one of them. Measured in the editor at the touch profile: the row's
+        // content comes to 1114 units with this on the end of it and 1068 without,
+        // against an iPad mini's 917 and the 774 a phone has in landscape — and a
+        // device's own right inset is added to the first number and not to the second.
+        // The row is a ScrollStrip and is dragged, which is what the strip is for and
+        // what the inset on its content is for — see FollowTheSafeArea; dragged to the
+        // end it puts this button fully on screen with the content's trailing gap to
+        // spare, which is what the strip owes whatever stands last on it. It is also
+        // why the third onboarding page points at a control that has to be dragged to,
+        // and says so.
+        if (_app.GuideIcon != null)
+        {
+            row.Add(Separator());
+            row.Add(GuideButton(_app.GuideIcon));
+        }
 
         return row;
     }
@@ -564,7 +638,7 @@ sealed class JacquardUI
     {
         var row = new ScrollStrip(vertical: false);
         row.style.flexShrink = 0;
-        row.style.height = Controls.ToolbarHeight;
+        row.style.height = Controls.TransportRowHeight;
         // The one part of the chrome that paints its own ground. It took it from the
         // root until the root gave up painting, and a row of controls with a waveform
         // running behind them is a row that has to be read through something.
@@ -698,11 +772,93 @@ sealed class JacquardUI
     // and its air come to 177 units on that phone against the 41 the safe area asked for,
     // so the first switch is well inside it either way.
     static float MarkAir
-      => Controls.Touch ? Controls.ToolbarHeight * MarkAirOfRow : Controls.Inset;
+      => Controls.Touch ? Controls.TransportRowHeight * MarkAirOfRow : Controls.Inset;
 
     // Three quarters of the row, and a different three quarters from MarkOfBox above: that
     // one is a height against a control's box, this one is air against the bar.
     const float MarkAirOfRow = 0.75f;
+
+    // The guide, on the one button on this row with no word on it.
+    //
+    // Shaped the way Controls.Arrow is and for the same reason: the air a word needs
+    // inside a box is what a drawn mark does not, so the padding goes and the mark is
+    // centred on the box instead of laid out from its edges. As wide as a row is tall,
+    // because what says *press me* about a control with no text in it is the box, and a
+    // box as wide as a word would be would read as a word that had failed to load.
+    //
+    // Which is square on a touch screen and two units short of it under a mouse, and
+    // the difference is not this button's. Measured at a panel scale of 2: 30 by 30 in
+    // the touch profile, 20 by 22 under a mouse — where every button on this row is 22
+    // whatever height it is handed, since a button carries ten units of padding over
+    // and under its word and a unit of border on each edge, which Push leaves alone and
+    // which floor the box at 22, over the 20 a row is tall under a mouse. So Save is 46
+    // by 22 and the arrows are 22 by 22, which are square there only because ArrowWidth
+    // happens to be that floor. A button told to be 20 wide and 20 tall comes out 20 by
+    // 22 like the rest of them, and the mark inside it is centred on what it got.
+    //
+    // A picture and not a caption because there is no word for this that fits. "Guide"
+    // and "Help" are both a house style away from what the page is called, "?" is a
+    // glyph pretending to be a mark, and the row has no room for "User guide" — which
+    // is what it said on the panel it came from, where a foot had the width to spare.
+    //
+    // The mark takes the row's own text colour rather than the white it is drawn in, so
+    // it sits at the weight the words beside it do. React moves the ground under it and
+    // not the ink, so a hand on the button lights the box and leaves the book legible.
+    static Button GuideButton(Texture2D texture)
+    {
+        var button = Controls.Push("", () => Application.OpenURL(GuideUrl), 0);
+        button.style.width = Controls.RowHeight;
+        button.style.height = Controls.RowHeight;
+        button.style.flexShrink = 0;
+        button.style.paddingLeft = 0;
+        button.style.paddingRight = 0;
+        button.style.alignItems = Align.Center;
+        button.style.justifyContent = Justify.Center;
+
+        var height = Controls.RowHeight * IconOfBox;
+
+        var mark = new VisualElement();
+        mark.style.height = height;
+        mark.style.width = height * texture.width / texture.height;
+        mark.style.flexShrink = 0;
+        mark.pickingMode = PickingMode.Ignore;
+        mark.style.backgroundImage = Background.FromTexture2D(texture);
+        mark.style.unityBackgroundImageTintColor = Style.NoteText;
+        button.Add(mark);
+
+        return button;
+    }
+
+    // How tall the book stands against the box it is drawn in.
+    //
+    // Three fifths, which is a number the master was cut to rather than one chosen
+    // against the wordmark's three quarters. What it has to be is a height at which a
+    // cell of the drawing comes to a whole number of device pixels: at 18 units in the
+    // touch profile the icon is twelve cells tall, so a cell is one and a half units
+    // and three device pixels on a 2x screen, which is exactly what
+    // Branding/make_guide_icon.py cuts it at. It leaves six units of box on each side
+    // of it, which is the air a word would have had.
+    //
+    // The mark is not held off the screen's edge the way the wordmark is, and does not
+    // want to be: this one is pressed. See MarkAir for what that distinction is.
+    const float IconOfBox = 0.6f;
+
+    // No Refocus after it. Every other button on this row hands the keyboard back
+    // because the press was the whole of what it did; this one has just sent the app to
+    // the background, and on iOS it is a sheet over the top of it. Taking the focus back
+    // under a sheet is a write to a screen nobody is looking at, and the plane still has
+    // it when the sheet goes away — the press moved it to the button and the button is
+    // gone from under the hand by then.
+    //
+    // The guide is a page on the web and not a copy of one inside the build. A manual
+    // that shipped with the app would be the manual as it stood on the day that build
+    // left, and this one is rewritten whenever what it describes moves.
+    //
+    // Handed straight to Application.OpenURL, which is a browser on the desktop, the
+    // sheet over the app on iOS and a new tab on the Web — and on the Web it is the
+    // press that makes that allowed, since a tab opened outside a hand's own gesture is
+    // a tab the browser blocks.
+    const string GuideUrl = "https://www.keijiro.tokyo/jacquard-doc/";
 
     static VisualElement Separator()
     {
@@ -815,6 +971,14 @@ sealed class JacquardUI
 
         Controls.SetActive(_liveButton, shown);
     }
+
+    // And for the one panel up here that no switch raised, which is why this is the one
+    // of these with nothing to keep in step: there is no button whose look has to agree
+    // with what is on screen. What put it up was a setting read once at startup, and
+    // what puts it down is a button on the panel itself — the only panel here that has
+    // one, because it is the only one with nothing else that could.
+    void ShowOnboarding(bool shown)
+      => _onboarding.Root.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
 
     void OnKey(KeyDownEvent evt)
     {
@@ -929,6 +1093,7 @@ sealed class JacquardUI
     readonly VisualElement _rightEdge;
     readonly VisualElement _centre;
     readonly VisualElement _dock;
+    readonly VisualElement _front;
 
     readonly InspectorPanel _inspector;
     readonly SendPanel _send;
@@ -936,6 +1101,7 @@ sealed class JacquardUI
     readonly GlobalPanel _global;
     readonly SystemPanel _system;
     readonly LivePanel _live;
+    readonly OnboardingPanel _onboarding;
 
     Button _play;
     // The name of the thing, at the left of the row, when there is one to draw.

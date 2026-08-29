@@ -28,6 +28,18 @@ static class SceneBuilder
     // README and the app icon; Branding/make_logo_png.py writes it.
     const string LogoPath = "Assets/Branding/Logo.png";
 
+    // The book on the guide button at the other end of that row; it is drawn rather
+    // than cut from the type, and Branding/make_guide_icon.py writes it.
+    const string GuideIconPath = "Assets/Branding/GuideIcon.png";
+
+    // The three pictures the onboarding panel shows, in the order it shows them. They
+    // are crops of captures of this app's own transport row and are taken by hand; the
+    // procedure is written down in OnboardingPanel, beside the panel that reads them.
+    static readonly string[] OnboardingPagePaths =
+      { "Assets/Jacquard/UI/Onboarding/1-play.png",
+        "Assets/Jacquard/UI/Onboarding/2-scores.png",
+        "Assets/Jacquard/UI/Onboarding/3-guide.png" };
+
     // The face the whole interface is set in. Jura, under the Open Font License, which
     // is kept beside it. Google ships it as a variable font with a weight axis whose
     // default end is Light; what is checked in is the Regular instance cut out of it,
@@ -78,6 +90,11 @@ static class SceneBuilder
         var app = appObject.AddComponent<JacquardApp>();
         app.SampleScore = AssetDatabase.LoadAssetAtPath<TextAsset>(SampleScorePath);
         app.Logo = AssetDatabase.LoadAssetAtPath<Texture2D>(LogoPath);
+        app.GuideIcon = AssetDatabase.LoadAssetAtPath<Texture2D>(GuideIconPath);
+        app.OnboardingPages =
+          System.Array.ConvertAll(OnboardingPagePaths,
+                                  path =>
+                                    AssetDatabase.LoadAssetAtPath<Texture2D>(path));
         app.Font = AssetDatabase.LoadAssetAtPath<Font>(FontPath);
 
         // Beside the app rather than on the camera: what it draws it reads off the
