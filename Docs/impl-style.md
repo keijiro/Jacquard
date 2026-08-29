@@ -18,6 +18,11 @@ longer anywhere to put a tint back; it used to carry a hint of blue at the dark 
 warmth at the light one, which left the mid greys sitting between two hues rather than on
 one scale.
 
+The one shadow is the onboarding panel's, which is the one element that has another panel
+behind it rather than the plane. It is drawn rather than asked for — USS here has
+text-shadow and no other shadow at all — and what it costs and why it is a stack of
+rings is argued in `OnboardingPanel.Shadow`.
+
 What a thing is saying is said by **where it sits on the ramp** and by **how much air is
 around it**. Two consequences that reach every control:
 

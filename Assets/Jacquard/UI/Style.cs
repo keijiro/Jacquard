@@ -128,6 +128,17 @@ static class Style
     public static readonly Color PanelLine = Grey(0x3a);
     public static readonly Color Label = Grey(0x9a);
 
+    // The line around a panel that stands in front of other panels, which is the
+    // onboarding panel and nothing else. Controls.Panel argues that a panel wants no
+    // border at all — what tells one from the plane is a lighter ground with air around
+    // it, and an outline in PanelLine only makes it read as one more control with
+    // controls in it. That argument is about a panel on the plane. A panel over another
+    // panel is the case it does not cover: the two grounds are the same grey, and a
+    // ground cannot be told from itself. So there is one shade here for the one edge
+    // that has to be seen, a step brighter than the grey the controls are outlined in so
+    // that it reads as the sheet's edge rather than as a very large button.
+    public static readonly Color FrontLine = Grey(0x5a);
+
     public static readonly Color Cursor = Grey(0xf2);
     public static readonly Color Playhead = Grey(0xf2);
 

@@ -60,6 +60,8 @@ becomes plainly disadvantageous, it is the goal that gives way.
 **The look is flat and monochrome.** One ramp of greys, no gradients, no
 shadows, nothing coloured to carry meaning. What a thing is saying is said by
 where it sits on that ramp and by how much air is around it — see
-[impl-style.md].
+[impl-style.md]. There is one shadow in the app, and it is under the one thing
+that stands in front of another panel rather than on the plane; `OnboardingPanel`
+argues for it.
 
 [impl-style.md]: impl-style.md
