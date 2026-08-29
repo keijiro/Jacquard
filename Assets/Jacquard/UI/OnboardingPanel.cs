@@ -59,15 +59,27 @@ namespace Jacquard.App {
 // are retaken when the row changes, which is rarely, and a generator for three
 // screenshots is more to keep right than the three screenshots are.
 //
-// - In the editor, in play mode, with JacquardApp.Pointer set to Touch before Start so
-//   the row is built at the tablet's metrics, and the panel's own scale set to 2 by
-//   hand — left alone the editor resolves the Mac's dpi and the crop comes out at some
-//   fraction of a device pixel to the unit.
+// - In the editor, in play mode, with the panel's own scale set to 2 by hand — left
+//   alone the editor resolves the Mac's dpi and the crop comes out at some fraction of
+//   a device pixel to the unit.
+// - With JacquardApp.Pointer set to Touch before Start for the second and third pages,
+//   so the row is built at the tablet's metrics — and left at Auto for the first, which
+//   in the editor is the mouse's. That is the one thing that differs between the three
+//   and it is the wordmark's doing. The first page's band starts at the screen's own
+//   edge, and at the tablet's metrics most of what it then holds is air: the mark held
+//   off the corner and held off Play by margins written for a fingertip, which lands on
+//   neither. Cut at the mouse's, the same four things — the corner, the mark, Play, the
+//   tempo bar — arrive at the spacing the eye reads them at, and the whole of the bar
+//   fits with the rule after it to spare. What it costs is that this one page's row is
+//   drawn at the desktop's height rather than the tablet's; what the page has to say is
+//   which corner Play is in, and it still says it.
 // - With a game view the row does not fit on — 960 units against the row's own 1115 —
 //   and, for the two pages about the score controls and the guide, with the row dragged
 //   to its end, which is where those controls actually stand on any screen this ships
 //   to. Dragged there, the last of the row is the screen's own right edge, which is
-//   what the third page's band is cut against.
+//   what the third page's band is cut against. Neither applies to the first page: its
+//   band is the head of the row, so the strip is where it starts, and how much of the
+//   row fits past the tempo bar decides nothing.
 // - With the Tile panel put down. It is never down in the app — it is the panel the
 //   cursor answers to and something is always selected — but it stands twelve units
 //   under the row at the right of the screen, so on two of the three bands it, and not
@@ -95,14 +107,13 @@ namespace Jacquard.App {
 // And one thing put on, on the first page only: it begins at the screen's own left edge
 // and takes the wordmark with it. That page is about the first control on the row, and
 // the mark standing in the corner is the one landmark in this interface that says which
-// corner without anything else in the shot having to. What it costs is the right hand
-// end of the band, since the mark, its air, Play and the tempo bar come to 384 units
-// against the 350 the panel can draw — so the band is cut at the cap and the tempo bar
-// runs off the edge of it with its reading still whole. A control cut by the edge of a
-// crop is the row carrying on, which it does; the alternative was to start at the mark
-// instead of at the screen's edge, which fits to the unit and puts the mark flush
-// against the picture's own border, and a wordmark that looks clipped is worse than a
-// bar that looks like it continues.
+// corner without anything else in the shot having to. At the tablet's metrics that cost
+// the right hand end of the band — the mark, its air, Play and the tempo bar came to 384
+// units against the 350 the panel can draw, so the band was cut at the cap and the tempo
+// bar ran off the edge of it with its reading still whole, which is a control cut by the
+// edge of a crop and reads as the row carrying on. Cut at the mouse's metrics the four
+// of them come to 262: the bar is whole, the rule past it stands in the shot the way the
+// other two pages' rules do, and nothing is up against the cap at all.
 //
 // It began as the subject alone at the row's full height, which is a picture of a
 // control on a grey field: it says what the control looks like and nothing about where
@@ -118,8 +129,9 @@ namespace Jacquard.App {
 // leaves for a picture — see ContentWidth. Past that a crop is shrunk rather than cut,
 // and a picture of a row that has been resampled is a picture of a row with soft type
 // in it. There is no such cap under a mouse and there cannot be: that profile leaves
-// 266 units, so all three are drawn small on a desktop and always were. Picture is
-// built for that; 1:1 is what the touch screens get.
+// 266 units, which the first page now comes in under and the other two do not — so
+// those two are drawn small on a desktop and always were. Picture is built for that;
+// 1:1 is what the touch screens get.
 //
 // That leaves each master at exactly two device pixels to the unit, which is what
 // Picture below then relies on: it draws a page at half its pixel size, so a capture
@@ -187,6 +199,22 @@ sealed class OnboardingPanel
         TileElement.SetBorderWidth(panel, BorderWidth);
         TileElement.SetBorderColor(panel, Style.FrontLine);
 
+        // Which page this is, at the end of the header's own row rather than at the
+        // foot. It is a reading and not a control: it says where in the three the
+        // reader is, which is a thing about the whole panel and not about any row of
+        // it, and the top right of a panel is where a reading of that kind goes. At
+        // the foot it stood at the left of the row the button is on, which is where a
+        // hand is already looking for something to press.
+        //
+        // Set the way every other word on this screen that is not a header is set —
+        // Controls.FontSize in the caption grey. It was in Controls.Value's bright ink,
+        // which is the ink the header beside it is in and the ink the paragraph below
+        // is in, and a figure that changes three times in the life of the app has no
+        // claim on the shade this panel keeps for the words that are actually read.
+        _count = Controls.Text("", Controls.FontSize, Style.Label);
+        _count.style.unityTextAlign = TextAnchor.MiddleRight;
+        _header.parent.Add(_count);
+
         Root.Add(panel);
 
         _picture = new VisualElement();
@@ -236,8 +264,6 @@ sealed class OnboardingPanel
         _box.style.height = Controls.RowHeight;
         _box.style.flexShrink = 0;
 
-        var boxRow = Controls.Row();
-        boxRow.Add(_box);
         // Not a Caption, which is pinned to the caption column so that a panel's rows
         // line up; there is no column here and the words are longer than one.
         var caption = Controls.Text("Don't show this again", Controls.FontSize,
@@ -248,15 +274,32 @@ sealed class OnboardingPanel
         // in a row; this is a word naming the square beside it, and at one gap the word
         // and the square read as a single mark.
         caption.style.marginLeft = Controls.GroupGap;
-        boxRow.Add(caption);
-        panel.Add(boxRow);
+        // What holds the button out to the far end of the row, now that there is no
+        // reading between the two to do it. Which means the word is the thing being
+        // stretched, so it has to be told where to stand inside what it is given: every
+        // label this UI builds is centred in its own box, which is right for a reading
+        // in a slot and wrong for a word naming the square to its left.
+        caption.style.flexGrow = 1;
+        caption.style.unityTextAlign = TextAnchor.MiddleLeft;
 
-        // The reading at the left, where it is read as a position rather than as a
-        // control, and the one button that moves the panel on at the right, under the
-        // thumb that will press it three times.
+        // The box, the word that names it, and the one button that moves the panel on,
+        // on the one row at the foot.
+        //
+        // They were two rows, the box and its word above and the button below. Neither
+        // is a row of the panel the way the picture and the paragraph are — between
+        // them they are the whole of what a hand can do here, and stacked they spent a
+        // band of the panel's height saying that a box to tick and a button to press
+        // are different kinds of thing, which is a distinction the two shapes already
+        // make. On one row the panel ends where its words end, and what stands under
+        // the thumb is a line rather than a column.
+        //
+        // They keep their two ends of it and are not a pair. The box is the thing this
+        // panel is not for, which is why it sits where the reading did and is read on
+        // the way past; the button is what the panel is asking for, at the right, under
+        // the thumb that will press it three times.
         //
         // There was a Skip beside the reading, and taking it out is what left the row
-        // with two things on it. A way out is what a panel in the way owes whoever it is
+        // with room for the box. A way out is what a panel in the way owes whoever it is
         // in the way of, and this one is in nobody's way: it covers no control the three
         // pages point at, and the row and the plane behind it work with it still up. So
         // the button was an exit from something nothing was being kept from — offered at
@@ -267,9 +310,8 @@ sealed class OnboardingPanel
         // through, so Next three times is the whole of the way out now.
         var foot = Controls.Foot();
 
-        _count = Controls.Value("");
-        _count.style.unityTextAlign = TextAnchor.MiddleLeft;
-        foot.Add(_count);
+        foot.Add(_box);
+        foot.Add(caption);
 
         _next = Controls.Push("", Next, ButtonWidth);
         // The last thing on the row, with the panel's own inset on the other side of
