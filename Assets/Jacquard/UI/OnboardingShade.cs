@@ -21,8 +21,12 @@ namespace Jacquard.App {
 // say is that it *arrived*: a reader who was not watching it happen is looking at a dark
 // screen with a panel on it, and a screen that has always been this way has nothing to do
 // with the sentence on the panel. So the app comes up at its own brightness,
-// waits half a second while a hand settles, and then takes eight tenths of a second to go
-// under — long enough to be watched, and short enough that nobody waits for it. The wait
+// waits half a second while a hand settles, and then takes four tenths of a second to go
+// under — long enough to be watched, and short enough that nobody waits for it. That last
+// is a stricter thing to ask than it was, and it is what halved the fade from the eight
+// tenths it started at: the panel does not arrive until the fog is down (see Covered), so
+// this is time spent in front of the first sentence rather than under it, and a fall that
+// was worth watching on its own became a fall somebody is waiting out. The wait
 // pays for something else on the way past. The bands cannot be cut to the row until the
 // row has been laid out, and on the frame the panel goes up Follow has NaN to work with
 // and returns, which leaves _after standing at left 0 with its whole overhang and the
@@ -140,6 +144,18 @@ sealed class OnboardingShade
         // the answer to a press is owed at once.
         _delay = shown ? RaiseDelay : 0.0f;
     }
+
+    // Whether the fog is all the way down, which is what the panel waits for — see
+    // JacquardUI.FollowTheFog, which is the only reader of this.
+    //
+    // A page arriving over a screen that is still on its way under would be read against a
+    // ground that is still moving, and the reader would have both to follow at once; worse,
+    // the hole would be least of all a hole at the moment the words first point into it. So
+    // the fall is watched with nothing on it, and the words arrive on the frame it lands.
+    //
+    // Nothing here answers the way down: what puts the panel away is the press, on the
+    // press's own frame, and the fog lifting behind it is what is left over.
+    public bool Covered => _level >= 1.0f;
 
     // Where the fog has got to, every frame, from JacquardUI.Update.
     //
@@ -272,12 +288,13 @@ sealed class OnboardingShade
     // strip's overflow whatever it is, so the only thing it has to be is too big.
     const float Overhang = 2000.0f;
 
-    // The fog's own clock: half a second before it starts down, and eight tenths of a
+    // The fog's own clock: half a second before it starts down, and four tenths of a
     // second from nothing to everything or back. The wait is argued at the top of this
     // file and is the launch's alone — Show gives it to the way up and not to the way
-    // down.
+    // down. One number for both directions, since a fog that took longer to lift than it
+    // took to fall would be answering a press more slowly than it answered a launch.
     const float RaiseDelay = 0.5f;
-    const float FadeSeconds = 0.8f;
+    const float FadeSeconds = 0.4f;
 
     // And the light's. One turn, dark to half-lit and back, in a second and a fifth: the
     // rate of a slow breath rather than of a blink, which holds a place at the edge of the

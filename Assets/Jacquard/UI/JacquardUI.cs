@@ -193,9 +193,13 @@ sealed class JacquardUI
 
         // After the hole has been cut, so a page that turned this frame is painted at its
         // new place on it, and outside the test that cuts it: the fog is still on screen
-        // for the best part of a second after the pages have gone, and FollowTheSubject
-        // has returned at its first line for every frame of that.
+        // for four tenths of a second after the pages have gone, and FollowTheSubject has
+        // returned at its first line for every frame of that.
         _shade.Tick();
+
+        // And after the fog has moved, so the frame it lands on is the frame the first
+        // page is read on rather than the one after it.
+        FollowTheFog();
 
         Report();
     }
@@ -317,6 +321,29 @@ sealed class JacquardUI
         _view.Locked = _locked;
         Controls.SetLocked(_inspector.Root, _locked);
         _load.style.opacity = _locked ? Style.DimmedOpacity : 1.0f;
+    }
+
+    // Raises the onboarding panel once the fog behind it is all the way down, and drops it
+    // the moment it is not wanted.
+    //
+    // Written only when it moves, the way the three above are, and the same two states
+    // decide it every time it is asked: whether the pages are wanted at all, which a launch
+    // and the Done button write, and whether the screen behind them has finished going
+    // under, which is the shade's. See OnboardingShade.Covered for why the words wait for
+    // the ground they are read against to come to rest.
+    //
+    // The asymmetry is in Covered rather than here: going down _onboardingShown is already
+    // false on the frame of the press, so this hides the panel on that frame whatever the
+    // fog is doing behind it.
+    void FollowTheFog()
+    {
+        var up = _onboardingShown && _shade.Covered;
+
+        if (up == _onboardingUp) return;
+
+        _onboardingUp = up;
+
+        _onboarding.Root.style.display = up ? DisplayStyle.Flex : DisplayStyle.None;
     }
 
     // Cuts the shade's hole around whatever the page on screen is about, and brings that
@@ -1039,14 +1066,17 @@ sealed class JacquardUI
     {
         _onboardingShown = shown;
 
-        _onboarding.Root.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
-
-        // And the grey around it, which is the one panel here that brings the rest of the
+        // The grey around it, which is the one panel here that brings the rest of the
         // screen with it when it goes up and down — and the one thing here that does not
-        // do it on this frame. The panel itself arrives and leaves at once, which is what
-        // a panel answering a press owes; the fog takes the best part of a second either
-        // way, and on a launch waits a moment before it starts down. See OnboardingShade.
+        // do it on this frame. The fog takes four tenths of a second either way, and on a
+        // launch waits half a second before it starts down. See OnboardingShade.
         _shade.Show(shown);
+
+        // And the panel itself, which is now behind the fog on the way up rather than
+        // beside it — FollowTheFog is what raises it, and is called here as well as from
+        // Update so that the way *down* is still this frame's: a press is answered at
+        // once, and the fog lifting behind the panel is what is left over.
+        FollowTheFog();
 
         // Nothing has been pointed at yet, so the page that is up is read again from
         // scratch on the next frame — which is what brings its subject onto the row.
@@ -1206,6 +1236,14 @@ sealed class JacquardUI
 
     // Whether the three pages are up, since the shade is only followed while they are.
     bool _onboardingShown;
+
+    // What the panel is doing, as against what it is wanted to be doing. The two differ
+    // for the length of the fog's fall on a launch, and nowhere else. See FollowTheFog.
+    //
+    // Up to start with, so that the first call — which is the ShowOnboarding(false) that
+    // builds the screen — is a move and writes the panel down. Same trick, and the same
+    // reason, as OnboardingShade's two NaNs.
+    bool _onboardingUp = true;
 
     // Which page the row was last aimed at, so that a page is revealed once and a row
     // dragged afterwards is left alone. Before any page, which is what a panel going up

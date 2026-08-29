@@ -120,7 +120,10 @@ darkening the screen does not quietly make the panel the modal it is not. See
 for the row being sent to its end when the control a page names is off it. It is also the
 one thing in this interface that moves — the fog fades in and out, and the hole has a
 light in it that swells while the page is read; see `OnboardingShade` for why, and
-[impl-style.md] for the exception being kept to that one file.
+[impl-style.md] for the exception being kept to that one file. The panel is behind that
+fog rather than beside it: on a launch it is raised only once the screen has finished
+going under, by `JacquardUI.FollowTheFog` off `OnboardingShade.Covered`, while the press
+that puts it away is answered on its own frame and leaves the fog to lift behind it.
 
 `System` is the row's own way of not growing: the next question of its kind arrives as a
 row on that panel rather than as a sixth switch. What belongs there is what is about the
