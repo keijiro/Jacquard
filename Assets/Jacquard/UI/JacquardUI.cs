@@ -475,11 +475,8 @@ sealed class JacquardUI
         // spare, which is what the strip owes whatever stands last on it. It is also
         // why the third onboarding page points at a control that has to be dragged to,
         // and says so.
-        if (_app.GuideIcon != null)
-        {
-            row.Add(Separator());
-            row.Add(GuideButton(_app.GuideIcon));
-        }
+        row.Add(Separator());
+        row.Add(GuideButton());
 
         return row;
     }
@@ -778,70 +775,35 @@ sealed class JacquardUI
     // one is a height against a control's box, this one is air against the bar.
     const float MarkAirOfRow = 0.75f;
 
-    // The guide, on the one button on this row with no word on it.
+    // The guide, on the one control up here with a mark of punctuation on it.
     //
-    // Shaped the way Controls.Arrow is and for the same reason: the air a word needs
-    // inside a box is what a drawn mark does not, so the padding goes and the mark is
-    // centred on the box instead of laid out from its edges. As wide as a row is tall,
-    // because what says *press me* about a control with no text in it is the box, and a
-    // box as wide as a word would be would read as a word that had failed to load.
+    // "?" because there is no word for this that fits: "Guide" and "Help" are both a
+    // house style away from what the page is called, and the row has no room for "User
+    // guide" — which is what it said on the panel it came from, where a foot had the
+    // width to spare. A question mark is the one character that can stand on this
+    // button and be read as what it is, which is what lets a single glyph do the work
+    // a caption has no room to.
     //
-    // Which is square on a touch screen and two units short of it under a mouse, and
-    // the difference is not this button's. Measured at a panel scale of 2: 30 by 30 in
-    // the touch profile, 20 by 22 under a mouse — where every button on this row is 22
-    // whatever height it is handed, since a button carries ten units of padding over
-    // and under its word and a unit of border on each edge, which Push leaves alone and
-    // which floor the box at 22, over the 20 a row is tall under a mouse. So Save is 46
-    // by 22 and the arrows are 22 by 22, which are square there only because ArrowWidth
-    // happens to be that floor. A button told to be 20 wide and 20 tall comes out 20 by
-    // 22 like the rest of them, and the mark inside it is centred on what it got.
+    // It was a drawn book before this, on the argument that a mark says what no word
+    // here can. What that cost was a picture — cut on a cell grid, kept in Branding
+    // with a script of its own, tinted and sized against the box by hand — for the one
+    // control in the app carrying one, and it never sat in the row as well as the words
+    // either side of it do. A character the face already has is set by the rules every
+    // other button on this row is set by, and asks nothing of anybody.
     //
-    // A picture and not a caption because there is no word for this that fits. "Guide"
-    // and "Help" are both a house style away from what the page is called, "?" is a
-    // glyph pretending to be a mark, and the row has no room for "User guide" — which
-    // is what it said on the panel it came from, where a foot had the width to spare.
-    //
-    // The mark takes the row's own text colour rather than the white it is drawn in, so
-    // it sits at the weight the words beside it do. React moves the ground under it and
-    // not the ink, so a hand on the button lights the box and leaves the book legible.
-    static Button GuideButton(Texture2D texture)
-    {
-        var button = Controls.Push("", () => Application.OpenURL(GuideUrl), 0);
-        button.style.width = Controls.RowHeight;
-        button.style.height = Controls.RowHeight;
-        button.style.flexShrink = 0;
-        button.style.paddingLeft = 0;
-        button.style.paddingRight = 0;
-        button.style.alignItems = Align.Center;
-        button.style.justifyContent = Justify.Center;
-
-        var height = Controls.RowHeight * IconOfBox;
-
-        var mark = new VisualElement();
-        mark.style.height = height;
-        mark.style.width = height * texture.width / texture.height;
-        mark.style.flexShrink = 0;
-        mark.pickingMode = PickingMode.Ignore;
-        mark.style.backgroundImage = Background.FromTexture2D(texture);
-        mark.style.unityBackgroundImageTintColor = Style.NoteText;
-        button.Add(mark);
-
-        return button;
-    }
-
-    // How tall the book stands against the box it is drawn in.
-    //
-    // Three fifths, which is a number the master was cut to rather than one chosen
-    // against the wordmark's three quarters. What it has to be is a height at which a
-    // cell of the drawing comes to a whole number of device pixels: at 18 units in the
-    // touch profile the icon is twelve cells tall, so a cell is one and a half units
-    // and three device pixels on a 2x screen, which is exactly what
-    // Branding/make_guide_icon.py cuts it at. It leaves six units of box on each side
-    // of it, which is the air a word would have had.
-    //
-    // The mark is not held off the screen's edge the way the wordmark is, and does not
-    // want to be: this one is pressed. See MarkAir for what that distinction is.
-    const float IconOfBox = 0.6f;
+    // Told what the other one-glyph buttons are told — the arrows either side of a
+    // score's name, the stepper's minus and plus — since a button carrying a single
+    // character has no reason to measure differently for standing at the end of the
+    // row. That is Controls.ArrowWidth said again here because it is private to the
+    // file that draws them, and it is the shape those come out at: 22 by 22 under a
+    // mouse and 30 by 30 on a touch screen at a panel scale of 2, square in both, since
+    // every button on this row is 22 tall whatever height it is handed — a button
+    // carries ten units of padding over and under its word and a unit of border on each
+    // edge, which Push leaves alone and which floor the box at 22, over the 20 a row is
+    // tall under a mouse, and Controls.Width floors the width at a row's height on a
+    // touch screen for exactly this case.
+    static Button GuideButton()
+      => Controls.Push("?", () => Application.OpenURL(GuideUrl), 22);
 
     // No Refocus after it. Every other button on this row hands the keyboard back
     // because the press was the whole of what it did; this one has just sent the app to

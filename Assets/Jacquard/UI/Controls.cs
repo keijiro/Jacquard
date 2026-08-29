@@ -604,7 +604,7 @@ static class Controls
         // both runs there are: the seven scale keys are 22 by 22 under a mouse and 30
         // by 30 on a touch screen, and the eight laps of a cycle gate are 25 by 25 on a
         // touch screen but 18 by 22 under a mouse, which is the one run here the floor
-        // catches. JacquardUI.GuideButton meets the same floor from the other side.
+        // catches.
         button.style.paddingLeft = 0;
         button.style.paddingRight = 0;
         button.style.marginBottom = Gap;

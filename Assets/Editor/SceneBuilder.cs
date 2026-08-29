@@ -28,10 +28,6 @@ static class SceneBuilder
     // README and the app icon; Branding/make_logo_png.py writes it.
     const string LogoPath = "Assets/Branding/Logo.png";
 
-    // The book on the guide button at the other end of that row; it is drawn rather
-    // than cut from the type, and Branding/make_guide_icon.py writes it.
-    const string GuideIconPath = "Assets/Branding/GuideIcon.png";
-
     // The three pictures the onboarding panel shows, in the order it shows them. They
     // are crops of captures of this app's own transport row and are taken by hand; the
     // procedure is written down in OnboardingPanel, beside the panel that reads them.
@@ -90,7 +86,6 @@ static class SceneBuilder
         var app = appObject.AddComponent<JacquardApp>();
         app.SampleScore = AssetDatabase.LoadAssetAtPath<TextAsset>(SampleScorePath);
         app.Logo = AssetDatabase.LoadAssetAtPath<Texture2D>(LogoPath);
-        app.GuideIcon = AssetDatabase.LoadAssetAtPath<Texture2D>(GuideIconPath);
         app.OnboardingPages =
           System.Array.ConvertAll(OnboardingPagePaths,
                                   path =>

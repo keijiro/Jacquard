@@ -9,10 +9,6 @@ the descenders torn sideways, a short tear through the middle, a few stray cells
 at the seams — is applied in cells too, which is what keeps its dots the same size
 and on the same grid as the letterforms.
 
-The one picture here that is not the name is the guide icon, which is drawn on
-the same cell grid instead of being cut from a glyph — a mark of a name has
-only the one thing it can say, and that icon has to say something else.
-
 The font is vendored here with its licence so that the marks can be regenerated
 without fetching anything.
 
@@ -27,7 +23,6 @@ Needs `fonttools` and nothing else.
 | `make_logo_png.py` | `logo-bar.png` | copy to `Assets/Branding/Logo.png` |
 | `make_icon.py` | `icon.png`, `favicon.png` | copy the first to `Assets/Branding/AppIcon.png` |
 | `make_favicon_svg.py` | `favicon.svg` | with `favicon.png`, base64 into the two `<link rel="icon">` in `Assets/WebGLTemplates/Jacquard/index.html` |
-| `make_guide_icon.py` | `guide-icon.png` | copy to `Assets/Branding/GuideIcon.png` |
 
 Only `jacquard-logo.svg` is committed from that column; the rest are intermediates
 whose used copy lives where the last column says, and they are ignored here.
@@ -59,16 +54,5 @@ fallback. Safari puts a white plate behind a favicon it reads as too dark for th
 tab bar, which draws a ring around a black tile; a mark that inks itself light on
 a dark tab gives it nothing to correct. The switch is inside the SVG because
 Safari ignores `media` on the link element and honours it there.
-
-**The guide icon** is the book on the right of the transport row, and it is the
-one thing in this folder that is drawn rather than reduced. It is one colour on a
-transparent ground like the wordmark, and the app tints it to the row's own text
-colour, so nothing here decides what shade it comes out at — which is what keeps
-it inside the standing rule that nothing coloured carries meaning. Thirteen cells
-by twelve at three texture pixels to the cell, the same number and the same
-argument the wordmark's `PPC` carries: at `IconOfBox` of a control's box a cell
-comes to one and a half units in the touch profile and three device pixels on a
-2x screen, so the icon lands pixel for pixel on an iPad and is resampled on the
-desktop, where a cell is one unit.
 
 [Jacquard 12]: https://fonts.google.com/specimen/Jacquard+12

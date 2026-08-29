@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &1290170712
+--- !u!1 &1396960112
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,9 +127,104 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1290170715}
-  - component: {fileID: 1290170714}
-  - component: {fileID: 1290170713}
+  - component: {fileID: 1396960116}
+  - component: {fileID: 1396960115}
+  - component: {fileID: 1396960114}
+  - component: {fileID: 1396960113}
+  m_Layer: 0
+  m_Name: Jacquard
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1396960113
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1396960112}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: caea0ad4267f4eafa6d7758fa2a202dd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Jacquard::Jacquard.App.Visualizer
+  <Shader>k__BackingField: {fileID: 4800000, guid: daf44b5b89db499cb4edeb6f8d6ddf26, type: 3}
+  <Window>k__BackingField: 0.03
+--- !u!114 &1396960114
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1396960112}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0dc4fd0d5a09248a2848a6c13e500872, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Jacquard::Jacquard.App.JacquardApp
+  <MaxVoices>k__BackingField: 24
+  <Lookahead>k__BackingField: 0.12
+  <LiveLead>k__BackingField: 0.03
+  <SampleScore>k__BackingField: {fileID: 4900000, guid: 4f72478497783404a84b74201ce6eae8, type: 3}
+  <Logo>k__BackingField: {fileID: 2800000, guid: c138cf66158254c6db98a90a489caeae, type: 3}
+  <OnboardingPages>k__BackingField:
+  - {fileID: 2800000, guid: 9e94d9451efa4b9eb5b8d1da7d13b518, type: 3}
+  - {fileID: 2800000, guid: 60271239bd08442b9bb5f51b613db2db, type: 3}
+  - {fileID: 2800000, guid: 65dcce9a356648748c4364f15716f60b, type: 3}
+  <Font>k__BackingField: {fileID: 12800000, guid: 13f1a02e96f84bb7b1f0636a08122c82, type: 3}
+  <FrameRate>k__BackingField: 60
+  <Pointer>k__BackingField: 0
+--- !u!114 &1396960115
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1396960112}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
+  m_PanelSettings: {fileID: 11400000, guid: baee66811cd131440a1088b4bf5187ed, type: 2}
+  m_ParentUI: {fileID: 0}
+  sourceAsset: {fileID: 9197481963319205126, guid: 4587e37b00da06b43ba4abebc7bfc4bb, type: 3}
+  m_SortingOrder: 0
+  m_Position: 0
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_WorldSpaceCollider: {fileID: 0}
+--- !u!4 &1396960116
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1396960112}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1913440632
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1913440635}
+  - component: {fileID: 1913440634}
+  - component: {fileID: 1913440633}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -137,21 +232,21 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!81 &1290170713
+--- !u!81 &1913440633
 AudioListener:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1290170712}
+  m_GameObject: {fileID: 1913440632}
   m_Enabled: 1
---- !u!20 &1290170714
+--- !u!20 &1913440634
 Camera:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1290170712}
+  m_GameObject: {fileID: 1913440632}
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
@@ -196,109 +291,13 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!4 &1290170715
+--- !u!4 &1913440635
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1290170712}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1644720113
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1644720117}
-  - component: {fileID: 1644720116}
-  - component: {fileID: 1644720115}
-  - component: {fileID: 1644720114}
-  m_Layer: 0
-  m_Name: Jacquard
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1644720114
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1644720113}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: caea0ad4267f4eafa6d7758fa2a202dd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Jacquard::Jacquard.App.Visualizer
-  <Shader>k__BackingField: {fileID: 4800000, guid: daf44b5b89db499cb4edeb6f8d6ddf26, type: 3}
-  <Window>k__BackingField: 0.03
---- !u!114 &1644720115
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1644720113}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0dc4fd0d5a09248a2848a6c13e500872, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Jacquard::Jacquard.App.JacquardApp
-  <MaxVoices>k__BackingField: 24
-  <Lookahead>k__BackingField: 0.12
-  <LiveLead>k__BackingField: 0.03
-  <SampleScore>k__BackingField: {fileID: 4900000, guid: 4f72478497783404a84b74201ce6eae8, type: 3}
-  <Logo>k__BackingField: {fileID: 2800000, guid: c138cf66158254c6db98a90a489caeae, type: 3}
-  <GuideIcon>k__BackingField: {fileID: 2800000, guid: 3bfd81e672db49c4bd4875066b43f221, type: 3}
-  <OnboardingPages>k__BackingField:
-  - {fileID: 2800000, guid: 9e94d9451efa4b9eb5b8d1da7d13b518, type: 3}
-  - {fileID: 2800000, guid: 60271239bd08442b9bb5f51b613db2db, type: 3}
-  - {fileID: 2800000, guid: 65dcce9a356648748c4364f15716f60b, type: 3}
-  <Font>k__BackingField: {fileID: 12800000, guid: 13f1a02e96f84bb7b1f0636a08122c82, type: 3}
-  <FrameRate>k__BackingField: 60
-  <Pointer>k__BackingField: 0
---- !u!114 &1644720116
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1644720113}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
-  m_PanelSettings: {fileID: 11400000, guid: baee66811cd131440a1088b4bf5187ed, type: 2}
-  m_ParentUI: {fileID: 0}
-  sourceAsset: {fileID: 9197481963319205126, guid: 4587e37b00da06b43ba4abebc7bfc4bb, type: 3}
-  m_SortingOrder: 0
-  m_Position: 0
-  m_WorldSpaceSizeMode: 1
-  m_WorldSpaceWidth: 1920
-  m_WorldSpaceHeight: 1080
-  m_PivotReferenceSize: 0
-  m_Pivot: 0
-  m_WorldSpaceCollider: {fileID: 0}
---- !u!4 &1644720117
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1644720113}
+  m_GameObject: {fileID: 1913440632}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -311,5 +310,5 @@ Transform:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 1290170715}
-  - {fileID: 1644720117}
+  - {fileID: 1913440635}
+  - {fileID: 1396960116}

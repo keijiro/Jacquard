@@ -84,17 +84,6 @@ public sealed class JacquardApp : MonoBehaviour
     [field:SerializeField]
     public Texture2D Logo { get; set; }
 
-    // The book at the right of the transport row, on the button that opens the guide.
-    // A bitmap for the reason the wordmark is one and for no other: it is cut on the
-    // same cell grid, so what a Painter2D drawing of it would produce is the same grid
-    // of squares the texture already holds. Branding/make_guide_icon.py writes it, and
-    // it is white on a transparent ground because the button tints it — see
-    // JacquardUI.GuideButton.
-    //
-    // Unassigned is a row that ends at Load, and a guide nothing on screen points at.
-    [field:SerializeField]
-    public Texture2D GuideIcon { get; set; }
-
     // The three pictures the onboarding panel shows, in the order it shows them: Play,
     // the score controls, the guide button. They are crops of real captures of this
     // app's own transport row, and how they are retaken is written down where the panel

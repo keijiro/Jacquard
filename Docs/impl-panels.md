@@ -111,7 +111,7 @@ app or the machine rather than about the piece, which is the same test the outpu
 was moved by — see [impl-mix.md].
 
 The guide button is the one thing that ever went the other way, and it could because it
-is not a switch: it raises nothing, it carries an icon rather than a word, and it stands
+is not a switch: it raises nothing, it carries one character rather than a word, and it stands
 past the score controls at the far end of the row rather than among the five. What sent
 it there is argued in `JacquardUI.BuildTransportRow`.
 

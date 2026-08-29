@@ -100,8 +100,9 @@ sealed class OnboardingPanel
         // itself. Told a row's height for both of its sides, which is what a control
         // with nothing written in it is measured by here — 30 by 30 on a touch screen
         // and 20 by 22 under a mouse, where a button is never shorter than its own
-        // padding and border. JacquardUI.GuideButton is the same shape for the same
-        // reason and carries the measurement.
+        // padding and border, so a box told 20 for both of its sides comes out two units
+        // taller than it is wide. Controls.Switch is floored by the same thing from the
+        // other side and carries the argument.
         _box = Controls.Push("", ToggleBox, 0);
         _box.style.width = Controls.RowHeight;
         _box.style.height = Controls.RowHeight;
@@ -180,7 +181,7 @@ sealed class OnboardingPanel
          "runs off the screen."),
         ("User guide",
          "Everything else — the tiles, the lanes, the sounds a channel is given — is " +
-         "written in the guide, and the book at the end of the row opens it."),
+         "written in the guide, and the \"?\" at the end of the row opens it."),
     };
 
     // Half again a column panel. See the constructor for what that is measured against.
