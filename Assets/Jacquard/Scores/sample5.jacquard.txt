@@ -1,0 +1,73 @@
+jacquard 20
+tempo 120
+meter 4 4
+fx rsize=0.89688 rtone=0.30193 rspread=1 dbeats=0.25 dfb=0.89948 dtone=0.50076 dspread=1
+limiter ceiling=-12.00001 attack=0.00125 release=0.02884
+mutes muted=00000000 soloed=00000000
+scale notes=101011010101
+patch 1 transpose=0 level=-5.96657 pan=0 uni=0 gate=0.05 mratio=1.24374 index=3.1125 fb=0.16531 md=0.91563 ca=0.001 cr=1.79106 ps=0 pd=0 rsend=0.93438 dsend=1
+patch 2 transpose=0 level=0 pan=0 uni=0 gate=1 mratio=0.17226 index=5.92696 fb=0.5 md=0.10674 ca=0.001 cr=0.42866 ps=4.05174 pd=0.19929 rsend=0.11563 dsend=0
+patch 3 transpose=0 level=-1.9382 pan=-0.30625 uni=0.09375 gate=0.05 mratio=0.99902 index=3.075 fb=0 md=0.3694 ca=0.001 cr=0.38393 ps=0 pd=0.21858 rsend=0.214 dsend=0.59902
+patch 4 transpose=0 level=-13.16775 pan=0.35 uni=0 gate=0.05 mratio=5.84747 index=2.5325 fb=4.29788 md=0.30938 ca=0.001 cr=0.05622 ps=0 pd=0 rsend=0.1125 dsend=0.6315
+patch 5 transpose=0 level=-1.9382 pan=0 uni=0 gate=1 mratio=2 index=3 fb=0 md=0.2 ca=0.005 cr=0.12 ps=0 pd=0.05 rsend=0 dsend=0
+patch 6 transpose=0 level=-1.9382 pan=0 uni=0 gate=1 mratio=2 index=3 fb=0 md=0.2 ca=0.005 cr=0.12 ps=0 pd=0.05 rsend=0 dsend=0
+patch 7 transpose=0 level=-1.9382 pan=0 uni=0 gate=1 mratio=2 index=3 fb=0 md=0.2 ca=0.005 cr=0.12 ps=0 pd=0.05 rsend=0 dsend=0
+patch 8 transpose=0 level=-1.9382 pan=0 uni=0 gate=1 mratio=2 index=3 fb=0 md=0.2 ca=0.005 cr=0.12 ps=0 pd=0.05 rsend=0 dsend=0
+lane 11 8 CHAN:1 div=16 on=1
+  step GCYC:4,1000 E4
+  step
+  step
+  step
+  step
+  step
+  step
+  step
+  step
+  step
+  step
+  step
+  step
+  step
+  step
+  step
+lane 11 17 CHAN:3 div=16 on=1
+  step D4 E4 G3
+  step
+  step
+  step
+  step D4 E4 G3
+  step
+  step
+  step D4 E4 G3
+  step
+  step
+  step
+  step
+lane 11 16 CHAN:3 div=16 on=1
+  step PREL:level,-4.41439,pan,0.7,index,2.025,moddecay,0.4125,carrelease,0.68647,rsend,1,dsend,1
+  step
+  step
+  step
+  step
+lane 11 11 CHAN:2 div=16 on=1
+  step E2/2.5 E1/2.5
+  step
+  step
+  step GPRB:50 PREL:level,-11.4 E2/2.5 E1/2.5
+  step E2/2.5 E1/2.5
+  step
+  step GPRB:50 PREL:level,-11.1 E2/2.5 E1/2.5
+  step E2/2.5 E1/2.5
+  step
+  step
+  step E2/2.5 E1/2.5
+  step
+  step
+  step
+  step GPRB:50 PREL:level,-7.35 E2/2.5 E1/2.5
+  step GPRB:50 PREL:level,-11.4 E2/2.5 E1/2.5
+lane 11 21 CHAN:4 div=16 on=1
+  step
+  step
+  step E8/0.25
+  step

@@ -16,11 +16,17 @@ static class SceneBuilder
 {
     const string ScenePath = "Assets/Main.unity";
 
-    // The score a fresh install's first slot is filled with. Replacing it is a matter
-    // of writing another file over this one — save the score from the app and copy it
-    // here — so the name is worth having in one place, where the self test can read the
-    // same one.
-    public const string SampleScorePath = "Assets/Jacquard/Scores/Sample.jacquard.txt";
+    // The pieces a fresh install's score folder is filled with, in the order they are
+    // written into it — this list is what sample1 through sample5 are. Replacing one is
+    // a matter of writing another file over it — save the score from the app and copy
+    // it here — and adding one is a path on the end and nothing else, so the list is
+    // worth having in one place, where the self test can read the same one.
+    public static readonly string[] SampleScorePaths =
+      { "Assets/Jacquard/Scores/sample1.jacquard.txt",
+        "Assets/Jacquard/Scores/sample2.jacquard.txt",
+        "Assets/Jacquard/Scores/sample3.jacquard.txt",
+        "Assets/Jacquard/Scores/sample4.jacquard.txt",
+        "Assets/Jacquard/Scores/sample5.jacquard.txt" };
 
     const string VisualizerShaderPath = "Assets/Jacquard/Visual/Visualizer.shader";
 
@@ -84,7 +90,9 @@ static class SceneBuilder
           AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/UI/Main.uxml");
 
         var app = appObject.AddComponent<JacquardApp>();
-        app.SampleScore = AssetDatabase.LoadAssetAtPath<TextAsset>(SampleScorePath);
+        app.SampleScores =
+          System.Array.ConvertAll(SampleScorePaths,
+                                  path => AssetDatabase.LoadAssetAtPath<TextAsset>(path));
         app.Logo = AssetDatabase.LoadAssetAtPath<Texture2D>(LogoPath);
         app.OnboardingPages =
           System.Array.ConvertAll(OnboardingPagePaths,

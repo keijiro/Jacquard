@@ -54,25 +54,30 @@ public sealed class JacquardApp : MonoBehaviour
     [field:SerializeField, Range(0.005f, 0.1f)]
     public float LiveLead { get; set; } = 0.03f;
 
-    // The score a fresh install is given, as a file rather than as code. What it holds
-    // is a real piece of work — eight patches and a handful of lanes — and the one
-    // thing that is certain about it is that it will be replaced again. Written out by
-    // the app's own Save and copied in, so replacing it is a copy rather than a
-    // transcription, and the format is exercised by the same reader every load uses.
+    // The pieces a fresh install is given, as files rather than as code. What they hold
+    // is real work — patches and a handful of lanes each — and the one thing that is
+    // certain about them is that they will be replaced again. Written out by the app's
+    // own Save and copied in, so replacing one is a copy rather than a transcription,
+    // and the format is exercised by the same reader every load uses.
     //
     // A double extension because Unity imports a TextAsset by extension and .jacquard
-    // is not one it knows; the alternative is a ScriptedImporter for one file.
+    // is not one it knows; the alternative is a ScriptedImporter for five files.
     //
-    // It is not what the app opens on any more, and it is read exactly once in the life
-    // of an install: the first launch writes it into the first slot of the score folder
-    // and every launch after that opens whatever is in that folder. So this is the
-    // contents of a slot rather than a startup score, and what it is called says so.
+    // The order is the order they are seeded in, which is the order they are read off
+    // the chooser: this array is what sample1 through sample5 are. How many there are
+    // is its length and is not written down anywhere else, so adding a sixth is a path
+    // on the end of the list SceneBuilder fills this from and nothing besides.
+    //
+    // They are not what the app opens on, and they are read exactly once in the life of
+    // an install: the first launch writes them into the score folder and every launch
+    // after that opens whatever is in that folder. So these are the contents of files
+    // rather than startup scores.
     //
     // Nothing here is a fallback for a missing asset beyond the initial score: leaving
     // the field unassigned is how the app is started with nothing made in it, which is
     // the only other thing this used to be able to do.
     [field:SerializeField]
-    public TextAsset SampleScore { get; set; }
+    public TextAsset[] SampleScores { get; set; }
 
     // The wordmark at the left of the transport row. A bitmap and not a Painter2D
     // drawing like every other mark in here: the type is a pixel font already, so
@@ -252,7 +257,7 @@ public sealed class JacquardApp : MonoBehaviour
     // say, which is what the status line is for.
     CoreProject OpeningScore()
     {
-        Store.Seed(ReadSampleScore);
+        Seed();
         Store.Name = Store.Opening();
 
         var project = Store.Load(out var message);
@@ -261,22 +266,35 @@ public sealed class JacquardApp : MonoBehaviour
         return project ?? CoreProject.CreateInitial();
     }
 
-    // The sample, as a score, for the one launch that has a folder to fill. Nothing
-    // here is worth stopping for either — a slot the sample cannot be put in gets the
-    // initial score like the eight beside it — but it is worth saying, since a sample
-    // asset left behind by a format bump is a thing to be told about once.
-    CoreProject ReadSampleScore()
+    // Filling the score folder, which is the store's business apart from one number:
+    // how many samples there are is however many this build is carrying, and that is
+    // known here rather than there. Both callers go through this so the two of them
+    // cannot come to disagree about it.
+    void Seed()
+      => Store.Seed(SampleScores?.Length ?? 0, ReadSampleScore);
+
+    // One sample, as a score, for the one launch that has a folder to fill. Nothing
+    // here is worth stopping for either — a sample that will not read is a name the
+    // folder simply does not get — but it is worth saying, since a sample asset left
+    // behind by a format bump is a thing to be told about once.
+    //
+    // The first complaint is the one kept. Five of them would be five files with the
+    // same thing wrong with them, and the status line is one line: what it is for here
+    // is to say that the samples are stale, which one of them says as well as all five.
+    CoreProject ReadSampleScore(int index)
     {
-        if (SampleScore == null) return null;
+        var asset = SampleScores[index - 1];
+
+        if (asset == null) return null;
 
         try
         {
-            return ProjectFormat.Read(SampleScore.text);
+            return ProjectFormat.Read(asset.text);
         }
         catch (System.Exception error)
         {
             Debug.LogException(error);
-            _sampleProblem = "could not read " + SampleScore.name + ": " + error.Message;
+            _sampleProblem ??= "could not read " + asset.name + ": " + error.Message;
             return null;
         }
     }
@@ -297,7 +315,7 @@ public sealed class JacquardApp : MonoBehaviour
         // A folder emptied while the app was away is filled again rather than left
         // empty, by the same rule that filled it in the first place: the chooser has to
         // have something on it.
-        Store.Seed(ReadSampleScore);
+        Seed();
 
         _ui.RefreshSlots();
     }
@@ -604,7 +622,7 @@ public sealed class JacquardApp : MonoBehaviour
 
     JacquardUI _ui;
 
-    // Whatever the sample file had to say for itself, held until there is a status
+    // Whatever the sample files had to say for themselves, held until there is a status
     // line to say it on.
     string _sampleProblem;
 

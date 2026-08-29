@@ -20,7 +20,7 @@ static class SelfTest
         var log = new System.Text.StringBuilder("Jacquard self test\n");
 
         RoundTrip(log);
-        SampleScore(log);
+        SampleScores(log);
         Plane(log);
         Playback(log);
         Holding(log);
@@ -76,20 +76,29 @@ static class SelfTest
           ? "  branch link: resolved\n" : "  BRANCH LINK LOST\n");
     }
 
-    // The sample score is a file rather than code, so nothing about it is checked by
-    // compiling. What can go stale is the version it was written at: the reader takes an
-    // older file, but a sample left behind by a format bump loses whatever the bump
-    // added, silently and in the one slot a fresh install is meant to be impressed by.
-    // Reading it and writing it back at the current version says both things at once —
-    // that it still parses, and whether it is already what this build would write.
-    static void SampleScore(System.Text.StringBuilder log)
+    // The sample scores are files rather than code, so nothing about them is checked by
+    // compiling. What can go stale is the version they were written at: the reader takes
+    // an older file, but a sample left behind by a format bump loses whatever the bump
+    // added, silently and in the pieces a fresh install is meant to be impressed by.
+    // Reading each one and writing it back at the current version says both things at
+    // once — that it still parses, and whether it is already what this build would write.
+    //
+    // Every one of them, and each named in its own line: they are replaced one at a
+    // time, so a run that says only "the samples are fine" is a run that cannot say
+    // which of the five is not.
+    static void SampleScores(System.Text.StringBuilder log)
     {
-        var asset = AssetDatabase.LoadAssetAtPath<TextAsset>(SceneBuilder.SampleScorePath);
+        foreach (var path in SceneBuilder.SampleScorePaths) SampleScore(log, path);
+    }
+
+    static void SampleScore(System.Text.StringBuilder log, string path)
+    {
+        var asset = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
+        var name = System.IO.Path.GetFileName(path);
 
         if (asset == null)
         {
-            log.Append("  SAMPLE SCORE MISSING at ")
-               .Append(SceneBuilder.SampleScorePath).Append('\n');
+            log.Append("  SAMPLE SCORE MISSING at ").Append(path).Append('\n');
             return;
         }
 
@@ -98,17 +107,18 @@ static class SelfTest
             var project = ProjectFormat.Read(asset.text);
             var rewritten = ProjectFormat.Write(project);
 
-            log.Append("  sample score: ").Append(project.Score.Lanes.Count)
-               .Append(" lanes at ").Append(project.Tempo).Append("bpm\n");
-
-            log.Append(rewritten == asset.text
-              ? "  sample version: current\n"
-              : "  sample version: readable but not what this build writes; "
-                + "save it again from the app\n");
+            log.Append("  ").Append(name).Append(": ")
+               .Append(project.Score.Lanes.Count)
+               .Append(" lanes at ").Append(project.Tempo).Append("bpm, ")
+               .Append(rewritten == asset.text
+                 ? "current\n"
+                 : "readable but not what this build writes; "
+                   + "save it again from the app\n");
         }
         catch (System.Exception error)
         {
-            log.Append("  SAMPLE SCORE UNREADABLE: ").Append(error.Message).Append('\n');
+            log.Append("  SAMPLE SCORE UNREADABLE (").Append(name).Append("): ")
+               .Append(error.Message).Append('\n');
         }
     }
 

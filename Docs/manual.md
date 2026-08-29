@@ -117,9 +117,10 @@ Scores
 
 Scores are saved under `Application.persistentDataPath/Scores` as plain text, one line
 per step; pick one with the arrows beside Save. A copy of the app that has saved nothing
-yet writes nine of them for itself — `score1` through `score9`, the first holding the
-sample and the rest a bar with a note on each beat — so **every name on the chooser is a
-file that is really there**. It opens in whichever was last saved or loaded.
+yet writes fourteen of them for itself — `sample1` through `sample5`, which are pieces
+made in the app, and `score1` through `score9`, which are a bar with a note on each beat
+to work in — so **every name on the chooser is a file that is really there**. It opens in
+whichever was last saved or loaded, and on the very first launch in `sample1`.
 
 The folder can be reached from outside the app: on a desktop through the System panel's
 button, and on iOS in the Files app under On My iPhone (or On My iPad). A file dropped
@@ -133,9 +134,9 @@ of the piece and the music carries straight on into it. While it waits, the plan
 panel that edits the score are dimmed; the mix and the live effects go on working. A
 request cannot be taken back — Stop is what ends the wait.
 
-The sample that fills the first slot is checked in at
-`Assets/Jacquard/Scores/Sample.jacquard.txt`. To replace it, save the score from the app
-and copy the file over that one, then run **Jacquard > Run Self Test** to be told whether
-it still reads as the current version — see [impl-files.md].
+The five samples are checked in at `Assets/Jacquard/Scores/sample1.jacquard.txt` and the
+four beside it. To replace one, save the score from the app and copy the file over it,
+then run **Jacquard > Run Self Test** to be told whether it still reads as the current
+version — see [impl-files.md].
 
 [impl-files.md]: impl-files.md

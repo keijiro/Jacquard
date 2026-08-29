@@ -30,12 +30,14 @@ from a current file. `ProjectFormat`'s header argues for where that conversion h
 
 [impl-synth.md]: impl-synth.md
 
-The sample score is a file, not code
-------------------------------------
+The sample scores are files, not code
+-------------------------------------
 
-`Assets/Jacquard/Scores/Sample.jacquard.txt` holds it in the format the app already
-writes, read through the same `ProjectFormat.Read` a load uses, so **replacing it is a
-file copy** rather than a transcription.
+`Assets/Jacquard/Scores/sample1.jacquard.txt` through `sample5.jacquard.txt` hold them in
+the format the app already writes, read through the same `ProjectFormat.Read` a load
+uses, so **replacing one is a file copy** rather than a transcription. `SceneBuilder`
+keeps the list and the order, and how many there are is not written down anywhere else —
+adding a sixth is a path on the end of it.
 
 `Project.CreateSample()` stays, with only its other job: it is the self test's fixture,
 the one score that names every kind of tile. Keeping the two apart is what lets the
@@ -43,10 +45,11 @@ demonstration become whatever sounds best without a test noticing.
 
 **The cost is that nothing about the file is checked by compiling, and the way it goes
 wrong is quiet** — the reader takes an older version, so a sample left behind by a format
-bump silently loses whatever the bump added, in the one slot a fresh install is meant to be
-impressed by. Hence the self test that reads it and writes it back: that check says *this
-file is already what this build writes*, which is a different question from whether the
-format is self-consistent. Run **Jacquard > Run Self Test** after replacing it.
+bump silently loses whatever the bump added, in the pieces a fresh install is meant to be
+impressed by. Hence the self test that reads each of them and writes it back: that check
+says *this file is already what this build writes*, which is a different question from
+whether the format is self-consistent. It names them one by one, since they are replaced
+one by one. Run **Jacquard > Run Self Test** after replacing any of them.
 
 What a file is allowed to say
 -----------------------------
@@ -69,7 +72,14 @@ The folder is the list
 
 **Every score is a file in one folder, and the chooser is that folder read out.** There
 are no names of the app's own on it, so every name is a file and pressing Load always does
-something. An install whose folder is empty gets nine written for it.
+something. An install whose folder is empty gets fourteen written for it: the five sample
+pieces the build carries as `sample1` through `sample5`, and nine blank scores as `score1`
+through `score9`.
+
+**The samples stand beside the slots rather than in them.** `score1` used to hold the one
+sample there was, which put the only piece worth hearing in the first slot a hand would
+save over. Named apart, they sort above the slots — so the first launch of all still opens
+a real piece, and nothing done to the nine can destroy one.
 
 The consequence worth remembering is that **the folder is authoritative and the app is
 not**: which score to come up in is remembered in `PlayerPrefs` and checked against the

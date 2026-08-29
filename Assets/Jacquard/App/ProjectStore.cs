@@ -14,9 +14,9 @@ namespace Jacquard.App {
 // read out. There are no names of its own in here any more: it used to offer "sketch"
 // and three takes as slots to save into, which meant the list held names that were not
 // files and a hand had to know which was which. What it offers now is a folder that is
-// never empty — an install that has saved nothing gets nine scores written for it — so
-// every name on the chooser is a score, and picking one and pressing Load always does
-// something.
+// never empty — an install that has saved nothing gets five pieces and nine blank
+// scores written for it — so every name on the chooser is a score, and picking one and
+// pressing Load always does something.
 
 public sealed class ProjectStore
 {
@@ -90,43 +90,57 @@ public sealed class ProjectStore
         return names;
     }
 
-    // Writes the nine scores a fresh install starts with, and does nothing at all if
-    // there is so much as one file there already.
+    // Fills an empty folder: the samples this build carries, and nine blank scores
+    // beside them. Does nothing at all if there is so much as one file there already.
     //
-    // Nine because that is what the chooser can be walked around in a moment, and
+    // Nine blanks because that is what the chooser can be walked around in a moment, and
     // because a numbered rack of slots is the thing a hand can hold in its head: what
     // is being made is a piece at a time, and the folder is where the pieces are kept.
     // They are written rather than offered as empty names for the reason the class note
-    // gives — a name on that list is a score or it is a trap — and writing them costs
-    // nine small files once.
+    // gives — a name on that list is a score or it is a trap — and writing them costs a
+    // handful of small files once.
     //
-    // The first holds the sample, which is the one score in here that was made rather
-    // than generated: an install that has never been opened comes up in a real piece of
-    // work rather than in four notes, and the four notes are in the eight slots beside
-    // it. A sample that cannot be produced is not worth stopping for, so that slot
-    // falls back to the same initial score as the rest.
+    // The samples are the scores in here that were made rather than generated, and they
+    // stand beside the blanks rather than in them. score1 used to hold the one there
+    // was, which put the only piece worth hearing in the first slot a hand would save
+    // over: the demonstration was gone by the second thing anybody did, and the folder
+    // could not say whether score1 was still the sample or somebody's work. Named apart
+    // and sorting ahead of the blanks, they are pieces to open and slots to work in, and
+    // nothing done to the slots touches them.
     //
-    // The sample arrives as something to call rather than as a score, since the caller
+    // How many samples there are is the caller's fact — it is however many assets the
+    // build is carrying — while the names are this class's, since they land in the same
+    // folder as the slots and are read off the same chooser. A sample that cannot be
+    // produced is not written at all rather than filled in with a blank, since a blank
+    // called "sample3" is worse than no sample3; what is left is a shorter row of
+    // pieces, and the nine below it are untouched.
+    //
+    // The samples arrive as something to call rather than as scores, since the caller
     // has to read and parse an asset to make one and this is a folder that is nearly
     // always already filled.
-    public bool Seed(System.Func<Project> sample)
+    public bool Seed(int samples, System.Func<int, Project> sample)
     {
         if (Slots().Count > 0) return false;
 
         try
         {
-            for (var slot = 1; slot <= SlotCount; slot++)
+            // Before the blanks, so that a seed cut short by a failure has left the
+            // pieces rather than nine empty bars.
+            for (var index = 1; index <= samples; index++)
             {
-                var project = slot == 1 ? sample() : null;
-                Write(SlotName(slot), project ?? Project.CreateInitial());
+                var project = sample(index);
+                if (project != null) Write(SampleName(index), project);
             }
+
+            for (var slot = 1; slot <= SlotCount; slot++)
+                Write(SlotName(slot), Project.CreateInitial());
 
             return true;
         }
         catch (System.Exception error)
         {
             // The same road every other file failure here takes. What is left is a
-            // folder holding however many of the nine were written, which the next
+            // folder holding however many of the fourteen were written, which the next
             // launch will not add to — Seed fills an empty folder and this one is no
             // longer empty — and which is still a chooser with scores on it.
             Debug.LogException(error);
@@ -141,7 +155,8 @@ public sealed class ProjectStore
     // app — or one written by a build that is no longer installed — comes up as the
     // first slot instead of as a failed load. On a fresh install nothing is remembered
     // and the folder has just been seeded, which is how the first launch of all comes
-    // up in the sample: it is score1, and score1 is what sorts first.
+    // up in a sample rather than in four notes: sample1 is what sorts first, and it
+    // takes every sample going missing for the opening score to be a blank one.
     public string Opening()
     {
         var slots = Slots();
@@ -154,11 +169,19 @@ public sealed class ProjectStore
 
     // Private members
 
-    // How many scores an install starts with, and the names they are given. One-based,
-    // since they are read by whoever is choosing between them and not by anything here.
+    // How many blank scores an install starts with, and the names the two families are
+    // given. Both one-based, since they are read by whoever is choosing between them
+    // and not by anything here; only the blanks have their count here, for the reason
+    // Seed gives.
     const int SlotCount = 9;
 
     static string SlotName(int slot) => "score" + slot;
+
+    // The same shape as a slot's name and numbered the same way, since the two families
+    // are read as one list and an eye going down it should not have to change gear. What
+    // the second letter does besides telling them apart is sort the pieces above the
+    // slots, which is the order they are wanted in.
+    static string SampleName(int index) => "sample" + index;
 
     // Which file the app was last in. It is a fact about this copy of the app and not
     // about any piece, so it lives where the rest of those do — see SystemPanel.
