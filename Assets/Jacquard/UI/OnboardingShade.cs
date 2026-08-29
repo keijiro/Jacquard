@@ -276,10 +276,10 @@ sealed class OnboardingShade
     // switches, which is a screen with a slightly dimmer half rather than a screen with one
     // thing on it.
     //
-    // Neither number is in Style, for the reason OnboardingPanel.ShadowAlpha is not either:
-    // the palette is a ramp of greys that things are *set in*, and this is a sheet laid over
-    // the lot of them. There is no entry either of them could be, and putting them there
-    // would invite a second element to be drawn in them.
+    // Neither number is in Style, and the palette's own shape is why: it is a ramp of greys
+    // that things are *set in*, and this is a sheet laid over the lot of them. There is no
+    // entry either of them could be, and putting them there would invite a second element
+    // to be drawn in them.
     static readonly Color ShadeGrey = Style.Grey(0x24);
     const float ShadeAlpha = 0.78f;
 

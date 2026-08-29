@@ -39,8 +39,9 @@ the same rule. See `Controls.Panel`.
 lighter ground with air around it. A corner radius means one thing here: something a
 hand picks up. The onboarding panel is the exception and is not on the plane: it comes up
 over whatever else is open, and two sheets of one grey overlapping is one shape with a
-fold in it — so it alone takes a line, in a shade kept for it, and a shadow under it. See
-`OnboardingPanel` and `Style.FrontLine`.
+fold in it — so it alone takes a line, in a shade kept for it. It had a shadow under it as
+well, until the fog behind the pages made it a second answer to a question already
+answered. See `OnboardingPanel` and `Style.FrontLine`.
 
 **A panel is spaced out of three numbers** — `Controls.Gap`, `Controls.Inset`,
 `Controls.GroupGap` — and nothing in a panel is a number of its own; what is not one of

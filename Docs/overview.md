@@ -60,12 +60,13 @@ becomes plainly disadvantageous, it is the goal that gives way.
 **The look is flat and monochrome.** One ramp of greys, no gradients, no
 shadows, nothing coloured to carry meaning. What a thing is saying is said by
 where it sits on that ramp and by how much air is around it — see
-[impl-style.md]. There is one shadow in the app, and it is under the one thing
-that stands in front of another panel rather than on the plane; `OnboardingPanel`
-argues for it.
+[impl-style.md]. There is no shadow anywhere, and the one panel that had one —
+the onboarding panel, which stands in front of another panel rather than on the
+plane — gave it up once the grey behind it was doing that work; `OnboardingPanel`
+argues for the line it kept and against the shadow it did not.
 
-There is also one sheet laid over the whole screen, behind those same three
-pages, and it belongs beside that shadow rather than against this rule: it is
+There is one sheet laid over the whole screen, behind those same three pages,
+and it is a reading of this rule rather than an exception to it: it is
 one flat grey at one alpha with a hole cut in it, and what it says is what
 `Style.DimmedOpacity` already says everywhere else — that what is under it is
 not what is being talked about. It is a cover and not an opacity because the

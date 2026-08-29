@@ -18,10 +18,12 @@ longer anywhere to put a tint back; it used to carry a hint of blue at the dark 
 warmth at the light one, which left the mid greys sitting between two hues rather than on
 one scale.
 
-The one shadow is the onboarding panel's, which is the one element that has another panel
-behind it rather than the plane. It is drawn rather than asked for — USS here has
-text-shadow and no other shadow at all — and what it costs and why it is a stack of
-rings is argued in `OnboardingPanel.Shadow`.
+There is no shadow at all, which took a removal rather than a rule: the onboarding panel
+carried one, being the one element with another panel behind it rather than the plane, and
+it was drawn out of a stack of rings because USS here has text-shadow and no other shadow
+to ask for. What retired it is the fog below — the panel is not raised until the screen
+behind it is under the grey, so the sheet in front is parted from what is behind it before
+it arrives. `OnboardingPanel` argues that, and keeps the line around its edge.
 
 The one thing laid over the whole screen is the fog behind those same three pages, and it
 is neither a shadow nor a gradient: it is one flat grey at one alpha, with a hole in it
@@ -36,8 +38,8 @@ because the visualizer is drawn by the camera behind the interface and is not an
 anything here can dim. `Style.DimmedOpacity` is the rule for a control that is out of
 reach; this is the same idea aimed the other way — nothing under it is out of reach, and
 what is left alone is what is being pointed at. See `OnboardingShade`, which keeps its
-own two numbers for the reason `OnboardingPanel.ShadowAlpha` keeps its own: a sheet laid
-over the ramp is not an entry in the ramp.
+two numbers to itself rather than putting them in `Style`: a sheet laid over the ramp is
+not an entry in the ramp.
 
 **That fog is the one thing in this interface that moves.** It comes down a moment after a
 launch rather than being there when the screen arrives, it lifts when the pages go, and

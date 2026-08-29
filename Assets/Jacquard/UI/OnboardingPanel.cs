@@ -37,14 +37,22 @@ namespace Jacquard.App {
 // owns it, because the hole is cut on the transport row and the row is not down here.
 // See OnboardingShade, and Page below for the one thing it asks this panel.
 //
-// It is also the only panel here with an edge and a shadow. Every other one is read
-// against the plane, where a lighter ground with air around it is the whole of what
-// says it is a panel — Controls.Panel argues that case and refuses a border on it. This
-// one comes up in front of whatever a launch happens to have left open, and two sheets
-// of the same grey overlapping is one shape with a fold in it. A line around it and a
-// shadow under it are the least that says which of the two is in front; see the
-// constructor for the line and Shadow for what a shadow costs where there is no
-// box-shadow to ask for.
+// It is also the only panel here with an edge. Every other one is read against the
+// plane, where a lighter ground with air around it is the whole of what says it is a
+// panel — Controls.Panel argues that case and refuses a border on it. This one comes up
+// in front of whatever a launch happens to have left open, and two sheets of the same
+// grey overlapping is one shape with a fold in it. A line around it is what says which
+// of the two is in front; see the constructor for it.
+//
+// There was a shadow under it as well, and the fog is what took it away. The shadow was
+// drawn before the shade existed: the panel then stood on a live screen, and a stack of
+// black rings was what parted it from whatever panel it happened to have come up over.
+// Now nothing behind it is at its own brightness by the time it arrives — the grey is all
+// the way down before the panel is raised at all, which is what OnboardingShade.Covered
+// is for — so the one sheet in front of the fog is being lifted off a screen that has
+// already been put behind it. What was left was the only soft edge in an interface of
+// flat rectangles, drawn out of eight elements, saying a second time what the line around
+// the panel and the grey behind it both already say.
 //
 // Only the box reaches disk. Done on the last page closes it for this launch and writes
 // nothing — see Onboarding, which also says why there is no way back once the box is
@@ -163,23 +171,19 @@ sealed class OnboardingPanel
     {
         (_pages, _close, _refocus) = (pages, close, refocus);
 
-        // The root is a wrapper and the panel stands inside it, which no other panel
-        // here needs. A shadow has to be measured from the panel's edge, and a child of
-        // the panel is laid out from inside the panel's padding instead — so the rings
-        // hang off a box that has neither padding nor border of its own, and that box is
-        // exactly the one they are a shadow of. Nothing else about the wrapper is load
-        // bearing: it is one column with one thing in it.
-        Root = new VisualElement();
-        Root.style.width = PanelWidth;
-        Root.style.flexShrink = 0;
-
-        Shadow();
-
         // The header is the page's subject — Play, Scores, User guide — which is the
         // rule every panel here follows and is also what tells one page from the next.
         // A panel titled "Welcome" with the subject repeated inside it would spend the
         // one line the eye goes to on the word that changes least.
         var panel = Controls.Panel(Pages[0].Header, out _header);
+
+        // And the panel is the root, with nothing wrapped around it — which it is worth
+        // saying is the ordinary arrangement and was not always this one. The root was a
+        // wrapper while there was a shadow to hang: a ring is only ever outside the box
+        // it is a ring of, and a child of the panel is laid out inside the panel's
+        // padding instead, so the rings needed a box with neither padding nor border to
+        // hang off. With the shadow gone that box was one column with one thing in it.
+        Root = panel;
 
         // Half again a column panel, because what is on it is a picture of a row and a
         // row is wide. 288 units under a mouse and 372 on a touch screen, against the
@@ -189,8 +193,9 @@ sealed class OnboardingPanel
         panel.style.width = PanelWidth;
 
         // The gap a panel carries under it belongs to the column of panels it stands in,
-        // and this one stands in a layer by itself. Left on, it would be twelve units of
-        // wrapper below the panel that the shadow would then be measured from.
+        // and this one stands in a layer by itself. Left on, it would be twelve units
+        // under the panel that the centring is measured through, which is a panel
+        // standing half a gap high on the screen.
         panel.style.marginBottom = 0;
 
         // The edge. In its own shade rather than the grey every control is outlined in,
@@ -214,8 +219,6 @@ sealed class OnboardingPanel
         _count = Controls.Text("", Controls.FontSize, Style.Label);
         _count.style.unityTextAlign = TextAnchor.MiddleRight;
         _header.parent.Add(_count);
-
-        Root.Add(panel);
 
         _picture = new VisualElement();
         // Centred rather than stretched: the crops are not all one width, and a picture
@@ -371,8 +374,8 @@ sealed class OnboardingPanel
     // Half again a column panel. See the constructor for what that is measured against.
     const float WidthOfPanel = 1.5f;
 
-    // Which the wrapper is told as well as the panel, since the rings hang off the
-    // wrapper and a shadow the wrong width is a shadow of something else.
+    // Named rather than written on the line that sets it, since what a page is drawn in
+    // is measured from it as well — see ContentWidth.
     static float PanelWidth => Controls.PanelWidth * WidthOfPanel;
 
     // The edge is a hairline — the width every control here is outlined at, since what
@@ -396,20 +399,6 @@ sealed class OnboardingPanel
     // one place two lines of the same sentence stand under each other; at the face's own
     // spacing, which is tight, three lines of a paragraph this wide read as a block.
     const int LineHeight = 130;
-
-    // How far the shadow reaches and how dark it starts, which are the two numbers a
-    // blur would have been given. Eight rings on a panel this size is a shadow that is
-    // seen rather than looked at, and a third of black at the near end is as much as
-    // the grounds it falls on will take: the plane is Style.Background and another panel
-    // is Style.Panel, both of them close enough to black already that most of what this
-    // does is done in the first two or three rings.
-    const int ShadowRings = 8;
-    const float ShadowAlpha = 0.30f;
-
-    // How much further down the shadow goes than out to the sides, and so also how wide
-    // each ring's bottom band is. See Shadow for why the drop is a shape rather than an
-    // offset.
-    const float ShadowDrop = 1.75f;
 
     // The air let into the panel around the paragraph, over and above the panel's own
     // inset. Twice a gap at the sides, which is what parts one group of rows from the
@@ -487,58 +476,6 @@ sealed class OnboardingPanel
         _next.text = _page + 1 < Pages.Length ? "Next" : "Done";
 
         Controls.SetActive(_box, _ticked);
-    }
-
-    // The shadow under the panel, which is drawn because there is nothing to ask for.
-    //
-    // USS here carries text-shadow and no other shadow at all: there is no box-shadow to
-    // put on an element and no blur to reach for, so a soft edge has to be built out of
-    // the one thing the layout engine will draw, which is a rectangle. These are square
-    // rings around the panel, each one further out and fainter than the last, and what
-    // the stack of them sums to is a falloff.
-    //
-    // Rings and not filled rectangles, and that is the whole of the trick. A child is
-    // drawn over its parent's ground, so a filled shadow would be a black sheet across
-    // the panel it is under; a ring at n units out is a line that never touches the
-    // panel at all. Each ring's border is exactly as wide as the step to the next one,
-    // so the bands meet rather than stripe.
-    //
-    // The drop is in the geometry rather than in an offset. A shadow moved down the
-    // screen would put its top rings inside the panel — a ring is only ever outside the
-    // box it hangs off — and starting them clear of that leaves a bare gap under the
-    // panel where the shadow should be densest. So every ring is symmetrical about the
-    // panel and reaches further below it than above, which is a shadow with a light
-    // above it and no seam anywhere.
-    //
-    // Ignored by the pointer, all of them: a press that lands in the air around the
-    // panel is meant for whatever is behind the panel.
-    void Shadow()
-    {
-        for (var ring = 1; ring <= ShadowRings; ring++)
-        {
-            // Squared, so the first two or three rings carry the shadow and the rest of
-            // it is the edge of a stain rather than a border a few values lighter.
-            var fade = 1.0f - (ring - 1) / (float)ShadowRings;
-
-            var mark = new VisualElement();
-
-            mark.style.position = Position.Absolute;
-            mark.style.left = -ring;
-            mark.style.right = -ring;
-            mark.style.top = -ring;
-            mark.style.bottom = -ring * ShadowDrop;
-
-            mark.style.borderLeftWidth = 1.0f;
-            mark.style.borderRightWidth = 1.0f;
-            mark.style.borderTopWidth = 1.0f;
-            mark.style.borderBottomWidth = ShadowDrop;
-
-            TileElement.SetBorderColor(mark, Style.Fade(Color.black,
-                                                        ShadowAlpha * fade * fade));
-
-            mark.pickingMode = PickingMode.Ignore;
-            Root.Add(mark);
-        }
     }
 
     // The page's picture at half its pixel size, or nothing at all where there is no
