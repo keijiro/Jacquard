@@ -16,6 +16,7 @@ Desktop.ini
 /mono_crash.*.json
 /Xcode
 /Web
+/Build
 
 /*.app
 /*.exe

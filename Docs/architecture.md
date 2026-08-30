@@ -69,3 +69,13 @@ the way the app drives it — the sequencer a window ahead and the handover a sh
 one, which is most of what there is to get wrong about it — and renders the two
 effect buses to measure that a repeat lands on the beat, that moving the delay time
 does not splice the signal, and that the reverb's tail settles.
+
+The three build entry points are menu items for one reason between them. Unity builds a
+desktop target from command-line flags alone but has nothing of the sort for iOS, and the
+desktop pair need a scripting backend chosen per platform that no flag and no Build Profile
+can reach — so *Jacquard > Build iOS*, *Jacquard > Build macOS* and *Jacquard > Build
+Windows* are each a method a command line calls rather than a flag it passes. `BuildIos.cs`
+and `BuildDesktop.cs` argue the rest. What comes out of all three is a player and not
+something that can be handed to anybody: signing, notarisation and packaging live outside
+the editor, in `Tools/package.sh` for the two desktop platforms and in the App Store Connect
+tooling for iOS. `releasing.md` is the procedure over both.

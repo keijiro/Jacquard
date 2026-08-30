@@ -169,8 +169,8 @@ PlayerSettings:
   androidMaxAspectRatio: 2.1
   androidMinAspectRatio: 1
   applicationIdentifier:
-    Android: jp.keijiro.jacquard
-    Standalone: jp.keijiro.jacquard
+    Android: jp.radiumsoftware.jacquard
+    Standalone: jp.radiumsoftware.jacquard
     iPhone: jp.radiumsoftware.jacquard
   buildNumber:
     Bratwurst: 0

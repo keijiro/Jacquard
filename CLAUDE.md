@@ -41,6 +41,7 @@ Read this before touching that
 | Colours, metrics, type, marks | `Docs/impl-style.md` |
 | The file format, the score folder | `Docs/impl-files.md` |
 | The Web build | `Docs/impl-web.md` |
+| Shipping a build, on any platform | `Docs/releasing.md` |
 
 Read the one for the area you are touching, not all of them.
 

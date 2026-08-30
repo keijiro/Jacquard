@@ -41,6 +41,13 @@ How it is built
 | [impl-web.md] | What the browser does differently |
 | [Branding/README.md] | The marks, and how they are cut from the type |
 
+How it ships
+------------
+
+| | |
+| --- | --- |
+| [releasing.md] | The procedure for putting a build in front of people, and what is agreed with somebody rather than run |
+
 [overview.md]: overview.md
 [manual.md]: manual.md
 [sequencer-spec.md]: sequencer-spec.md
@@ -56,4 +63,5 @@ How it is built
 [impl-visualizer.md]: impl-visualizer.md
 [impl-files.md]: impl-files.md
 [impl-web.md]: impl-web.md
+[releasing.md]: releasing.md
 [Branding/README.md]: ../Branding/README.md
