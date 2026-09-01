@@ -253,19 +253,58 @@ sealed class OnboardingPanel
         _body.style.marginBottom = TextMarginY;
         panel.Add(_body);
 
-        // A box that lights when it is on, which is what SetActive already draws: in
-        // this palette a lit box *is* a ticked one, and a check mark would be the one
+        // A grey box with a mark inside it when it is ticked, rather than a box that
+        // lights whole. The mark is drawn in the shade every switch in this app lights
+        // in — this is a lit state narrowed and not a new idea — over the ground the box
+        // keeps in both states. It is still not a check mark: a tick would be the one
         // glyph on the screen that is a picture of a decision rather than the decision
-        // itself. Told a row's height for both of its sides, which is what a control
-        // with nothing written in it is measured by here — 30 by 30 on a touch screen
-        // and 20 by 22 under a mouse, where a button is never shorter than its own
-        // padding and border, so a box told 20 for both of its sides comes out two units
-        // taller than it is wide. Controls.Switch is floored by the same thing from the
-        // other side and carries the argument.
+        // itself.
+        //
+        // The whole box lit is what Controls.SetActive draws, and it is right where it is
+        // used. A switch in a run of switches is read against the ones beside it that are
+        // dark, so a lit ground there has something to be lit against. This box stands on
+        // its own at the foot of a panel with a sentence beside it, and a small square
+        // filled edge to edge has nothing to be brighter than: it stopped reading as a
+        // box that had been ticked and started reading as a box that had been coloured
+        // in. Keeping the grey and putting the light inside it says the same thing about
+        // the state and says *box* while it says it.
+        //
+        // Told a row's height for both of its sides, which is what a control with nothing
+        // written in it is measured by here — 30 on a touch screen and 20 under a mouse —
+        // and stripped of the air a button carries inside it for a word, on all four
+        // sides. This one has no word, and with a mark standing in it that air is no
+        // longer only spacing: it is what the mark has to fit inside. At the sides it
+        // leaves six units of a twenty unit box for a mark ten wide, and over and under
+        // it leaves nothing at all — measured under the mouse profile, a box with its own
+        // padding left on comes out 20 by 22 with the mark ten wide and zero high, which
+        // is a ticked box that draws no tick.
+        //
+        // Controls.Switch takes that padding off the sides of a blank box for the spacing
+        // half of the reason, and says what is over and under cannot be taken off — which
+        // is what floors its own runs at 22 units. Setting it to zero here does take it
+        // off, and the box comes out square. Nothing is changed there on the strength of
+        // that: what the floor costs a run of slots is a shape rather than a mark.
         _box = Controls.Push("", ToggleBox, 0);
         _box.style.width = Controls.RowHeight;
         _box.style.height = Controls.RowHeight;
         _box.style.flexShrink = 0;
+        _box.style.paddingLeft = 0;
+        _box.style.paddingRight = 0;
+        _box.style.paddingTop = 0;
+        _box.style.paddingBottom = 0;
+        _box.style.alignItems = Align.Center;
+        _box.style.justifyContent = Justify.Center;
+
+        // The mark itself, centred by the two lines above and shown only while the box is
+        // ticked. A child of the box rather than a second ground on it, because what is
+        // wanted is two areas at once — the grey the pointer plays on, which still moves
+        // under a hand in both states, and the light that says ticked.
+        _mark = new VisualElement();
+        _mark.style.width = MarkSize;
+        _mark.style.height = MarkSize;
+        _mark.style.backgroundColor = Style.NoteLine;
+        TileElement.SetBorderRadius(_mark, MarkRadius);
+        _box.Add(_mark);
 
         // Not a Caption, which is pinned to the caption column so that a panel's rows
         // line up; there is no column here and the words are longer than one.
@@ -344,6 +383,7 @@ sealed class OnboardingPanel
     readonly VisualElement _picture;
     readonly Label _body;
     readonly Button _box;
+    readonly VisualElement _mark;
     readonly Label _count;
     readonly Button _next;
 
@@ -417,6 +457,20 @@ sealed class OnboardingPanel
     // the pair the page before it is a picture of.
     const float ButtonWidth = 46.0f;
 
+    // The mark inside the box, and the corner it is cut at. Half the box's own side, so
+    // that a quarter of the box is left as ground on either hand of the mark: as much
+    // grey as light, near enough, which is what makes the light read as something
+    // standing in the box rather than as the box filled in with a border left over. Two
+    // profiles, because the box is a row high and a row is not the same height under a
+    // finger as under a mouse.
+    static float MarkSize => Controls.Touch ? 14.0f : 10.0f;
+
+    // One value for both profiles, unlike the box it stands in. The two boxes are cut at
+    // radii a unit apart, which is a difference a corner this small cannot show — what a
+    // radius has to do here is say the mark is of the same family as the box around it,
+    // and two units says that at either size.
+    const float MarkRadius = 2.0f;
+
     // What the panel has to draw a page in, which is what a picture is fitted to. The
     // border comes out of it as well as the two insets, since a panel's width here is
     // the outside of the box and not what is inside it.
@@ -457,7 +511,7 @@ sealed class OnboardingPanel
         _ticked = !_ticked;
         Onboarding.Dismissed = _ticked;
 
-        Controls.SetActive(_box, _ticked);
+        _mark.style.display = _ticked ? DisplayStyle.Flex : DisplayStyle.None;
         _refocus();
     }
 
@@ -475,7 +529,7 @@ sealed class OnboardingPanel
         _count.text = $"{_page + 1} of {Pages.Length}";
         _next.text = _page + 1 < Pages.Length ? "Next" : "Done";
 
-        Controls.SetActive(_box, _ticked);
+        _mark.style.display = _ticked ? DisplayStyle.Flex : DisplayStyle.None;
     }
 
     // The page's picture at half its pixel size, or nothing at all where there is no
