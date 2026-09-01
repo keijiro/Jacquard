@@ -2,7 +2,6 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
-using UnityEditor.OSXStandalone;
 using UnityEngine;
 
 namespace Jacquard.Editor {
@@ -52,14 +51,29 @@ static class BuildDesktop
     {
         // Written on every build rather than left to whatever the last build set, since this
         // lives in UserSettings and x64 is what a fresh clone would otherwise build.
-        UserBuildSettings.architecture = OSArchitecture.ARM64;
+        UnityEditor.OSXStandalone.UserBuildSettings.architecture = OSArchitecture.ARM64;
 
         Build(BuildTarget.StandaloneOSX, ScriptingImplementation.IL2CPP, MacOutput);
     }
 
     [MenuItem("Jacquard/Build Windows")]
     public static void BuildWindows()
-        => Build(BuildTarget.StandaloneWindows64, ScriptingImplementation.Mono2x, WindowsOutput);
+    {
+        // `StandaloneWindows64` names a 64-bit Windows and stops there. Which 64-bit Windows
+        // is a second setting, and it defaults to the architecture of the machine doing the
+        // building — so on the Apple silicon Mac this project is written on, the player came
+        // out ARM64 and said so nowhere: a build that an ordinary x64 PC cannot start at all,
+        // since the emulation runs the other way round. The same trap as the Mac's and in the
+        // same place: UserSettings, outside the repository, quietly shaped by the host.
+        //
+        // x64 is what goes out because it is the Windows nearly everybody has, and because an
+        // ARM64 machine can run it under emulation while no x64 machine can run the reverse —
+        // one archive that starts everywhere beats two that each start somewhere. The name
+        // `Tools/package.sh` gives that archive has said `windows-x64` since it was written.
+        UnityEditor.WindowsStandalone.UserBuildSettings.architecture = OSArchitecture.x64;
+
+        Build(BuildTarget.StandaloneWindows64, ScriptingImplementation.Mono2x, WindowsOutput);
+    }
 
     static void Build(BuildTarget target, ScriptingImplementation backend, string output)
     {
