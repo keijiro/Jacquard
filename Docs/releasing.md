@@ -148,6 +148,11 @@ carried no exception, and the frame median stayed at the device's own 16.7 ms wi
 frame of 48 ms during the drags, which is the UI Toolkit cost this project already knows
 about. Should this app ever grow a managed hot path, this is the setting to question first.
 
+The same setting is on for the Web, where what it buys and what it costs are both
+different and are read off a measurement rather than an iPad — `Docs/impl-web.md` carries
+that one, including the figure this platform has no equivalent of, the time a browser
+spends compiling what it was sent.
+
 **`managedStrippingLevel = High`** for iPhone, also in `ProjectSettings.asset`, and already
 there — it is not a lever left to pull. This is worth writing down because the file reads as
 though it were: the dictionary holds an entry only for the platforms that have one, iPhone's

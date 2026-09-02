@@ -40,12 +40,35 @@ The size of the download
 
 `il2cppCodeGeneration` is `OptimizeSize` here as well as on iOS, so the wasm carries one
 shared implementation of a generic where it would otherwise carry each instantiation.
-What the setting buys and what it costs is argued once, for iOS, in
-[releasing.md] — the argument is the same on both, and it is worth more here, since a
-browser makes the reader wait for the bytes before anything happens at all rather than
-once at install. The runtime cost lands on managed code only, and the synth is the part
-of this app with the least slack: unlike the pipeline's own thread it is pushed from
-`Update` on this platform, so if a shared generic ever shows up in a measurement it will
-show up there first.
+What the setting is is argued once, for iOS, in [releasing.md]. What it is worth is not
+the same on both, so it is measured here rather than carried across: a browser makes the
+reader wait for the bytes before anything happens at all rather than once at install,
+and it also has to compile what it was sent.
+
+**Both halves of it are a reading, off two players built A/B and driven in Chrome.** The
+wasm is 5.14 MB against 6.09 MB as served under Brotli — 0.94 MB of waiting — and 18.9 MB
+against 26.3 MB before it, which is what buys the second half: navigation to a running
+instance takes 635ms against 745ms over a fetch of 30ms, so the smaller module is 110ms
+quicker to start once it has arrived. That 110ms is the browser's own price for the code
+it was handed, and it is a price iOS does not pay at all.
+
+What it costs is managed speed, and the measurement says which managed speed. A shared
+implementation resolves its types at run time, so the cost lands on generic code and
+nowhere else: four laps of the sample score scheduled cost 2.4 times what they cost
+under `OptimizeSpeed`, and a synthetic run of generic containers 5.4 times, while the
+format's round trip does not move out of the noise. Neither control moved at all — a
+managed float loop through `FmVoiceState`, and 256 blocks of the real mix through its
+Burst job, measure the same under both. **Burst is not reached by this setting**, and on
+this platform that is worth saying as a reading rather than as an argument, since the
+mix is rendered from `Update` here and shares its frame with everything else.
+
+In the app it is **3 to 4 per cent of the main thread**: over twenty seconds of the
+sample score playing, 4598ms of main-thread time against 4443ms, and the same again
+while the plane is panned under it, with the frame interval, the worst frame and the
+count of dropped frames identical either way. So the 2.4 times is 2.4 times of 1.2
+microseconds, `Schedule` being called once an Update — this app's own managed code is not
+what pays, and what does is the mass of engine managed code that runs every frame, UI
+Toolkit above all. Two things would change the answer: a score large enough for
+scheduling to cost milliseconds, and a panel rebuilt every frame.
 
 [releasing.md]: releasing.md
