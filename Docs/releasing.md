@@ -114,6 +114,47 @@ The path, as far as it has been walked:
 
 The `asc-*` skills carry the detail, and `asc search "<what you want>"` finds the command.
 
+The size of the iOS app
+-----------------------
+
+Three settings decide it, and none of them is content. The whole of `Assets` is under two
+megabytes, so an app that measures in the tens of megabytes is measuring the engine and the
+C++ il2cpp wrote for the managed code — which means a size question starts by measuring the
+archive, never the assets. Measured on 1.0.0's own archive and two rebuilds of it:
+
+| | `.app` | `UnityFramework` | `__LINKEDIT` | `il2cpp` section |
+| --- | --- | --- | --- | --- |
+| as submitted | 91.8 MiB | 81.4 MiB | 36.4 MiB | 22.2 MiB |
+| with `STRIP_STYLE` | 57.7 MiB | 47.3 MiB | 0.6 MiB | 22.2 MiB |
+| and `OptimizeSize` | 38.5 MiB | 28.1 MiB | 0.4 MiB | 8.9 MiB |
+
+**`STRIP_STYLE = non-global`** on the UnityFramework target, written into the generated
+project by `IosSymbolStripping.cs`, which argues it. It is a third of the app and it took no
+decision, only a setting Unity's own template stopped supplying.
+
+**`il2cppCodeGeneration = OptimizeSize`** for iPhone, in `ProjectSettings.asset`. The
+argument is here rather than beside it because that file carries no comments. It is Unity's
+"Faster (smaller) builds": il2cpp is handed `--generics-option=EnableFullSharing`, so one
+shared implementation serves many generic instantiations instead of each being written out.
+That is where the size is — the generated C++ fell from 392 MB to 172 MB, and the generic
+instantiations in it from 158 MB to 11 MB, which is most of the change on its own.
+
+What it costs is speed, and only managed speed: a shared implementation resolves its types
+at run time rather than having them compiled in. The DSP is unaffected, being Burst, and
+what remains at risk is the sequencer's scheduling and the UI. Checked on the iPad rather
+than reasoned about — four laps of the sample score twice over, a tile placed and stacked, a
+score saved and read back, and six lane drags — the dropout detector counted none, the log
+carried no exception, and the frame median stayed at the device's own 16.7 ms with a worst
+frame of 48 ms during the drags, which is the UI Toolkit cost this project already knows
+about. Should this app ever grow a managed hot path, this is the setting to question first.
+
+**`managedStrippingLevel = High`** for iPhone, also in `ProjectSettings.asset`, and already
+there — it is not a lever left to pull. This is worth writing down because the file reads as
+though it were: the dictionary holds an entry only for the platforms that have one, iPhone's
+sits at the end of a list of a dozen consoles, and a glance at the top of it says the
+platform is absent and therefore on the default. It is not, and this paragraph exists
+because it was read that way once.
+
 One-time setup on a machine
 ---------------------------
 

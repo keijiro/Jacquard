@@ -34,3 +34,18 @@ the renderer for the same platform: URP loads the FSR upscaling material whether
 not the upscaler is selected, and that shader does not exist on GLES3, so the only
 way to stop the warning is to not have a post-process stack — and nothing here has
 ever used one.
+
+The size of the download
+------------------------
+
+`il2cppCodeGeneration` is `OptimizeSize` here as well as on iOS, so the wasm carries one
+shared implementation of a generic where it would otherwise carry each instantiation.
+What the setting buys and what it costs is argued once, for iOS, in
+[releasing.md] — the argument is the same on both, and it is worth more here, since a
+browser makes the reader wait for the bytes before anything happens at all rather than
+once at install. The runtime cost lands on managed code only, and the synth is the part
+of this app with the least slack: unlike the pipeline's own thread it is pushed from
+`Update` on this platform, so if a shared generic ever shows up in a measurement it will
+show up there first.
+
+[releasing.md]: releasing.md
