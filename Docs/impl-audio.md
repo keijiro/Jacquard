@@ -30,6 +30,17 @@ driver's alone: `AudioSettings.dspTime` is Unity's audio system, and on the Web 
 does not go through it at all, so the same readings there would be about a mixer nobody is
 listening to. The Web driver knows its own numbers by construction.
 
+What iOS has to be told
+-----------------------
+
+**A device in silent mode plays nothing until the app has said that its audio is music**,
+and nothing in Unity says it: the AVAudioSession category is not reachable from managed
+code or from the player settings. `Assets/Plugins/iOS/JacquardAudioSession.mm` says it and
+`FmSynthPipeline` is what calls it — one more thing that belongs to the driver rather than
+above it. The plugin carries the whole argument: which category, which option, why it is
+said after the engine's own audio init rather than before, and what was measured on the
+device about saying it again.
+
 The three measured numbers
 --------------------------
 

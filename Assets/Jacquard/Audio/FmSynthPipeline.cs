@@ -28,6 +28,13 @@ sealed class FmSynthPipeline : IFmSynthBackend
 
     public FmSynthPipeline(int maxVoices, float masterGain, int queueCapacity)
     {
+#if UNITY_IOS && !UNITY_EDITOR
+        // First, and from the driver rather than from the app: on a device in silent
+        // mode nothing below this line is heard until it is said. What is said, and why
+        // it has to be said more than once, is in JacquardAudioSession.mm.
+        IosAudioSession.Apply();
+#endif
+
         SampleRate = AudioSettings.outputSampleRate;
         _context = ControlContext.builtIn;
 
