@@ -2,7 +2,7 @@ Jacquard
 ========
 
 A tile-based music sequencer: a score is tiles placed and stacked on a two-dimensional
-plane, played by one runner per lane. Unity 6.5, UI Toolkit for everything except the
+plane, played by one runner per lane. Unity 6.6, UI Toolkit for everything except the
 background visualizer, and a Burst FM synth on the Scriptable Audio Pipeline.
 
 Where the reasoning lives

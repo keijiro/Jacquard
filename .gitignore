@@ -23,6 +23,7 @@ Desktop.ini
 /*.apk
 /*.tgz
 /*_DoNotShip
+/*_ButDontShipItWithYourGame
 
 # The store listing lives in App Store Connect and not here. Everything asc keeps on
 # disk is either a working file for one command or a local copy of what the store

@@ -38,7 +38,7 @@ What it takes from
 The stack
 ---------
 
-Unity 6.5. Everything on screen is UI Toolkit except the visualizer, which is
+Unity 6.6. Everything on screen is UI Toolkit except the visualizer, which is
 one mesh under URP drawn by the camera; input is the new input system. The synth
 runs on the Scriptable Audio Pipeline where the platform has one, and is pushed
 to the Web Audio API where it does not ([impl-web.md]). The project is meant to
