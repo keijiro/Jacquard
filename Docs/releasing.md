@@ -140,18 +140,42 @@ That is where the size is — the generated C++ fell from 392 MB to 172 MB, and 
 instantiations in it from 158 MB to 11 MB, which is most of the change on its own.
 
 What it costs is speed, and only managed speed: a shared implementation resolves its types
-at run time rather than having them compiled in. The DSP is unaffected, being Burst, and
-what remains at risk is the sequencer's scheduling and the UI. Checked on the iPad rather
-than reasoned about — four laps of the sample score twice over, a tile placed and stacked, a
-score saved and read back, and six lane drags — the dropout detector counted none, the log
-carried no exception, and the frame median stayed at the device's own 16.7 ms with a worst
-frame of 48 ms during the drags, which is the UI Toolkit cost this project already knows
-about. Should this app ever grow a managed hot path, this is the setting to question first.
+at run time rather than having them compiled in. That is a reading rather than a claim. Two
+release players were built A/B off the same tree with nothing but this setting flipped and
+driven on the iPad, three sessions each, best of five in-app passes: a synthetic run of
+generic containers costs 4.1 times what it costs under `OptimizeSpeed` — 17.5 ms against
+4.3 — the sample score scheduled for four laps 3.3 times, 3.6 against 1.1, and the format's
+round trip 1.05 times, which is at the edge of the noise. Both controls measure the same to
+three decimal places in every session: a managed float loop through `FmVoiceState` at
+1.186 ms, and 256 blocks of the real mix through its Burst job at 151.0. So the DSP is
+untouched, and so is managed code with no generic in it — what pays is generics, and the
+sequencer's scheduling and the UI are what this app has made of them.
 
-The same setting is on for the Web, where what it buys and what it costs are both
-different and are read off a measurement rather than an iPad — `Docs/impl-web.md` carries
-that one, including the figure this platform has no equivalent of, the time a browser
-spends compiling what it was sent.
+In the app that is 0.45 ms a frame. Main-thread frame time from `FrameTimingManager` over
+twenty seconds of the sample score playing, the window opening ten seconds in so that
+startup is not counted: 2033 ms against 1498 ms, **+36%**, with no overlap between the two
+arms' three sessions. Nothing else moves — the frame interval's median stays at the device's
+own 16.66 ms, its p99 at 16.8, and not one frame in six runs crosses 20 ms, the whole of the
+main thread's work being 1.8 ms of a 16.66 ms budget. No dropout, no exception and no
+restart in any run either. So the trade is the table's 19 MiB of app against under three
+per cent of a frame that no frame timing can see, and the two things that would change that
+answer are worth naming rather than leaving to be rediscovered: a score large enough for
+scheduling to cost milliseconds, and a panel rebuilt every frame.
+
+Two notes for whoever measures it next. `FrameTimingManager` reads zeros without
+`enableFrameTimingStats`, which is off in `ProjectSettings.asset`, so the build entry has to
+set it — for both arms, since it is not free. And the flag on the il2cpp command line does
+not prove the arms differ: Bee replays cached il2cpp output, so both builds can return in
+seconds and one of them be the other. What proves it is the volume — generated C++ at
+169 MB against 401 MB, and `UnityFramework` at 47.9 MiB against 81.6 — the 81.6 being what
+1.0.0's own framework measured before either setting, this configuration doing no stripping
+of its own, so the loop closes with the first row of the table above rather than the second.
+
+The same setting is on for the Web, where what it buys and what it costs are both different
+— `Docs/impl-web.md` carries that measurement, including the figure this platform has no
+equivalent of, the time a browser spends compiling what it was sent. The two app-level
+percentages are not comparable, being different instruments: Chrome's main-thread busy time
+there, Unity's own main-thread frame time here.
 
 **`managedStrippingLevel = High`** for iPhone, also in `ProjectSettings.asset`, and already
 there — it is not a lever left to pull. This is worth writing down because the file reads as
