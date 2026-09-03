@@ -40,6 +40,17 @@ namespace Jacquard.App {
 // settings and sends it on when it has moved, so the bar writes a number and nothing
 // here knows what happens next.
 //
+// Stage Mode is both, and in being both it shows that the question is asked once per
+// reader rather than once per setting. What it holds off is read at the instant a bar is
+// double clicked and nowhere else, which is a pull and is StageMode's; the two buttons it
+// takes off the transport row have to be gone as the switch moves rather than the next
+// time anything builds a row, which is a push and is JacquardUI's. So it is kept where
+// Audition is kept and hands the press on the way the visualizer does, and there is still
+// only one copy of it. What this panel does not do is put the app into that state at
+// launch, which is the one thing it does for the visualizer: the state is not the panel's
+// to hold, so JacquardUI reads it for itself and there is no order for the two of them to
+// get wrong. See StageMode.
+//
 // Under all of it is the one button here that sets nothing, and what it does is leave
 // the app for a moment: it is the folder the scores are written to, handed to whatever
 // the desktop opens folders with. It belongs on this panel for the reason the settings
@@ -63,18 +74,20 @@ sealed class SystemPanel
     public VisualElement Root { get; }
 
     // apply is what the visualizer setting actually does, since nothing here owns the
-    // thing it is about: this panel holds what was chosen and hands it over. It is the
-    // one setting that needs it — the others are read where they are used. refocus is the
-    // keyboard going back to the plane, which every panel with a button on it has to give
-    // back.
+    // thing it is about: this panel holds what was chosen and hands it over. stage is the
+    // same road for the mode below, which owns its own state but not the row it empties.
+    // Those two are the settings that need telling — the others are read where they are
+    // used. refocus is the keyboard going back to the plane, which every panel with a
+    // button on it has to give back.
     //
     // store is only read for where it keeps its files, and only on the platforms that
     // can show a folder; it is taken whatever the platform, since a constructor that
     // changes shape with the build target is a call site that has to know about
     // platforms too.
-    public SystemPanel(ProjectStore store, Action<bool> apply, Action refocus)
+    public SystemPanel(ProjectStore store, Action<bool> apply, Action<bool> stage,
+                       Action refocus)
     {
-        (_apply, _refocus) = (apply, refocus);
+        (_apply, _stage, _refocus) = (apply, stage, refocus);
 
         Root = Controls.Panel("System");
 
@@ -157,6 +170,35 @@ sealed class SystemPanel
             SyncRestart();
         }
 
+        // Last of the settings, under the four that are about the app and not about what
+        // is being done with it. It was first, on the argument that a mode saying whether
+        // the app is being worked on at all stands over the ones saying how it behaves
+        // while it is; what is better about it here is that the four above are a list and
+        // this is not a member of it. Read down, the panel now says what the screen draws,
+        // how loud it leaves, what the machine underneath can keep up with — and then, set
+        // apart at the foot of them, whether any of that is being played to a room.
+        //
+        // It also stops being the row a hand meets first on the way to the volume, which
+        // is the row on this panel most often come back to. A switch that turns the app
+        // over is worth reaching past the settings for rather than through them.
+        //
+        // What it costs is one thing worth writing down: the restart note above it comes
+        // and goes, so this row sits a line lower whenever the buffer size has been moved
+        // and not yet taken up. That is a switch that shifts under a hand which changed
+        // the buffer a moment ago, and it is accepted because the note is up only until
+        // the next launch and the two are never reached for together.
+        //
+        // The same shape as the two switches above, and deliberately not a louder one. A
+        // mode that announced itself with a colour of its own would be one more thing to
+        // learn about switches that are all read the same way, and what says this one is
+        // on is not the button anyway: it is the gap where Save was. See StageMode.
+        _stageMode = Controls.Push("", ToggleStage, 44);
+
+        var stageRow = Controls.Row();
+        stageRow.Add(Controls.Caption("Stage Mode"));
+        stageRow.Add(_stageMode);
+        Root.Add(stageRow);
+
 #if UNITY_EDITOR || UNITY_STANDALONE
         // Both halves of the condition are meant. A standalone player is a machine with
         // a file manager on it; the editor is one as well whatever it is currently
@@ -191,7 +233,9 @@ sealed class SystemPanel
     // Private members
 
     readonly Action<bool> _apply;
+    readonly Action<bool> _stage;
     readonly Action _refocus;
+    readonly Button _stageMode;
     readonly Button _visualizer;
     readonly Button _audition;
     readonly Label _restart;
@@ -267,8 +311,25 @@ sealed class SystemPanel
         _refocus();
     }
 
+    // Nothing to remember either — StageMode writes itself through — but something to
+    // apply, since the buttons it takes away are on a row this panel cannot reach. The
+    // state is read back out of StageMode rather than passed on from the line above it,
+    // so that what is handed over is what was stored and not what this method believed
+    // it stored.
+    void ToggleStage()
+    {
+        StageMode.On = !StageMode.On;
+
+        Sync();
+        _stage(StageMode.On);
+        _refocus();
+    }
+
     void Sync()
     {
+        _stageMode.text = StageMode.On ? "On" : "Off";
+        Controls.SetActive(_stageMode, StageMode.On);
+
         _visualizer.text = _visualizerOn ? "On" : "Off";
         Controls.SetActive(_visualizer, _visualizerOn);
 

@@ -82,6 +82,24 @@ cell that will take one offers the tiles; bare ground offers a lane. So there is
 palette to keep in step with what the cursor can accept, and a tile only ever lands on
 free ground.
 
+**Stage Mode takes controls away, and one test decides which.** A control goes while the
+app is set to play if pressing it by accident during a performance would cost something
+*and* a performance has no use for it. That is Save, the guide, and the text field a
+double click opens on a bar; it is not Load, which is how a set reaches its next piece,
+and it is nothing the piece is played with — the transport, the live effects, the plane,
+a bar as a bar, and the double click on a bar's *name*, which drops a lock mid-piece and
+is a gesture a set is built on however loudly it lands. The two halves are an *and*, and
+the second is what keeps the mode from reaching into the instrument. Anything else brought
+under the mode is argued against that test, and lands in the manual's table in the same
+change. See `StageMode`.
+
+**What it takes it removes rather than dims.** No press brings any of them back while the
+mode is on, so a dimmed control would say *not now* where the truth is *not here* — the
+same line the score folder's button is on the other side of, being absent on a platform
+with no folder to show rather than present and grey. Removal also closes the row over the
+gap, which is what leaves the score controls reading as the two things a set does with a
+file.
+
 The panels, and what raises each
 --------------------------------
 
@@ -154,6 +172,14 @@ buffer size and the volume are read at the instant they are used, so they are pu
 the panel only throws the switch. A second `Action<bool>` for one of those would be a
 second copy of the answer to fall out of step with the first. See `SystemPanel`.
 
+**Which shows that the question is asked once per reader, not once per setting.** Stage
+Mode is pulled by the value bar, which wants its answer at the instant a second click
+arrives, and pushed to the transport row, whose two buttons have to be gone as the switch
+moves. So it is kept where the pulled settings are kept and hands the press on the way the
+pushed one does. What follows from the state not being the panel's is that the panel does
+not apply it at launch either: `JacquardUI` reads `StageMode` for itself, and there is no
+order between the two of them to get wrong.
+
 Where the rest is written
 -------------------------
 
@@ -166,6 +192,8 @@ Where the rest is written
 | The DSP buffer setting, and why it applies at the next launch | `DspBuffer`, `SystemPanel` |
 | The one row that leaves the app — the score folder, on a desktop only | `SystemPanel` |
 | Why the guide is a button on the row rather than a row on a panel, and the page it opens | `JacquardUI.BuildTransportRow`, `JacquardUI.GuideUrl` |
+| What Stage Mode is for, and why it is remembered across a launch | `StageMode` |
+| What it takes off the transport row, and the pages it puts down with them | `JacquardUI.SetStageMode` |
 | The three pages a first launch opens on, and how their pictures are taken | `OnboardingPanel` |
 | Darkening everything but the control a page names, while those pages are up | `OnboardingShade` |
 | Scrolling a row or a column that holds more than the screen | `ScrollStrip` |

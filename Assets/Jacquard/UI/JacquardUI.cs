@@ -109,7 +109,7 @@ sealed class JacquardUI
         // set about the thing at all, which is the panel beside it here — the two are
         // the same kind of thing to look at, and being in the same place says so.
         _global = new GlobalPanel(_editor);
-        _system = new SystemPanel(_app.Store, SetVisualizer, Refocus);
+        _system = new SystemPanel(_app.Store, SetVisualizer, SetStageMode, Refocus);
         _centre = PanelCentre(_global.Root, _system.Root);
         body.Add(_centre);
         ShowGlobal(false);
@@ -170,11 +170,22 @@ sealed class JacquardUI
 
         _view.Focus();
 
+        // What the app was left in on this machine, read here rather than handed over by
+        // the panel that switches it: the state is StageMode's, so the one place that has
+        // to read it at launch is the one place that has to act on it. It is after every
+        // panel is built, since what it can put down is one of them.
+        SetStageMode(StageMode.On);
+
         // Last of all, and after the keyboard has been given to the plane rather than
         // before: the panel is not modal, so what has focus while it is up is what has
         // focus without it, and a player who reads the first page and then presses
         // Space should hear the thing start.
-        if (!Onboarding.Dismissed) ShowOnboarding(true);
+        //
+        // Not at all in Stage Mode, and the switch above cannot be what stops it — this
+        // runs after that and would put the pages straight back up. Somebody who has left
+        // the app set to play is not somebody meeting it for the first time, whatever
+        // PlayerPrefs says about the box being ticked.
+        if (!Onboarding.Dismissed && !StageMode.On) ShowOnboarding(true);
     }
 
     // Called every frame from the app.
@@ -567,7 +578,12 @@ sealed class JacquardUI
         _chooser.style.marginBottom = 0;
         row.Add(_chooser);
 
-        row.Add(Controls.Push("Save", () => { _app.Save(); Refocus(); }, 46));
+        // Named, where it never had to be before, because it is one of the two controls
+        // Stage Mode takes off this row. Its neighbour is not: a set is played out of
+        // more than one score and loading the next one between numbers is part of
+        // playing it, where nothing about playing writes a file. See StageMode.
+        _save = Controls.Push("Save", () => { _app.Save(); Refocus(); }, 46);
+        row.Add(_save);
 
         _load = Controls.Push("Load", () => { _app.Load(); Refocus(); }, 46);
         row.Add(_load);
@@ -599,7 +615,13 @@ sealed class JacquardUI
         // the onboarding pages about the score controls and about this button send the row
         // to its end as they come up rather than asking anybody to find it — see
         // RevealOnTheRow.
-        row.Add(Separator());
+        //
+        // The rule is held rather than dropped in, for the same reason the button after
+        // it is: Stage Mode takes both away together. A rule left standing at the end of
+        // the row with nothing behind it would be the row saying there is one more group
+        // of controls over there, which there would not be.
+        _guideRule = Separator();
+        row.Add(_guideRule);
         _guide = GuideButton();
         row.Add(_guide);
 
@@ -1046,6 +1068,41 @@ sealed class JacquardUI
         if (_app.Visualizer != null) _app.Visualizer.enabled = shown;
     }
 
+    // The other setting on that panel this screen has to be told about, and the only one
+    // that takes something off it. The two controls go rather than dim, which is the same
+    // line the score folder's button is on the other side of: a dimmed control says *not
+    // now* and these are *not here* — there is no press that would bring either back, and
+    // a row of grey buttons somebody keeps trying is worse than a row without them.
+    //
+    // display: none rather than visibility, so the row closes over the gap. What is left
+    // is a chooser standing straight against Load, which is the score controls reading as
+    // the two things a set does with a file, and a row that ends where its last group of
+    // switches does. It is also a shorter row than any hand has had here: the guide and
+    // its rule are 46 of the 1114 units this row measures at the touch profile, by the
+    // reading taken at the guide button below, and Save's width and gap go with them. So
+    // the row still hangs off an iPad's right edge and is still dragged, by less.
+    //
+    // Called from the panel when the switch moves and from the constructor for the state
+    // the app was left in, which is why it reads its answer from the argument and keeps
+    // none of its own: there is one truth and it is in StageMode.
+    void SetStageMode(bool on)
+    {
+        var display = on ? DisplayStyle.None : DisplayStyle.Flex;
+
+        _save.style.display = display;
+        _guideRule.style.display = display;
+        _guide.style.display = display;
+
+        // And the three pages go down with the button the last of them points at. This is
+        // the live half of that — somebody throwing the switch while the pages are up on a
+        // first launch — and the constructor carries the other, which is the switch having
+        // been left on from before. Either way a page pointing at a control that is not
+        // there is a page that cannot be followed, and three pages in the middle of the
+        // screen with the plane grey behind them is the exact thing this mode is for not
+        // opening on in front of a room.
+        if (on) ShowOnboarding(false);
+    }
+
     // The same switch for the one panel that holds nothing. Lowering it does not lift
     // whatever is held on it, because a button cannot be held once it is not on screen:
     // losing the panel loses the pointer capture, and losing the capture is already
@@ -1235,6 +1292,11 @@ sealed class JacquardUI
     // which is the whole of the third page's. See Subject.
     VisualElement _chooser;
     Button _guide;
+    // And the three Stage Mode takes off the row, which is the guide again — the one
+    // control here that two things want a name for — with the rule in front of it and
+    // Save. See SetStageMode.
+    Button _save;
+    VisualElement _guideRule;
 
     // Whether the three pages are up, since the shade is only followed while they are.
     bool _onboardingShown;

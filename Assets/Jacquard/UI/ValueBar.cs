@@ -459,7 +459,15 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
         // Double click detection of its own, rather than the event's clickCount:
         // only a second click that follows one which did not scrub counts, so a
         // quick pair of drags cannot open the editor by accident.
-        if (e.timestamp - _clickTime < DoubleClickMilliseconds)
+        //
+        // And not at all while the app is set to play, which is the one gesture on a bar
+        // that Stage Mode holds off: what a second click opens is a text field that takes
+        // the keyboard, and every key the plane answers to goes into a number for as long
+        // as it has it. The test is in this line rather than inside BeginEdit so that the
+        // press falls through to the scrub below it — the bar is still a bar, and a mode
+        // that made a hand's second press do nothing at all would be a bar that had
+        // stopped working. See StageMode.
+        if (!StageMode.On && e.timestamp - _clickTime < DoubleClickMilliseconds)
         {
             _clickTime = 0;
             BeginEdit();

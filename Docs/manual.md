@@ -31,7 +31,7 @@ Using it
 | Stop or start a lane | Double click its `CHAN` cell, or Play on the panel that cell opens |
 | Branch | The `JUMP` button, which brings its `JDST` lane with it |
 | Details of a tile | The panel on the right follows the cursor; drag it up and down when it is longer than the screen |
-| Set a number | Drag its bar right or up, shift for fine; double click to type one. A typed number may go past the ends of the bar, which is how a part is moved further or a tail held longer than the bar reaches; past what the synth will take it is held there, and the bar says which it was |
+| Set a number | Drag its bar right or up, shift for fine; double click to type one, unless Stage Mode is on. A typed number may go past the ends of the bar, which is how a part is moved further or a tail held longer than the bar reaches; past what the synth will take it is held there, and the bar says which it was |
 | Take a number back | Double click its name: a lock lets go of that parameter, and a channel's sound goes back to where a fresh patch holds it |
 | Timbre | Select a `CHAN` cell, which puts its channel's sound on the Tile panel, under the lane |
 | Move a channel in pitch | Transpose, the first row of its sound, in semitones |
@@ -47,7 +47,7 @@ Using it
 | Tempo | The bpm bar beside Play, which the delay is in time with |
 | Pan the plane | Drag from an empty cell, two finger swipe, or command+drag |
 | Reach a control off the edge | Drag the row or the panel it is on: the transport slides sideways and a column of panels slides up and down whenever it holds more than the screen does |
-| Read the guide | The `?` at the right end of the transport row, which opens it in a browser. On a phone it is the first thing past the edge, so drag the row to reach it |
+| Read the guide | The `?` at the right end of the transport row, which opens it in a browser. On a phone it is the first thing past the edge, so drag the row to reach it. It is not there with Stage Mode on |
 
 Two things a tile placement will not do, which is what makes the panel's offer worth
 reading: **a tile goes on free ground only** — a lane's empty step, the cell under a
@@ -60,7 +60,10 @@ and the guide — with Next under them. They are up again on the next launch and
 one after it until **Don't show this again** is ticked, which is the only thing on the
 panel that is remembered: Done on the last page closes it for the launch it is pressed on
 and says nothing about the next. Once the box is ticked there is no way to bring the
-pages back.
+pages back. **They do not come up at all with Stage Mode on**, and go down if it is
+switched on while they are: the third of them is about a button that mode takes away, and
+a grey over the plane is the last thing anybody wants a launch to open on in front of a
+room.
 
 **The rest of the screen goes under a grey while they are up, except the control the page
 is about** — Play on the first, the score controls on the second, the `?` on the third —
@@ -80,6 +83,7 @@ project**; it is remembered for the machine it was set on.
 | Visualizer | Starts **on**. Puts the synth behind the score in a wash the eye can ignore — the output as a trace across the middle, the twenty-four voice slots as a row along the bottom |
 | Audition | Starts **on**. It is what makes an edit sound the note it just made: a bar let go of, a note written, a stack pasted, a transpose from the keys. Turned off, all of that goes quiet — but Return still sounds the note under the cursor, since that is a note asked for rather than one volunteered |
 | Buffer size | Reach for this if the sound bangs or drops out: how long a buffer the audio thread has to fill, from 256 frames — 5.3ms at the usual rate, which is what the app ships with — up to 1024. A longer buffer survives a busy moment and costs that much delay between a Live FX button and what comes out. **Taken up at the next launch**, which the panel says while the two disagree |
+| Stage Mode | Starts **off**, and is last on the panel, under the settings rather than among them. For playing the app to a room rather than working in it: **Save goes from the row, the `?` goes with the rule in front of it, and a double click on a bar no longer opens a field to type in** — that last one is a text box that takes the keyboard, and while it has it the keys the plane answers to are going into a number. Nothing the piece is played with is touched: the transport, the tempo, the Live FX buttons, the plane and every bar as a bar all work as they always do, **a double click on a bar's name still takes the number back**, and Load stays, since reaching the next piece is part of playing a set. It is remembered for the machine, so an app put away mid-set and killed off screen comes back still in it — what says so is the gap where Save was |
 | Open score folder | Desktop only — shows the directory the scores are written to |
 
 **On a phone or a tablet, leaving the app stops the sequence.** Nothing about a run
@@ -116,7 +120,7 @@ Scores
 ------
 
 Scores are saved under `Application.persistentDataPath/Scores` as plain text, one line
-per step; pick one with the arrows beside Save. A copy of the app that has saved nothing
+per step; pick one with the arrows beside Save and Load. A copy of the app that has saved nothing
 yet writes fourteen of them for itself — `sample1` through `sample5`, which are pieces
 made in the app, and `score1` through `score9`, which are a bar with a note on each beat
 to work in — so **every name on the chooser is a file that is really there**. It opens in
