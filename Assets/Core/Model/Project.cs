@@ -80,6 +80,70 @@ public sealed class Project
     public int SoundingPitch(in FmPatch patch, int note)
       => Scale.Snap(note + (int)System.MathF.Round(patch.transpose));
 
+    // Exchanges everything a channel number keys, so that two channels trade places and
+    // the piece goes on sounding as it did.
+    //
+    // Here for the reason SoundingPitch is: this is the only object that can see all
+    // three of the keyed things at once. The bank and the mutes are its own, the tiles
+    // hang off its score, and neither Score nor PatchBank can reach the other. Three
+    // things and no more — the timbre, the hand held over the channel, and which lanes
+    // name it — because every other reader asks for its answer at the moment it needs
+    // it: the sequencer copies the bank at the top of every instant and reads the mutes
+    // at the note's exit, a runner reads its lane's CHAN live and so is renumbered
+    // mid-step along with everything else, and a branch lane has no number of its own.
+    //
+    // Lane positions are deliberately not touched. Runner order is a vertical position,
+    // so leaving the lanes where they are is what keeps the mix the same — and it is
+    // what makes this its own inverse, which is this app's answer to having no undo: a
+    // mistaken press is undone by pressing again, so nothing here needs confirming.
+    //
+    // Both numbers are folded in once, at the top, rather than at each access. Every
+    // reader here clamps for itself — the bank's indexer, the mutes' index, the tile's
+    // own setter — but the scan below compares against what it was handed, so a raw
+    // argument would exchange the patches and mutes of 1 and 8 for SwapChannels(0, 9)
+    // and renumber not one tile, which is the single state this operation promises
+    // cannot happen. Folding rather than rejecting is PatchBank.Clamp's own law.
+    //
+    // Nothing about a swap can be refused, so there is nothing to return. A bool that
+    // was false only for a == b would read at the call site as one that can fail.
+    //
+    // The one place it is not inaudible is the turn of the piece. The master lane is
+    // the first channel one lane in runner order, so a swap involving channel 1 moves
+    // the title — which is the spec's own rule, the master being a position rather than
+    // a flag, and is the thing that was asked for when a hand renumbers. What the title
+    // carries with it is a privilege: the master lane runs whatever its own Play switch
+    // says. So the lane that gains it while switched off starts sounding, one lookahead
+    // ahead of the audio position, and the lane that loses it while switched off drops
+    // out at the end of its lap. Both stand, because the plane already tells the story —
+    // a head cell is drawn from what will happen rather than from what is written on
+    // it, so the rebuild turns the new master's cell solid and greys the one that gave
+    // the title up. The period moves too when the new master is a different length.
+    public void SwapChannels(int a, int b)
+    {
+        (a, b) = (PatchBank.Clamp(a), PatchBank.Clamp(b));
+        if (a == b) return;
+
+        // By value and never by ref: the indexer hands back a writable ref, and an
+        // aliased read would make the exchange a no-op.
+        var patch = Patches[a];
+        Patches[a] = Patches[b];
+        Patches[b] = patch;
+
+        Mutes.Swap(a, b);
+
+        // Lanes rather than ChannelLanes, which allocates and sorts for an ordering
+        // this does not need. The else is what keeps it a swap: without it the second
+        // test catches what the first has just written and folds both numbers onto one.
+        foreach (var lane in Score.Lanes)
+        {
+            var channel = lane.Channel;
+            if (channel == null) continue;
+
+            if (channel.Channel == a) channel.Channel = b;
+            else if (channel.Channel == b) channel.Channel = a;
+        }
+    }
+
     // What a score starts as: one lane of sixteen steps with a C4 on every fourth and a
     // tone to hear them in, which is what every empty slot on a fresh install holds and
     // what a score is initialized to anywhere else.

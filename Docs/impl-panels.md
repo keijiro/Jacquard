@@ -189,6 +189,7 @@ Where the rest is written
 | Cycle gate switches, and what a cell can show before the tile gives out | `InspectorPanel`, `TileIcons` |
 | Why the Sound group and the lock rows are re-bound rather than made again | `InspectorPanel.Refresh` |
 | Why a bar's text field waits for the first edit | `ValueBar.BuildInput` |
+| Exchanging two channels, and why the group for it sits on the Channels panel | `ChannelsPanel`, `Project.SwapChannels` |
 | The DSP buffer setting, and why it applies at the next launch | `DspBuffer`, `SystemPanel` |
 | The one row that leaves the app — the score folder, on a desktop only | `SystemPanel` |
 | Why the guide is a button on the row rather than a row on a panel, and the page it opens | `JacquardUI.BuildTransportRow`, `JacquardUI.GuideUrl` |

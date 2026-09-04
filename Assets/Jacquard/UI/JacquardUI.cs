@@ -313,10 +313,17 @@ sealed class JacquardUI
     // Puts the score's own controls out of reach while another score waits to come in,
     // and gives them back at the seam.
     //
-    // Three things and no more: the plane, the panel a tile is edited on and the panel
-    // a lock is edited on. What is left alone is the mix — the sound, the sends, the
-    // channels, the tempo — and the live effects, since none of those writes the score
-    // and the point of holding on until the turn of the piece is to play across it.
+    // What is held is what writes the score, and that is now asked per control rather
+    // than per panel: the plane, the panel a tile is edited on and the panel a lock is
+    // edited on, and then one group on the Channels panel. The rest of the mix — the
+    // sound, the sends, the eight mute rows, the tempo — and the live effects are left
+    // alone, since none of those writes the score and the point of holding on until the
+    // turn of the piece is to play across it.
+    //
+    // The Channels panel is why the reading changed. It used to be wholly on the played
+    // side of that line; the Swap group is not, so the panel is asked for its own answer
+    // rather than being covered or left whole — see ChannelsPanel.SetLocked, which also
+    // says why the shield has to go on the group and not on the panel around it.
     //
     // The Load button goes with them: a request cannot be taken back, so the switch that
     // made it says so rather than looking ready to make another.
@@ -331,6 +338,7 @@ sealed class JacquardUI
 
         _view.Locked = _locked;
         Controls.SetLocked(_inspector.Root, _locked);
+        _channels.SetLocked(_locked);
         _load.style.opacity = _locked ? Style.DimmedOpacity : 1.0f;
     }
 

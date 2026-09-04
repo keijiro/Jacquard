@@ -39,6 +39,7 @@ Using it
 | Hold the piece to a key | The Global button opens the panel the Scale is set on, a switch per semitone laid out as a keyboard |
 | Silence a channel, or hear one alone | The Channels button opens a row per channel, with a Mute and a Solo switch on each; a solo overrules every mute, and both are saved with the score |
 | Go to a channel | Select on its row, which puts the cursor on the `CHAN` tile that names it |
+| Swap two channels | The Swap group under those rows: pick two numbers and press it, and the sound, the mute and every lane naming either number change places. The piece goes on sounding as it did, and pressing again puts it back. The one exception is channel 1: the turn of the piece is read off the first channel 1 lane, so swapping that number moves it, and a lane switched off can start or stop as the title changes hands |
 | Reverb and delay | The Send FX button opens the panel they are set on; how much of a channel reaches each is the last two rows of its sound |
 | Play the sequence by hand | The Live FX button opens a row of buttons that act while they are held |
 | Loudness and punch | The same Global panel holds the limiter; Threshold is the one that is played, and the make-up gain follows it so the mix gets louder as it gets harder |

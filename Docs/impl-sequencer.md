@@ -66,10 +66,12 @@ What spans this and the interface
 **The plane is held still while a score waits, and the screen follows the sound.**
 `ScoreEditor.Locked` refuses every path into the score; the panel that edits one dims and
 stops taking presses, because an edit that moved a lane would move the line the switch is
-measured on. Nothing about the mix is held — playing across the seam is the whole point of
-waiting for it. A panel is put out of reach by one stretched picking shield rather than by
-a flag on each of its controls, and never by `SetEnabled`, which would bring the default
-theme's grey with it.
+measured on. What is held is what writes the score, and that is asked per control rather
+than per panel: the mix is not held — playing across the seam is the whole point of
+waiting for it — except for the Swap group on the Channels panel, which renumbers lanes
+and so goes with the plane. A panel is put out of reach by one stretched picking shield
+rather than by a flag on each of its controls, and never by `SetEnabled`, which would
+bring the default theme's grey with it.
 
 The sequencer changes hands up to a lookahead before the seam is audible, so `JacquardApp`
 holds the sample the `Switched` event carried and adopts the project only when the clock

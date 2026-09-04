@@ -51,6 +51,26 @@ public sealed class ChannelMutes
     public bool Sounds(int channel)
       => AnySoloed ? IsSoloed(channel) : !IsMuted(channel);
 
+    // Exchanges the hand held over two channels, both switches at once.
+    //
+    // Here rather than as four calls from the caller, for the reason this class exists
+    // at all: solo and mute are one object because what a hand holds over a channel is
+    // two sets, and a caller spelling the exchange out itself is a caller that will go
+    // on swapping two of the three the day a third switch arrives.
+    //
+    // All four flags are read before any is written, which is the whole of the trick a
+    // swap is: written as it goes, the second pair would be read back off the first.
+    public void Swap(int a, int b)
+    {
+        var (mutedA, mutedB) = (IsMuted(a), IsMuted(b));
+        var (soloedA, soloedB) = (IsSoloed(a), IsSoloed(b));
+
+        SetMuted(a, mutedB);
+        SetMuted(b, mutedA);
+        SetSoloed(a, soloedB);
+        SetSoloed(b, soloedA);
+    }
+
     // Private members
 
     // Channel numbers are one based and folded into the bank the way every other

@@ -261,8 +261,9 @@ public sealed class Sequencer
         if (!_playing) return;
 
         // The master runner has to be running, since it is what every other lane starts
-        // on, and two edits can leave one that is not: deleting the master lane hands the
-        // title to whichever lane is now topmost, which may be one that has stopped, and
+        // on, and three edits can leave one that is not: deleting the master lane hands
+        // the title to whichever lane is now topmost, which may be one that has stopped,
+        // renumbering two channels hands it over the same way when channel one moves, and
         // putting a project in outright reassigns it over the runners of the score going
         // out. The repair is here rather than in Resync because it needs a sample and
         // Resync has no clock — this is the same standing start Play uses, one lookahead

@@ -347,6 +347,25 @@ public sealed class ScoreEditor
         View.SetCursor(lane.HeadPoint);
     }
 
+    // Channels
+
+    // Exchanges two channels whole, which is the one edit here that writes the mix as
+    // well as the score: what moves is the timbre, the hand held over the channel and
+    // every lane naming it, and what does not move is where those lanes sit. See
+    // Project.SwapChannels, which owns the argument and the one exception to it.
+    //
+    // The idle press is caught here rather than left to the model, so that a swap of a
+    // channel with itself does not spend a Resync and a rebuild of the whole plane on
+    // writing nothing. The commit is what re-finds the master runner and pulls every
+    // panel back onto the numbers that have just moved under it.
+    public void SwapChannels(int a, int b)
+    {
+        if (Locked || a == b) return;
+
+        Project.SwapChannels(a, b);
+        Commit();
+    }
+
     // Playback
 
     // Sounds a note straight away, so that editing is audible. It goes out with the

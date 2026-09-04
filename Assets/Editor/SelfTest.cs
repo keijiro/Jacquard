@@ -33,6 +33,7 @@ static class SelfTest
         Ranges(log);
         Channels(log);
         Mutes(log);
+        Swap(log);
         Sends(log);
         Pan(log);
         Unison(log);
@@ -1480,6 +1481,179 @@ static class SelfTest
         Check(log, "a file without a mutes line holds nothing back",
               !legacy.AnySoloed && !legacy.IsMuted(1),
               "soloing=" + legacy.AnySoloed + " ch1 muted=" + legacy.IsMuted(1));
+    }
+
+    // Two channels trading places. The promise is that nothing moves in the mix — what
+    // is exchanged is the timbre, the hand held over the channel and every lane naming
+    // it, and where the lanes sit is left alone — so the checks here are mostly about
+    // what a swap did not do. The exception is the turn of the piece, which is the one
+    // thing it can be heard by, and it has two cases of its own at the end.
+    static void Swap(System.Text.StringBuilder log)
+    {
+        const int sampleRate = 48000;
+
+        // The mute check's fixture, with the two channels named: two lanes of one step,
+        // told apart by their patch level the way that one tells its two apart, and by
+        // their pitch as well, since half of what is asked here is which lane sounded
+        // rather than how loudly. Built again per case, because most of these ask what
+        // a swap left behind rather than what it returned.
+        static Project Two(int upper, int lower)
+        {
+            var project = new Project();
+            var score = project.Score;
+
+            score.AddLane(1, 1, new ChannelTile { Channel = upper }, 1);
+            score.AddLane(1, 3, new ChannelTile { Channel = lower }, 1);
+
+            score.Lanes[0].Steps[0].Tiles.Add(new NoteTile { Note = 60 });
+            score.Lanes[1].Steps[0].Tiles.Add(new NoteTile { Note = 72 });
+
+            project.Patches[upper].level = -12.0f;
+            project.Patches[lower].level = -2.0f;
+
+            return project;
+        }
+
+        // What the mix is, as one string that can be compared: every level that came
+        // out, sorted, so that the order the notes were emitted in is not part of the
+        // answer. Which lane was renumbered is exactly what should not show here.
+        static string Levels(System.Collections.Generic.List<FmNoteEvent> notes)
+        {
+            var levels = new System.Collections.Generic.List<string>();
+            foreach (var note in notes) levels.Add(note.level.ToString("0.000"));
+            levels.Sort(System.StringComparer.Ordinal);
+            return string.Join(" ", levels);
+        }
+
+        // Whether a lane sounded, asked by pitch: the levels move with the swap and the
+        // written note does not, so this is the one reading that names a lane.
+        static bool Sounded(System.Collections.Generic.List<FmNoteEvent> notes, int pitch)
+        {
+            foreach (var note in notes) if (Sounds(note, pitch)) return true;
+            return false;
+        }
+
+        // Its own inverse, judged on the file — which is the app's only undo, and the
+        // one assertion that covers the bank, the mutes and every tile at once.
+        var twice = Two(1, 2);
+        twice.Mutes.SetMuted(1, true);
+
+        var before = ProjectFormat.Write(twice);
+        twice.SwapChannels(1, 2);
+        twice.SwapChannels(1, 2);
+
+        Check(log, "swapping twice gives the file back",
+              ProjectFormat.Write(twice) == before,
+              before == ProjectFormat.Write(twice) ? "identical" : "CHANGED");
+
+        // And nothing at all is written when a channel is swapped with itself.
+        twice.SwapChannels(2, 2);
+
+        Check(log, "swapping a channel with itself writes nothing",
+              ProjectFormat.Write(twice) == before,
+              before == ProjectFormat.Write(twice) ? "identical" : "CHANGED");
+
+        // The claim the whole design rests on, measured rather than asserted: the same
+        // notes at the same levels come out of the sequencer either side of a swap.
+        var mix = Two(1, 2);
+        var sequencer = new Sequencer { Project = mix };
+
+        var heardBefore = Levels(Play(sequencer, sampleRate));
+        mix.SwapChannels(1, 2);
+        var heardAfter = Levels(Play(sequencer, sampleRate));
+
+        Check(log, "the mix is unchanged by a swap", heardBefore == heardAfter,
+              "before " + heardBefore + ", after " + heardAfter);
+
+        // The fields moved and the lanes did not, which is the pair that makes the one
+        // above true rather than vacuous.
+        Check(log, "the patches moved and the lanes stayed",
+              Mathf.Abs(mix.Patches[1].level + 2.0f) < 0.001f &&
+              Mathf.Abs(mix.Patches[2].level + 12.0f) < 0.001f &&
+              mix.Score.Lanes[0].Y == 1 && mix.Score.Lanes[0].Channel.Channel == 2,
+              "ch1=" + mix.Patches[1].level + " ch2=" + mix.Patches[2].level +
+              ", the y=" + mix.Score.Lanes[0].Y + " lane now names channel " +
+              mix.Score.Lanes[0].Channel.Channel);
+
+        // Mute and solo travel together, so what each lane is allowed to do is the same
+        // after the swap as before it. With channel 2 soloed the mute on 1 is not being
+        // consulted, which is the case a half-done exchange would come apart on.
+        var held = Two(1, 2);
+        held.Mutes.SetMuted(1, true);
+        held.Mutes.SetSoloed(2, true);
+
+        var upperHeard = held.Mutes.Sounds(held.Score.Lanes[0].Channel.Channel);
+        var lowerHeard = held.Mutes.Sounds(held.Score.Lanes[1].Channel.Channel);
+
+        held.SwapChannels(1, 2);
+
+        Check(log, "the mutes and solos travel with the channel",
+              held.Mutes.Sounds(held.Score.Lanes[0].Channel.Channel) == upperHeard &&
+              held.Mutes.Sounds(held.Score.Lanes[1].Channel.Channel) == lowerHeard,
+              "upper " + upperHeard + "->" +
+              held.Mutes.Sounds(held.Score.Lanes[0].Channel.Channel) +
+              ", lower " + lowerHeard + "->" +
+              held.Mutes.Sounds(held.Score.Lanes[1].Channel.Channel));
+
+        // Out of range folds in, and folds in before the tiles are scanned rather than
+        // at each access: clamped per access, this would exchange the patches of 1 and 8
+        // and renumber not one tile, which is the one state a swap promises cannot be
+        // arrived at. So it is read off a tile and a patch together.
+        var clamped = Two(1, PatchBank.Channels);
+        clamped.SwapChannels(0, PatchBank.Channels + 1);
+
+        Check(log, "a channel from outside the bank folds into it",
+              clamped.Score.Lanes[0].Channel.Channel == PatchBank.Channels &&
+              clamped.Score.Lanes[1].Channel.Channel == 1 &&
+              Mathf.Abs(clamped.Patches[1].level + 2.0f) < 0.001f &&
+              Mathf.Abs(clamped.Patches[PatchBank.Channels].level + 12.0f) < 0.001f,
+              "lanes name " + clamped.Score.Lanes[0].Channel.Channel + " and " +
+              clamped.Score.Lanes[1].Channel.Channel + ", ch1=" +
+              clamped.Patches[1].level + " ch" + PatchBank.Channels + "=" +
+              clamped.Patches[PatchBank.Channels].level);
+
+        // The one thing a swap does move: the master lane is the first channel one lane
+        // in runner order, so renumbering channel 1 hands the title to another lane.
+        var title = Two(2, 1);
+
+        var masterBefore = title.Score.MasterLane;
+        title.SwapChannels(1, 2);
+
+        Check(log, "the master lane follows channel one",
+              masterBefore == title.Score.Lanes[1] &&
+              title.Score.MasterLane == title.Score.Lanes[0],
+              "the y=" + masterBefore.Y + " lane before, the y=" +
+              title.Score.MasterLane.Y + " lane after");
+
+        // What that is worth in sound, which is the accepted exception to the line
+        // above about the mix: the master lane runs whatever its own Play switch says,
+        // so with both lanes switched off the title alone decides which of them is
+        // heard — and it changes hands here.
+        var switched = Two(2, 1);
+        foreach (var lane in switched.Score.Lanes) lane.Channel.Enabled = false;
+
+        var titled = new Sequencer { Project = switched };
+        var quiet = Play(titled, sampleRate);
+
+        switched.SwapChannels(1, 2);
+
+        var moved = Play(titled, sampleRate);
+
+        Check(log, "a switched off lane sounds only while it holds the title",
+              !Sounded(quiet, 60) && Sounded(quiet, 72) &&
+              Sounded(moved, 60) && !Sounded(moved, 72),
+              "before: " + quiet.Count + " notes, after: " + moved.Count + " notes");
+
+        // And with channel one swapped out to a channel no lane names, the title falls
+        // through to whoever runs first, which is what a score with no channel one lane
+        // has always done.
+        var orphaned = Two(2, 1);
+        orphaned.SwapChannels(1, 5);
+
+        Check(log, "with no channel one lane the title falls to the first runner",
+              orphaned.Score.MasterLane == orphaned.Score.Lanes[0],
+              "the y=" + orphaned.Score.MasterLane.Y + " lane, naming channel " +
+              orphaned.Score.MasterLane.Channel.Channel);
     }
 
     // One lap of a sequence, from a standing start.

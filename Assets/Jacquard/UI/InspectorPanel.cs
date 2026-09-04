@@ -113,6 +113,10 @@ sealed class InspectorPanel
             ValueBar.SyncAll(_body);
             _laps?.Sync();
             SyncPlay();
+            // And the channel number beside it, for the same reason and from the other
+            // side of the screen: the Channels panel can exchange two channels, which
+            // leaves this the same ChannelTile object with a different number on it.
+            _syncChannel?.Invoke();
             // A lock row shows a bar and whether the lock is holding it, and the second
             // of those is not a bar. Everything it shows can change without the row
             // changing, which is why they are synced rather than built again.
@@ -143,6 +147,10 @@ sealed class InspectorPanel
     LapSwitches _laps;
     Button _play;
 
+    // A chooser paints once and when it is stepped, so the one on a CHAN tile shows a
+    // number that can move without this panel being rebuilt — see BuildChannel.
+    System.Action _syncChannel;
+
     // The three that do not. These outlive every clear of the body: made on the first
     // tile that asks for them, detached and re-added afterwards. See BuildSound and
     // BuildLock, and the paragraph on Refresh for what keeping them is worth.
@@ -153,9 +161,10 @@ sealed class InspectorPanel
     {
         _title.text = Title(tile);
 
-        // The two that belong to one tile. The three kept groups are deliberately not
-        // here: they are handed the new tile instead, which is the whole point of them.
-        (_laps, _play) = (null, null);
+        // The two that belong to one tile, and the readout that belongs to one of them.
+        // The three kept groups are deliberately not here: they are handed the new tile
+        // instead, which is the whole point of them.
+        (_laps, _play, _syncChannel) = (null, null, null);
 
         // Free ground, whether that is a lane's own empty step or the terminator it
         // grows from. What such a cell is for is the tile that goes on it.
@@ -525,9 +534,21 @@ sealed class InspectorPanel
         var channels = new List<string>();
         for (var i = 1; i <= PatchBank.Channels; i++) channels.Add(i.ToString());
 
+        // The readout is held onto rather than left to paint itself, which is the Play
+        // switch's problem again from the other side of the screen: the Channels panel
+        // can exchange two channels, and what that leaves under the cursor is the same
+        // ChannelTile object carrying a different number — so Refresh takes its early
+        // return and this row would go on showing the number that was there.
+        //
+        // Widening what Refresh calls the same tile to include the number is not an
+        // option, and not merely because it would rebuild more than it has to: stepping
+        // this chooser calls set and then paints, set runs Touch and so Refresh, and a
+        // rebuild would clear the body out from under the arrow that is mid-press and
+        // then write text onto a label that is no longer in the tree.
         body.Add(Controls.Chooser("Channel", channels,
                                   () => channel.Channel - 1,
-                                  index => { channel.Channel = index + 1; Touch(); }));
+                                  index => { channel.Channel = index + 1; Touch(); },
+                                  out _syncChannel));
 
         var divisions = new List<string>();
         foreach (var d in ChannelTile.Divisions) divisions.Add("1/" + d);

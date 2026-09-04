@@ -695,6 +695,18 @@ static class Controls
         return row;
     }
 
+    // The same, handing back the way to put the readout right again. What that is for
+    // is argued at the captionless overload below: a chooser paints when it is built and
+    // when it is stepped, so a value that moves from anywhere else leaves it showing an
+    // answer that was true a moment ago.
+    public static VisualElement Chooser(string caption, IReadOnlyList<string> options,
+                                        Func<int> get, Action<int> set, out Action sync)
+    {
+        var row = Chooser(options, get, set, out sync);
+        row.Insert(0, Caption(caption));
+        return row;
+    }
+
     // The same without one, for a chooser that is not standing in a column of
     // parameters. A caption is as wide as the longest name on a panel so that the rows
     // line up, and a chooser on the transport row has nothing above or below it to line
@@ -808,6 +820,72 @@ static class Controls
             painter.LineTo(new Vector2(left ? width : 0.0f, height));
             painter.ClosePath();
             painter.Fill(FillRule.NonZero);
+        };
+
+        return mark;
+    }
+
+    // The mark between two controls that trade places, drawn for the same reason the
+    // arrows are and one more: the UI face carries no arrow at all. Jura-Regular has
+    // neither U+2194 nor U+21C4, nor either single-headed arrow, so a typeset one would
+    // come back in a fallback face — the one mark on this screen set in something else —
+    // or as a box.
+    //
+    // So it is the arrow's own triangle, twice and stacked: the upper pointing right and
+    // the lower pointing left, which is the shape of the U+21C4 that is missing and reads
+    // as an exchange. Side by side pointing apart is the shape of a spread control and
+    // says the opposite of what this means.
+    //
+    // At the arrow's own size, which is not where this started: it was built at half the
+    // height, on the argument that the pair had to stand about as tall as one arrow to
+    // take a row and no more. That bought nothing, since the full pair fits as it is —
+    // 19 units of the mouse profile's 20 high row and 23 of the touch profile's 30, the
+    // gap between the two counted in — and what the halving cost was the whole of the
+    // mark: a triangle two units wide is narrower than a full stop, so what stood
+    // between the steppers read as dust rather than as an arrow at all. The 0.35 is the
+    // arrow's, and the two are one mark cut twice: moved there, it moves here.
+    //
+    // Inked Style.Label rather than the arrows' NoteText, since this is punctuation
+    // between two controls and not a control: nothing here is pressable, and the mark
+    // should not read as a third thing to reach for.
+    public static VisualElement SwapMark()
+    {
+        // Even, so that a tip lands on a boundary rather than half way across a pixel,
+        // and the arrow's own proportion: a slim triangle pointing sideways.
+        var height = 2.0f * Mathf.Round(FontSize * 0.35f);
+        var width = Mathf.Round(height * 0.6f);
+
+        var mark = new VisualElement();
+        mark.style.width = width;
+        mark.style.height = height * 2.0f + Gap;
+        mark.style.flexShrink = 0;
+        // Its own air, the way a control's margin is its own: what stands either side of
+        // this is a control, and two of them meeting a mark with no gap read as one run.
+        mark.style.marginLeft = Gap;
+        mark.style.marginRight = Gap;
+        mark.pickingMode = PickingMode.Ignore;
+
+        mark.generateVisualContent += context =>
+        {
+            var painter = context.painter2D;
+            painter.fillColor = Style.Label;
+
+            // The tip on the side it points to and the base square on the other, which
+            // is the arrow's own shape; top is right and bottom is left.
+            Triangle(painter, 0.0f, left: false);
+            Triangle(painter, height + Gap, left: true);
+
+            void Triangle(Painter2D p, float top, bool left)
+            {
+                var back = left ? width : 0.0f;
+
+                p.BeginPath();
+                p.MoveTo(new Vector2(left ? 0.0f : width, top + height / 2));
+                p.LineTo(new Vector2(back, top));
+                p.LineTo(new Vector2(back, top + height));
+                p.ClosePath();
+                p.Fill(FillRule.NonZero);
+            }
         };
 
         return mark;

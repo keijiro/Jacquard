@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -23,6 +24,19 @@ namespace Jacquard.App {
 // the cursor is on, and this is a way of moving the cursor rather than a second way of
 // opening a panel. A channel with no lane of its own has nowhere to go and greys out,
 // which is also the one place on screen that says which of the eight are in use.
+//
+// The Swap group under the eight rows is the one thing on this panel that is not a row,
+// and the one thing on it that writes the score. It is here because this is the single
+// place in the interface where a channel is a subject in its own right rather than
+// something a cell names: an exchange of two channels answers to no cell, so there is no
+// cursor to hang it off — the same argument that keeps the send effects off the tile
+// panel and on one of their own. What the operation is and what it costs are argued at
+// Project.SwapChannels.
+//
+// What it costs here is the premise the rest of the panel rests on. Everything else on
+// it is played rather than set — a mute writes nothing that a file would notice — so the
+// panel as a whole stayed live while a load waited on the lap line, and that is now true
+// of every control here except one. The group alone is put out of reach; see SetLocked.
 //
 // It stands in the top left, which is the one corner the cursor's panels never reach,
 // and it is raised by a switch on the transport row like everything else there. A mute
@@ -50,6 +64,8 @@ sealed class ChannelsPanel
             Root.Add(row);
         }
 
+        Root.Add(BuildSwap());
+
         Refresh();
     }
 
@@ -60,6 +76,16 @@ sealed class ChannelsPanel
     {
         foreach (var row in _rows) row.Sync();
     }
+
+    // Takes the group out of reach while a load waits on the lap line, and gives it back
+    // at the seam. The rest of the panel stays live: a mute is played across the seam and
+    // writes nothing a file would notice, and this is the one control here that does.
+    //
+    // The group and not the panel, and that is not only about what is being held. A
+    // shield is found by name from wherever it is asked for downwards, so a SetLocked on
+    // the whole panel would find this group's shield already standing, take it for its
+    // own and cover nothing — see Controls.SetLocked.
+    public void SetLocked(bool locked) => Controls.SetLocked(_swap, locked);
 
     // Private members
 
@@ -92,6 +118,95 @@ sealed class ChannelsPanel
         // moved under the hand that pressed this.
         _editor.View.Focus();
     }
+
+    // Swap
+    //
+    // Two channels to exchange and a button to do it with, standing under the eight rows
+    // and parted from them by the heading — which carries the rule and the air above it,
+    // and is what a group in this UI is announced by. Not a foot: that is for the one
+    // button a panel has and is not the point of it, and would put a second gap under a
+    // rule that has nothing to head.
+    //
+    // Stepped through with arrows rather than scrubbed, for the reason the Tile panel
+    // gives about the same choice: a channel is not a quantity, so it is picked off a
+    // written-down list. Captionless, since this panel has no caption column — its rows
+    // are built against a single character instead, and a caption's width here would be
+    // air taken off the two things being chosen.
+    //
+    // The two numbers are deliberately left standing after a press. What is showing is
+    // the way back: a swap is its own inverse, and pressing again is this app's only
+    // undo, so a reset to 1 and 2 would tidy away the one thing on screen that says how
+    // to take the press back.
+    VisualElement BuildSwap()
+    {
+        _swap = new VisualElement();
+        _swap.style.flexShrink = 0;
+
+        _swap.Add(Controls.Heading("Swap", follows: true));
+
+        var numbers = new List<string>();
+        for (var i = 1; i <= PatchBank.Channels; i++) numbers.Add(i.ToString());
+
+        var row = Controls.Row();
+        row.Add(Stepper(numbers, () => _a, value => _a = value));
+        row.Add(Controls.SwapMark());
+        row.Add(Stepper(numbers, () => _b, value => _b = value));
+        _swap.Add(row);
+
+        // The width the panel has left, the way Select takes it: this is the button the
+        // group is for, so nothing beside it has a claim on the row.
+        _swapButton = Controls.Push("Swap", Swap);
+        _swapButton.style.flexGrow = 1;
+        _swapButton.style.marginRight = 0;
+
+        var press = Controls.Row();
+        press.Add(_swapButton);
+        _swap.Add(press);
+
+        SyncSwap();
+
+        return _swap;
+    }
+
+    // One of the two, sized to half of what the row has. A Chooser is itself a row, so
+    // it carries a row's gap under it and lays out to its content: inside a row of its
+    // own that leaves a gap where there is nothing to part, and — at the mouse panel's
+    // width — dead air to the right of each pair of arrows.
+    VisualElement Stepper(List<string> numbers, System.Func<int> get,
+                          System.Action<int> set)
+    {
+        var stepper = Controls.Chooser(numbers, () => get() - 1,
+                                       index => { set(index + 1); SyncSwap(); });
+        stepper.style.marginBottom = 0;
+        stepper.style.flexGrow = 1;
+        return stepper;
+    }
+
+    // The same number on both sides is a no-op, and says so the way a mute under a solo
+    // and a Select with nowhere to go say it: dimmed whole, and the press not acted on.
+    //
+    // Only the button, and only off the two numbers here. Everything a swap moves is
+    // read off the project by the eight rows above, which Commit brings back into line
+    // through Refresh — so there is nothing for this to sync but its own dim.
+    void SyncSwap()
+      => _swapButton.style.opacity = _a == _b ? Style.DimmedOpacity : 1.0f;
+
+    void Swap()
+    {
+        if (_a == _b) return;
+
+        _editor.SwapChannels(_a, _b);
+
+        // The keys belong to the plane, and the press took the focus off it — the same
+        // hand-back a mute does.
+        _editor.View.Focus();
+    }
+
+    // The two numbers being exchanged. Held here rather than read off anything, since
+    // they are a question the hand is asking and not a fact about the score.
+    VisualElement _swap;
+    Button _swapButton;
+    int _a = 1, _b = 2;
 
     // A channel
     //
