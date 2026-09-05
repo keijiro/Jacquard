@@ -57,7 +57,9 @@ were 10.7ms of the audio thread's time on the device, and doubling the rate unde
 would have made it 5.3ms — a deadline this iPad does not hold, which the stream says
 rather than the frame timing. So the buffer went to 512 and the device stayed on the
 deadline it always had, the rate being paid for in DSP alone. `DspBuffer.Default` carries
-those readings and why the figure is the same on every platform.
+those readings, and the one platform that is not handed the figure they arrived at: iOS
+ships 1024, which is bought from the system screen recorder rather than from the audio
+thread.
 
 The three measured numbers
 --------------------------

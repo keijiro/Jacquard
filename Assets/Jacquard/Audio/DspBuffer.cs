@@ -62,7 +62,9 @@ static class DspBuffer
     public const int Max = 1024;
     public const int Step = 128;
 
-    // What the panel reads before anybody has chosen anything.
+    // What the panel reads before anybody has chosen anything, which is two figures: 512
+    // frames everywhere the audio thread is what decides it, and 1024 on iOS, where it is
+    // decided by something outside this app altogether.
     //
     // **Two stops up from the bottom of the bar.** 256 frames is 5.3ms of audio thread,
     // and 5.3ms is a deadline this project has one machine's proof of missing: read off
@@ -72,24 +74,59 @@ static class DspBuffer
     // same 10.7ms of deadline that 512 is now, none. What it minded was the deadline, and
     // neither the rate nor the frame count on its own.
     //
-    // **The same figure on every platform, and that half of it is a judgement rather than
-    // a reading.** Nothing about the fault is particular to a tablet — a desktop that is
-    // slow, or busy with something else, has the same audio thread and the same one
-    // buffer's worth of time to fill it — and no measurement here says that a desktop
-    // holds 5.3ms under load, only that this one has not been caught failing to. A default
-    // is what a machine nobody has measured is handed, so it is set where both of the
-    // machines that have been measured are safe.
+    // **The same figure on every platform that reading covers, and that half of it is a
+    // judgement rather than a reading.** Nothing about the fault is particular to a tablet
+    // — a desktop that is slow, or busy with something else, has the same audio thread and
+    // the same one buffer's worth of time to fill it — and no measurement here says that a
+    // desktop holds 5.3ms under load, only that this one has not been caught failing to. A
+    // default is what a machine nobody has measured is handed, so it is set where both of
+    // the machines that have been measured are safe.
     //
     // What that costs is 5.3ms between a Live FX button and what comes out. 256 stays on
     // the bar for the machine that holds it: which end of that trade to take is a
     // machine's own bargain to make, and the warning a missed deadline prints is what
     // sends a hand back up.
     //
-    // AudioManager.asset holds the same figure, kept in step by hand, since that is what
-    // Unity boots with and a launch nobody has told otherwise then costs no Reset at all.
-    // The two mobile platforms reset anyway, because they ask for a rate as well and the
-    // asset carries one figure for every platform — see DspOutputRate.
-    public const int Default = 512;
+    // **iOS is handed 1024 instead, and that stop is not about this machine at all.** What
+    // a frame count reaches the device as is an IO buffer duration — 512 frames at 48000Hz
+    // is 10.7ms — and iOS breaks the audio track of its own screen recording when an app
+    // asks for a buffer shorter than the system's own default, which stands around 20ms.
+    // The fault is not a dropout here and there: the recorded track is wrong from end to
+    // end, drifting and grating for the whole of its length, while the app is heard
+    // playing perfectly out of the speaker beside it. That last part is what says whose
+    // fault it is, since nothing here is failing to render, and Apple has it as a
+    // regression of iOS 26 that iOS 18 did not have — FB22245447, open, with no workaround
+    // offered. The one lever this side of it is to stop asking for a buffer under the
+    // default. Read off the device: at 512 the recording is broken every time, at 1024 —
+    // 21.3ms, which is about where the default begins — it is clean.
+    //
+    // **Which is why Android stays at 512.** Everything above is a machine holding a
+    // deadline; this is one platform's framework mishandling what it is handed, a phone
+    // being slow has nothing to do with it, and a platform without the fault should not
+    // pay for it. It is also why this is a default and not a floor: the bar still reaches
+    // 256 on iOS, because a person who is not recording the screen is owed the response,
+    // and the cost of finding out the wrong way is a recording to make again.
+    //
+    // What the longer stop costs on iOS is the same trade read from the other end, and
+    // half of it is not the plain half. 10.7ms more between the mix and the speaker is the
+    // plain half. The other is that every hop a note takes down the pipe is served once a
+    // mix cycle, so the lead DspClock measures grows with the buffer, and what that
+    // reaches is how far ahead of itself a live effect has to be read — see
+    // JacquardApp.HandoverSeconds, where the window it is added to is measured in frames
+    // rather than in milliseconds. The figure in force is printed at every launch rather
+    // than guessed at here.
+    //
+    // AudioManager.asset holds 512, which is the desktop figure and no longer this one for
+    // every platform, since that is what Unity boots with and a launch nobody has told
+    // otherwise then costs no Reset at all. The two mobile platforms reset anyway, because
+    // they ask for a rate as well and the asset carries one figure for all of them — see
+    // DspOutputRate — so iOS's own frame count rides along on a Reset already being made.
+    public const int Default =
+#if UNITY_IOS && !UNITY_EDITOR
+      1024;
+#else
+      512;
+#endif
 
     // What the setting says, which is not the same question as what is in force.
     //
