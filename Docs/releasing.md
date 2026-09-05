@@ -57,10 +57,12 @@ Tools/package.sh --no-build   # reuse whatever is already in Build/
 It leaves `Build/dist`: one zip per platform and a `SHA256SUMS` for both. The header of that
 script argues the signing and the notarisation, and that argument is not repeated here.
 
-Three things about the result are worth saying in the notes if the notes say anything at all:
-the macOS archive is signed and notarised, so it opens without a warning; it is Apple silicon
-only, so there is nothing on the page for an Intel Mac; and the Windows one is not signed, so
-SmartScreen will call the publisher unknown until a certificate exists.
+The archives do not get a section in the notes. Three things about them are true and were
+written there once — that the macOS zip is signed and notarised, that it is Apple silicon
+only, and that the Windows one is unsigned and SmartScreen will say so — but the notes are
+read by somebody deciding whether this version is worth having, and none of that is about
+this version. The file names carry the platform and the architecture, and the signing is
+argued where it is done. Notes say what changed in the app.
 
 The release
 -----------
