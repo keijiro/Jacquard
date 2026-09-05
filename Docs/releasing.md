@@ -33,8 +33,8 @@ The draft comes from the log. The wording comes from the user.
 git log --oneline <last tag>..HEAD
 ```
 
-There are no tags yet, so the first release has no range to read: its notes describe the app
-rather than what changed in it.
+The first release had no range to read, and its notes describe the app rather than what
+changed in it. `v1.0.0` is the tag every range since reads from.
 
 **The commit messages here are not release notes and must not be pasted into them.** A
 subject line names what changed and the body under it argues why the code is shaped that way,
@@ -98,20 +98,40 @@ little else. In App Store Connect the app is id `6804390464`.
 
 iOS carries a build number as well as a version, and App Store Connect tells two uploads of
 one version apart by that number and by nothing else — so it rises on every upload, whether
-or not the version moved. 1.0.0 shipped as build 2 for that reason.
+or not the version moved. 1.0.0 shipped as build 2 for that reason and 1.1.0 as build 3: a
+new version string does not restart the count, and `asc builds next-build-number` answers
+off the app's whole processed history rather than off one version's.
 
 The path, as far as it has been walked:
 
 - *Jacquard > Build iOS* writes the Xcode project. `BuildIos.cs` says why it is a menu item
   and why it appends rather than replaces.
-- `asc xcode archive`, then `asc xcode export-options` and `asc xcode export`. The export
-  needs manual signing with an `ExportOptions.plist`; automatic signing cannot export.
-- `asc xcode validate` before uploading, `asc builds list` to watch it process.
+- `asc xcode archive --scheme Jacquard`, then `asc xcode export`. The scheme name is worth
+  reading twice: Unity calls the *target* `Unity-iPhone` and the scheme after the product,
+  so the obvious guess is the one name xcodebuild will not take.
+- The export needs manual signing with an `ExportOptions.plist`; automatic signing cannot
+  export. `.asc/export-options-app-store.plist` is this app's.
+- `asc xcode validate` is optional and asks for a second set of credentials. It wraps
+  `xcrun altool --validate-app`, which cannot see the key `asc` keeps in the keychain and
+  wants an `--api-key` and `--api-issuer` handed to it. The upload runs the same check on
+  Apple's side, so skipping it costs the earlier answer and nothing else.
 - The encryption question is already answered in the build by `IosExportCompliance.cs`, so a
   build should not stall waiting for somebody to click through it.
-- `asc validate` reports submission readiness. `asc publish appstore --submit` ships it.
+- `asc publish appstore` without `--submit` uploads, creates the version and attaches the
+  build. `asc builds list` watches it process.
+- `asc validate` reports submission readiness, and `asc review submit --confirm` ships it.
 - Expect to finish in the browser. Two declarations for 1.0.0 could not be verified through
-  the API and had to be made in App Store Connect by hand.
+  the API and had to be made in App Store Connect by hand, and App Privacy is reported as
+  unverifiable through it on every release since, so it is looked at rather than trusted.
+
+`metadata/` is the copy and the store is the original, so it is pulled before it is pushed.
+That is not a formality. By 1.1.0 the folder held a description the listing had since
+replaced and a privacy policy URL pointing somewhere else, and a push from it would have
+reverted both — silently, since a push says only that it succeeded. So: `asc metadata pull`,
+then write, then `asc metadata push --dry-run` and read the plan. What a release is entitled
+to change is `whatsNew` and `promotionalText`, which are the two fields App Store Connect
+leaves empty when it carries a version's localizations forward. Anything else standing in
+the plan is the stale copy talking.
 
 The `asc-*` skills carry the detail, and `asc search "<what you want>"` finds the command.
 
