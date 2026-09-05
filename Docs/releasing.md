@@ -36,11 +36,12 @@ git log --oneline <last tag>..HEAD
 There are no tags yet, so the first release has no range to read: its notes describe the app
 rather than what changed in it.
 
-**The commit messages here are not release notes and must not be pasted into them.** This
-repository states a change and its reason in one sentence, and that sentence is usually a
-paragraph — the reason being why the code is shaped the way it is, which is exactly what
-somebody deciding whether to download does not need. Read them for what happened, then write
-short lines about what is different for somebody using the app.
+**The commit messages here are not release notes and must not be pasted into them.** A
+subject line names what changed and the body under it argues why the code is shaped that way,
+which is exactly what somebody deciding whether to download does not need. The subject lines
+are the closer of the two and are what `--oneline` hands you, but they are still written for
+somebody who knows the code. Read them for what happened, then write short lines about what
+is different for somebody using the app.
 
 Put the draft to the user and wait for it to come back. The notes are the part of a release
 that is read the most and revised the least.

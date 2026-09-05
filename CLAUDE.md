@@ -80,5 +80,16 @@ Style
 -----
 
 Follow the surrounding code. The prose in comments is deliberate and has a voice — match
-it rather than flattening it to summaries. Commit messages state the change and its
-reason in one sentence: *"<what changed>, since <why>"*.
+it rather than flattening it to summaries.
+
+A commit message opens with a subject line: what changed, in the imperative, no full stop,
+and under 72 characters — aim at 50, which is where the median of this history's own
+opening clauses already sits. Then a blank line, then the reason: why the code is shaped
+the way it is, what was tried, what was measured. The reason is the part that matters and
+it is not rationed — as many sentences and paragraphs as the argument takes, wrapped at 72
+columns. It was one sentence before, and the sentence had grown to a page sitting on line
+one, which is a page `git log --oneline` prints as a wall.
+
+Most of what is written here already splits at its own comma: *"Add Stage Mode, since this
+screen carries controls that only an edit has any use for"* is a subject line and the
+opening of a body, and the split is where the comma already is.
