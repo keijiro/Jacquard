@@ -46,6 +46,11 @@ is different for somebody using the app.
 Put the draft to the user and wait for it to come back. The notes are the part of a release
 that is read the most and revised the least.
 
+Write them one line to a paragraph and one line to a bullet, wrapped nowhere. Everything
+else here is wrapped at ninety columns because it is read in a file; this is read in a
+column GitHub chooses, and a hard wrap inside a sentence there is a rag down the middle of
+the page rather than a line ending.
+
 The archives
 ------------
 
