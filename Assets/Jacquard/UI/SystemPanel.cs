@@ -220,6 +220,47 @@ sealed class SystemPanel
         Root.Add(foot);
 #endif
 
+        // The one line on this panel that is not a setting, and the only thing on the
+        // screen that says which copy of the app is running. Nothing dresses it as a
+        // control, because there is nothing to do to it: no caption column, no readout
+        // beside one, no box — a line of text at the foot and that is all.
+        //
+        // Which is why it is written the way it is. It was a caption and a value first,
+        // the shape every row above it has, and the shape was the mistake: a name in the
+        // caption column with a figure in the bright text a value is written in reads as
+        // a control whose control is missing, and the bright text is the app saying
+        // something matters. So the whole line is in the caption grey — the name and the
+        // figure together, since a version number is not a value anybody set — and that
+        // grey is most of what says *this is here if you need it*, which is exactly what
+        // a version is.
+        //
+        // It starts at the left edge, where every name on this panel starts. Tried at the
+        // right it read as a mark set into the corner — a thing placed there, which is one
+        // more decision the eye has to take in on a panel whose whole left edge is already
+        // a column of names running down it. At the left it is the last of those names and
+        // the column simply ends, and what keeps it from being read as another setting is
+        // the grey and the air over it rather than a position of its own.
+        //
+        // It belongs on this panel for the reason the settings above it do — a version is
+        // a fact about this copy on this machine and would mean nothing to anybody the
+        // file is handed to — and it is at the foot on every platform, under the row that
+        // is a desktop's alone. Last because of what it is for: it is looked at when
+        // something is being said *about* the app rather than done with it, which is the
+        // one errand nobody opens this panel to run.
+        //
+        // The figure is asked of the player rather than written here. Application.version
+        // is the bundle version the build was stamped with, so the number on screen is the
+        // number that was shipped and there is no second copy of it in the source to be
+        // raised a release late.
+        var version = Controls.Text("Version " + Application.version,
+                                    Controls.FontSize, Style.Label);
+        version.style.unityTextAlign = TextAnchor.MiddleLeft;
+        version.style.marginTop = Controls.GroupGap;
+        // The gap the panel's short bottom inset is counting on, which every row above
+        // carries for itself and this line is not a row to carry.
+        version.style.marginBottom = Controls.Gap;
+        Root.Add(version);
+
         // Read once, here, and handed straight on. The panel is where the setting is
         // kept, so it is also what puts the app into the state it was left in: the
         // caller has nothing to remember, and there is no second place the default is
