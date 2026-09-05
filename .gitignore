@@ -25,6 +25,14 @@ Desktop.ini
 /*_DoNotShip
 /*_ButDontShipItWithYourGame
 
+# Skills the asc CLI installs for itself. They are that tool's files rather than this
+# project's: it reinstalls them on its own schedule, so a copy committed here goes stale
+# without anyone here editing it, and the reinstall lands as a diff no reader of this
+# history has any use for. The pattern is asc-* and not the whole directory because a
+# skill written for Jacquard — one that knows the score format, the self test, the scene
+# builder — belongs in the history like any other tooling here.
+/.claude/skills/asc-*
+
 # The store listing lives in App Store Connect and not here. Everything asc keeps on
 # disk is either a working file for one command or a local copy of what the store
 # already holds, and both are shaped by that one store: keywords cut to its hundred
