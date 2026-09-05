@@ -41,6 +41,24 @@ above it. The plugin carries the whole argument: which category, which option, w
 said after the engine's own audio init rather than before, and what was measured on the
 device about saying it again.
 
+What a phone hands out
+----------------------
+
+**Unity's output is 24000 Hz on iOS and Android unless it is asked for something else** —
+read off the iPad, which boots at 24000 and then grants 48000 exactly, with no rounding and
+no refusal, the first time it is asked for it. `DspOutputRate` carries the argument for
+replacing it and what it costs; the ask itself is one line in `DspBuffer.Apply`, since the
+rate rides along on the Reset the buffer already makes rather than paying for a second
+reinitialization.
+
+One thing follows that is not about the rate at all and is easy to get wrong. **A frame
+count is a deadline only once a rate is known.** The 256 frames this project used to ship
+were 10.7ms of the audio thread's time on the device, and doubling the rate under them
+would have made it 5.3ms — a deadline this iPad does not hold, which the stream says
+rather than the frame timing. So the buffer went to 512 and the device stayed on the
+deadline it always had, the rate being paid for in DSP alone. `DspBuffer.Default` carries
+those readings and why the figure is the same on every platform.
+
 The three measured numbers
 --------------------------
 

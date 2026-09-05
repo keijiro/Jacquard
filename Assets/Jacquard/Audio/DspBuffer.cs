@@ -26,6 +26,11 @@ namespace Jacquard.App {
 // mix buffer is reallocated to the new size, all of it measured — but two numbers
 // read once in FmSynthPipeline's constructor would still be about the old buffer,
 // and a setting that is honest about when it lands beats one that is nearly right.
+//
+// That same Reset is where the output rate is settled, because it is the same call and
+// one reinitialization of the output is enough for both. What the rate is, and why it is
+// not a setting the way this is, is DspOutputRate's own argument; what belongs here is
+// only that the two numbers travel together.
 
 static class DspBuffer
 {
@@ -57,10 +62,34 @@ static class DspBuffer
     public const int Max = 1024;
     public const int Step = 128;
 
-    // What the project ships with, which is what AudioManager.asset holds. Kept in
-    // step by hand: the asset is what Unity boots with, and this is what the panel
-    // reads before anybody has chosen anything.
-    public const int Default = Min;
+    // What the panel reads before anybody has chosen anything.
+    //
+    // **Two stops up from the bottom of the bar.** 256 frames is 5.3ms of audio thread,
+    // and 5.3ms is a deadline this project has one machine's proof of missing: read off
+    // the iPad, five minutes of the sample score each, six and a half thousand notes each
+    // and nothing else changed between the runs — at 48000 with 256 frames the stream
+    // reported seven restarts, at 48000 with 512 none, and at 24000 with 256, which is the
+    // same 10.7ms of deadline that 512 is now, none. What it minded was the deadline, and
+    // neither the rate nor the frame count on its own.
+    //
+    // **The same figure on every platform, and that half of it is a judgement rather than
+    // a reading.** Nothing about the fault is particular to a tablet — a desktop that is
+    // slow, or busy with something else, has the same audio thread and the same one
+    // buffer's worth of time to fill it — and no measurement here says that a desktop
+    // holds 5.3ms under load, only that this one has not been caught failing to. A default
+    // is what a machine nobody has measured is handed, so it is set where both of the
+    // machines that have been measured are safe.
+    //
+    // What that costs is 5.3ms between a Live FX button and what comes out. 256 stays on
+    // the bar for the machine that holds it: which end of that trade to take is a
+    // machine's own bargain to make, and the warning a missed deadline prints is what
+    // sends a hand back up.
+    //
+    // AudioManager.asset holds the same figure, kept in step by hand, since that is what
+    // Unity boots with and a launch nobody has told otherwise then costs no Reset at all.
+    // The two mobile platforms reset anyway, because they ask for a rate as well and the
+    // asset carries one figure for every platform — see DspOutputRate.
+    public const int Default = 512;
 
     // What the setting says, which is not the same question as what is in force.
     //
@@ -96,8 +125,10 @@ static class DspBuffer
 
     // Called once at startup, before the synth is built.
     //
-    // Nothing happens in the ordinary case: the stored number is the number Unity
-    // booted with, and the audio system is left exactly as it was found.
+    // Nothing happens where the stored number is the one Unity booted with and no rate is
+    // wanted: the audio system is left exactly as it was found, which is the ordinary case
+    // on a desktop. The two mobile platforms reset on every launch, since the rate they
+    // want is one AudioManager.asset cannot carry for them alone — see DspOutputRate.
     public static void Apply()
     {
         if (!Supported) return;
@@ -105,22 +136,47 @@ static class DspBuffer
         var frames = Requested;
         Applied = frames;
 
-        if (frames == Current) return;
+        var rate = DspOutputRate.Desired;
+
+        // Nothing to ask for: the stored buffer is the one Unity booted with, and the
+        // rate is either already the one wanted or this platform's own business.
+        if (frames == Current && (rate == 0 || rate == DspOutputRate.Current)) return;
 
         var config = AudioSettings.GetConfiguration();
         config.dspBufferSize = frames;
+        if (rate != 0) config.sampleRate = rate;
 
-        // Neither of these stops anything: the mix is rendered to whatever length the
-        // audio system reports, so a device that would not take the figure is a device
-        // running on its own and playing perfectly well. What it costs is the one thing
-        // this setting is for — the audio thread's deadline is not the one that was
-        // chosen — so it is said once, where the rest of what the audio has to say goes.
+        // None of this stops anything: the mix is rendered to whatever length and at
+        // whatever rate the audio system reports, so a device that would not take a
+        // figure is a device running on its own and playing perfectly well. What it
+        // costs is the one thing that figure was for — the audio thread's deadline is
+        // not the one that was chosen, or the fold is where DspOutputRate says it must
+        // not be — so it is said once, where the rest of what the audio has to say goes.
         if (!AudioSettings.Reset(config))
-            Debug.LogWarning($"Jacquard: the audio system refused a buffer of {frames} " +
-                             $"frames and kept {Current}.");
-        else if (Current != frames)
-            Debug.LogWarning($"Jacquard: a buffer of {frames} frames was rounded to " +
-                             $"{Current} by the device.");
+            Debug.LogWarning($"Jacquard: the audio system refused {frames} frames at " +
+                             $"{config.sampleRate}Hz and kept {Current} at " +
+                             $"{DspOutputRate.Current}Hz.");
+        else
+        {
+            if (Current != frames)
+                Debug.LogWarning($"Jacquard: a buffer of {frames} frames was rounded " +
+                                 $"to {Current} by the device.");
+
+            if (rate != 0 && DspOutputRate.Current != rate)
+                Debug.LogWarning($"Jacquard: an output rate of {rate}Hz was rounded to " +
+                                 $"{DspOutputRate.Current}Hz by the device.");
+        }
+
+        // And once, plainly, what is in force. Only on the path where something was
+        // asked for, since the other path changed nothing and has nothing to report.
+        //
+        // This is the whole of what a Reset has over the figure in AudioManager.asset —
+        // it can be asked what happened — and a claim of that kind is worth nothing if
+        // the answer is only ever printed when it is bad. On a device this is also the
+        // one place the format is written down at all.
+        Debug.Log($"Jacquard: the audio output is {DspOutputRate.Current}Hz in buffers " +
+                  $"of {Current} frames, which is " +
+                  $"{Current * 1000.0 / DspOutputRate.Current:0.0}ms of audio thread.");
     }
 
     const string Key = "Jacquard.DspBuffer";

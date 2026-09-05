@@ -370,8 +370,10 @@ public sealed class JacquardApp : MonoBehaviour
         // system, and the moment for that is while nothing has been allocated against
         // the figure it is replacing: the pipeline sizes its mix buffer from the format
         // it is handed and reads the buffer length once for the dropout detector, both
-        // of which happen in the constructor on the next line. In the ordinary case —
-        // the stored number being the one Unity booted with — it does nothing at all.
+        // of which happen in the constructor on the next line. Where the stored number is
+        // the one Unity booted with it does nothing at all, which is the ordinary case on
+        // a desktop; the two mobile platforms ask for a rate the project cannot ship in
+        // AudioManager.asset, and reset every launch to get it — see DspOutputRate.
         DspBuffer.Apply();
 
         Synth = new FmSynth(MaxVoices);
