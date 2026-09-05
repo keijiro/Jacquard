@@ -18,9 +18,15 @@ rule. **Read the right one and do not duplicate across the line.**
 - **`Docs/` owns what spans files or has no file.** The specification, the cross-cutting
   rules, the format's obligations, the rejected designs. The `impl-*.md` notes are maps —
   they say which rule lives where and point at the file that argues for it.
+- **A commit message owns why the change happened at all.** What the tree was like before
+  it, a design refused that left no code behind to carry the argument, a measurement that
+  decided the change rather than a number in one file, an outside bug with a ticket
+  number. It is the one of the three a reader reaches without knowing which file to open,
+  and the only one that cannot be read out of the working tree at all.
 
-So: **do not restate a file's header comment in a doc, and do not move an argument out of
-a file into a doc.** A doc section that only paraphrases one file is redundant and will
+So: **do not restate a file's header comment in a doc, do not move an argument out of a
+file into a doc, and do not put in a commit body an argument the same commit is putting
+into a comment.** A doc section that only paraphrases one file is redundant and will
 drift.
 
 Read this before touching that
@@ -89,6 +95,13 @@ the way it is, what was tried, what was measured. The reason is the part that ma
 it is not rationed — as many sentences and paragraphs as the argument takes, wrapped at 72
 columns. It was one sentence before, and the sentence had grown to a page sitting on line
 one, which is a page `git log --oneline` prints as a wall.
+
+Not rationed is not a licence to fill. What is already argued in a comment this same
+commit adds is not the body's to say again: if a reader would find the paragraph by
+opening a file the diff touches, it lives there and the body is a few lines of what
+changed. The length follows the diff rather than the effort — a change that adds one line
+to a panel gets a short body however many shapes it took to arrive at, because the shapes
+are in the comment beside it.
 
 Most of what is written here already splits at its own comma: *"Add Stage Mode, since this
 screen carries controls that only an edit has any use for"* is a subject line and the
