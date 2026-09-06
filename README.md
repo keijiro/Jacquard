@@ -15,16 +15,11 @@ The project takes inspiration from trackers, generative sequencers, and
 hardware grooveboxes, while exploring a more visual and spatial approach to
 sequencing.
 
-## Try It on the Web
+- [Releases (Windows / macOS)](https://github.com/keijiro/Jacquard/releases)
+- [Web version](https://www.keijiro.tokyo/jacquard-web/)
+- [User guide](https://www.keijiro.tokyo/jacquard-doc/)
 
-A Web build is available, so you can try Jacquard in a browser without
-installing anything.
-
-**https://www.keijiro.tokyo/jacquard-web/**
-
-Note that the Web version keeps saved scores in the browser's storage, which the
-browser may clear at any time. There is currently no way to back them up as
-external files, so treat anything made there as temporary.
+<a href="https://apps.apple.com/app/id6804390464"><img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us" width="160" alt="Download on the App Store"></a>
 
 ## Basic Concepts
 
