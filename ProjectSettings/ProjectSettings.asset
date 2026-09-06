@@ -879,12 +879,13 @@ PlayerSettings:
     Standalone: 0
   il2cppCompilerConfiguration: {}
   il2cppCodeGeneration:
+    Android: 1
     WebGL: 1
     iPhone: 1
   il2cppLTOMode: {}
   il2cppStacktraceInformation: {}
   managedStrippingLevel:
-    Android: 1
+    Android: 3
     Bratwurst: 1
     EmbeddedLinux: 1
     GameCoreScarlett: 1

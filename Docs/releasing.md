@@ -212,6 +212,38 @@ sits at the end of a list of a dozen consoles, and a glance at the top of it say
 platform is absent and therefore on the default. It is not, and this paragraph exists
 because it was read that way once.
 
+The size of the Android app
+---------------------------
+
+Both of those settings are Android's too, and neither was reaching it: the codegen
+dictionary held no Android entry at all, and the stripping one held Android at Low with
+iPhone's High four lines below it. They now read `il2cppCodeGeneration = OptimizeSize` and
+`managedStrippingLevel = High` for Android in `ProjectSettings.asset`, argued here for the
+same reason iPhone's are — that file carries no comments. Three players off one tree with
+nothing but these flipped:
+
+| | APK | generated C++ | `libil2cpp.so` | `global-metadata.dat` |
+| --- | --- | --- | --- | --- |
+| as it built before | 26.70 MiB | 887 MB | 40.0 MiB | 6.98 MiB |
+| `OptimizeSize` | 22.34 MiB | 436 MB | 20.4 MiB | 5.84 MiB |
+| and `High` | 20.48 MiB | 363 MB | 17.1 MiB | 4.34 MiB |
+
+The generated C++ is in the table for the reason it is in iPhone's: Bee replays cached
+il2cpp output, so a build returning in half a minute proves nothing on its own, and 887
+against 436 against 363 MB is what says the three arms are three arms.
+
+What is not here is iPhone's second table. The frame time this costs on Android has not
+been measured, and the reading above it must not be carried across — iPhone's +36% was
+taken on one device against one frame budget, and a phone that is not that device running
+a player that is not that player is not covered by it. What is known is that the app runs:
+the sample score loads, plays and draws under both settings on the emulator, which is a
+check against stripping having taken something the app needed, not a measurement of speed.
+
+So this is a size argument standing on its own. Near a quarter of the APK for a cost this
+project has measured once, on another platform, and found to be under three per cent of a
+frame nothing could see. If Android ever ships, the frame time is the measurement to take
+before that trade is claimed rather than assumed.
+
 One-time setup on a machine
 ---------------------------
 
