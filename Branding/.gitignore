@@ -4,6 +4,7 @@
 # these are intermediates. jacquard-logo.svg is not among them -- the README
 # serves that file itself.
 icon.png
+icon-android.png
 logo-bar.png
 favicon.png
 favicon.svg

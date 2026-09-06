@@ -21,7 +21,7 @@ Needs `fonttools` and nothing else.
 | --- | --- | --- |
 | `make_logo.py` | `jacquard-logo.svg` | the top of the repository README, at 500px |
 | `make_logo_png.py` | `logo-bar.png` | copy to `Assets/Branding/Logo.png` |
-| `make_icon.py` | `icon.png`, `favicon.png` | copy the first to `Assets/Branding/AppIcon.png` |
+| `make_icon.py` | `icon.png`, `icon-android.png`, `favicon.png` | copy the first two to `Assets/Branding/AppIcon.png` and `AppIconAndroid.png` |
 | `make_favicon_svg.py` | `favicon.svg` | with `favicon.png`, base64 into the two `<link rel="icon">` in `Assets/WebGLTemplates/Jacquard/index.html` |
 
 Only `jacquard-logo.svg` is committed from that column; the rest are intermediates
@@ -40,12 +40,24 @@ pixel on an iPad. It was two pixels to the cell while the mark stood at one unit
 to the cell, which was the same argument at the size the mark used to be.
 
 **The app icon** is the wordmark's J alone, centred on a canvas of twenty-six cells.
-Both current systems cut an icon into a rounded shape of their own, and the J is
+Both of Apple's systems cut an icon into a rounded shape of their own, and the J is
 given air to be cut into: at a canvas of one em it came within three cells of the
 curve and read as crowded. It is a full bleed opaque square, which is what macOS 26
 wants — the traditional inset-and-rounded Mac artwork is scaled up to fill the
-shape, so it comes out larger than it was drawn. One file serves both systems, and
-in Unity it is set as the **Default Icon** only.
+shape, so it comes out larger than it was drawn. One file serves both of those, and
+in Unity it is set as the **Default Icon**.
+
+Android takes a second file rather than a second drawing. Its adaptive icon is a
+layer of 108dp of which only the middle 72 is guaranteed — the ring around that is
+what a launcher may slide for parallax or shave off with a mask of its own — so the
+same J is cut again on a canvas half again as wide, thirty-nine cells, and comes
+out of the mask the size the other systems cut it to. Unity 6.6 offers no other
+icon kind for the platform: the Default Icon is not among them, which is why the
+device showed Unity's own mark until this was set. The file goes into **both** the
+adaptive background and the adaptive foreground. The foreground is opaque and full
+bleed, so it is the whole icon and the background is only what a launcher slides
+into view when it animates; giving both the same file makes that the black the
+mark already stands on.
 
 **The favicon** is the same J on a canvas of sixteen, where nothing frames it and
 air is the first thing that cannot be afforded at sixteen pixels. It is served as

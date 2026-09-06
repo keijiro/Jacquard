@@ -1,10 +1,12 @@
 """Write the Jacquard app icon: the wordmark's J, centred, white on black.
 
 A flat square RGB PNG with no platform frame, mask, rounding or alpha.  macOS 26
-and iOS 26 both mask a full bleed square into their own shape, so this one file
-serves both; the traditional inset-and-rounded Mac artwork is scaled up by those
-systems and is worse.  The cells are scaled by a whole number of pixels so every
-dot stays square, and the leftover pixels become black margin, split evenly.
+and iOS 26 both mask a full bleed square into their own shape, so one file serves
+both; the traditional inset-and-rounded Mac artwork is scaled up by those systems
+and is worse.  Android masks a full bleed square too and then keeps only the
+middle of it, which is a second file and not a second drawing -- the same J on a
+wider canvas.  The cells are scaled by a whole number of pixels so every dot stays
+square, and the leftover pixels become black margin, split evenly.
 """
 import os
 from jacquard_grid import crop, grid, j_only
@@ -23,11 +25,21 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # Centred on its ink the mark reads as sitting high -- it is a cap with a
 # descender hung under it -- so the odd cell is spent underneath.
 #
+# Android's canvas is half again as wide because the layer it goes into is half
+# again as wide as the icon drawn from it: an adaptive icon hands the launcher
+# 108dp and guarantees only the middle 72, the ring around that being what a
+# launcher may slide for parallax or shave off with a mask of its own. Thirty-nine
+# cells is twenty-six through that ratio, so what survives the mask is the icon
+# the other systems cut, and what the ring stands to lose is margin the J is
+# nowhere near. It is an even number of cells clear of the mark, so the bias below
+# has nothing to spend and is written for the row's sake rather than any effect.
+#
 # The favicon keeps the tighter canvas and the older bias. Nothing frames it, it
 # is read at sixteen pixels where air is the first thing that cannot be
 # afforded, and with one cell to give the choice is only which edge the mark
 # touches: the cap at the top rather than the descender off the bottom.
-OUTPUTS = [("icon.png", 1024, 26, True), ("favicon.png", 64, 16, False)]
+OUTPUTS = [("icon.png", 1024, 26, True), ("icon-android.png", 1024, 39, True),
+           ("favicon.png", 64, 16, False)]
 
 j = crop(j_only(grid))
 jh, jw = len(j), len(j[0])
