@@ -2,32 +2,32 @@ jacquard 20
 tempo 128
 meter 4 4
 fx rsize=0.61652 rtone=0.32015 rspread=1 dbeats=0.5 dfb=0.6962 dtone=0.43914 dspread=1
-limiter ceiling=-9.99998 attack=0.00165 release=0.03178
+limiter ceiling=-11.04553 attack=0.0015 release=0.03
 mutes muted=00000000 soloed=00000000
 scale notes=111111111111
-patch 1 transpose=0 level=0 pan=0 uni=0 gate=1.5 mratio=2.575 index=4.96931 fb=0 md=0.05332 ca=0.001 cr=0.13568 ps=2.23595 pd=0.35 rsend=0 dsend=0
-patch 2 transpose=0 level=-6.08967 pan=0 uni=0 gate=0.05 mratio=3.50347 index=6.0802 fb=6.66535 md=0.66667 ca=0.001 cr=0.07975 ps=0 pd=0.05 rsend=0.075 dsend=0
-patch 3 transpose=0 level=-4.19912 pan=0 uni=0.17813 gate=0.9983 mratio=1.498 index=2.325 fb=0.35775 md=0.38024 ca=0.001 cr=0.0192 ps=-1.02574 pd=0.08378 rsend=0 dsend=0
-patch 4 transpose=0 level=-10.53669 pan=0 uni=0 gate=1.1975 mratio=1 index=3.04158 fb=6.25149 md=0.17142 ca=0.001 cr=0.11833 ps=4 pd=0.29338 rsend=0.24233 dsend=0
-patch 5 transpose=0 level=-13.9794 pan=0 uni=0.29688 gate=0.37875 mratio=4.09728 index=2.4 fb=0 md=0.26608 ca=0.001 cr=1.15269 ps=4 pd=0.05 rsend=0.17426 dsend=0.3
-patch 6 transpose=0 level=-17.07744 pan=0 uni=1 gate=1.2 mratio=7.55495 index=4.38713 fb=2.7 md=0.94827 ca=0.001 cr=4 ps=0 pd=0.05 rsend=1 dsend=1
+patch 1 transpose=0 level=-16 pan=0 uni=0.5 gate=1 mratio=7.58419 index=2 fb=2.9 md=0.95938 ca=0.001 cr=2 ps=0 pd=0.05 rsend=1 dsend=0
+patch 2 transpose=0 level=0 pan=0 uni=0 gate=1.5 mratio=2.575 index=4.96931 fb=0 md=0.05332 ca=0.001 cr=0.13568 ps=2.23595 pd=0.35 rsend=0 dsend=0
+patch 3 transpose=0 level=-10.53669 pan=0 uni=0 gate=1.1975 mratio=1 index=3.04158 fb=6.25149 md=0.17142 ca=0.001 cr=0.11833 ps=4 pd=0.29338 rsend=0.24233 dsend=0
+patch 4 transpose=0 level=-6.08967 pan=0 uni=0 gate=0.05 mratio=3.50347 index=6.0802 fb=6.66535 md=0.66667 ca=0.001 cr=0.07975 ps=0 pd=0.05 rsend=0.05 dsend=0
+patch 5 transpose=0 level=-4.19912 pan=0 uni=0.17813 gate=0.9983 mratio=1.498 index=2.325 fb=0.35775 md=0.38024 ca=0.001 cr=0.0192 ps=-1.02574 pd=0.08378 rsend=0 dsend=0
+patch 6 transpose=0 level=-13.9794 pan=0 uni=0.29688 gate=0.37875 mratio=4.09728 index=2.4 fb=0 md=0.26608 ca=0.001 cr=1.15269 ps=4 pd=0.05 rsend=0.17426 dsend=0.3
 patch 7 transpose=0 level=-10.45757 pan=0 uni=0 gate=1.1975 mratio=2.575 index=1.8 fb=0 md=0.37772 ca=0.02595 cr=0.36 ps=0 pd=0.05 rsend=0 dsend=0
 patch 8 transpose=0 level=-10.45757 pan=0 uni=0 gate=1.1975 mratio=2.575 index=1.8 fb=0 md=0.37772 ca=0.02595 cr=0.36 ps=0 pd=0.05 rsend=0 dsend=0
-lane 11 8 CHAN:1 div=16 on=1
+lane 11 12 CHAN:2 div=16 on=1
   step C2
   step
   step GPRB:28 PREL:level,-4.63997 C2
   step GPRB:22 PREL:level,-9.06964 C2
-lane 11 12 CHAN:2 div=16 on=1
+lane 11 16 CHAN:4 div=16 on=1
   step PREL:level,-11.92087 G#6
   step
   step G#6
   step PREL:level,-25.05448 A6
-lane 11 15 CHAN:3 div=16 on=1
+lane 11 19 CHAN:5 div=16 on=1
   step E2
   step
   step GPRB:50 E3
-lane 18 8 CHAN:4 div=16 on=1
+lane 18 12 CHAN:3 div=16 on=1
   step
   step GPRB:36 PREL:level,-2.5739,moddecay,0.01777 E3
   step
@@ -36,7 +36,7 @@ lane 18 8 CHAN:4 div=16 on=1
   step
   step
   step
-lane 18 15 CHAN:5 div=16 on=1
+lane 18 19 CHAN:6 div=16 on=1
   step A3 GPRB:50 G4
   step C4
   step D4
@@ -45,24 +45,12 @@ lane 18 15 CHAN:5 div=16 on=1
   step B4
   step GPRB:50 PABS:dsend,1 A5
   step GPRB:50 D3
-lane 11 19 CHAN:6 div=16 on=1
-  step GCYC:8,10000000 A5
+lane 11 8 CHAN:1 div=4 on=1
+  step GCYC:8,10000000 A5/0.25
+  step GCYC:8,00000001 PABS:level,-19,unison,1,carattack,1.6,carrelease,0.6 E7/3
   step
   step
-  step
-  step
-  step
-  step
-  step GCYC:8,00000001 PABS:level,-20,carattack,0.62127,carrelease,0.66242 E7/8
-  step
-  step
-  step
-  step
-  step
-  step
-  step
-  step
-lane 22 11 JDST from=21,9
+lane 22 15 JDST from=21,13
   step
   step PREL:level,-5.92702 E3
   step PREL:level,-3.01273 E3

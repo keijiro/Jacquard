@@ -13,20 +13,8 @@ patch 5 transpose=0 level=-1.9382 pan=0 uni=0.19688 gate=0.11463 mratio=0.68563 
 patch 6 transpose=0 level=-1.9382 pan=0 uni=0 gate=1 mratio=2 index=3 fb=0 md=0.2 ca=0.005 cr=0.12 ps=0 pd=0.05 rsend=0 dsend=0
 patch 7 transpose=0 level=-1.9382 pan=0 uni=0 gate=1 mratio=2 index=3 fb=0 md=0.2 ca=0.005 cr=0.12 ps=0 pd=0.05 rsend=0 dsend=0
 patch 8 transpose=0 level=-1.9382 pan=0 uni=0 gate=1 mratio=2 index=3 fb=0 md=0.2 ca=0.005 cr=0.12 ps=0 pd=0.05 rsend=0 dsend=0
-lane 11 8 CHAN:1 div=16 on=1
+lane 11 8 CHAN:1 div=4 on=1
   step GCYC:8,10000000 G#8
-  step
-  step
-  step
-  step
-  step
-  step
-  step
-  step
-  step
-  step
-  step
-  step
   step
   step
   step
