@@ -20,7 +20,7 @@ namespace Jacquard.Editor {
 // good. The same trap the two desktop architectures are written against in BuildDesktop.
 //
 // Nothing else here is set, and that is deliberate: the backend, the architecture and the
-// stripping are already Android's own entries in ProjectSettings — IL2CPP, ARM64, Low —
+// stripping are already Android's own entries in ProjectSettings — IL2CPP, ARM64, High —
 // so unlike the desktop pair there is no group two targets have to share and nothing to
 // put back afterwards. ARM64 alone also covers the emulator on an Apple silicon Mac,
 // which reports `arm64-v8a` like the phones do.
