@@ -109,7 +109,8 @@ sealed class JacquardUI
         // set about the thing at all, which is the panel beside it here — the two are
         // the same kind of thing to look at, and being in the same place says so.
         _global = new GlobalPanel(_editor);
-        _system = new SystemPanel(_app.Store, SetVisualizer, SetStageMode, Refocus);
+        _system = new SystemPanel(_app.Store, _app.Export, _app.Import,
+                                  SetVisualizer, SetStageMode, Refocus);
         _centre = PanelCentre(_global.Root, _system.Root);
         body.Add(_centre);
         ShowGlobal(false);

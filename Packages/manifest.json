@@ -7,6 +7,7 @@
     "com.unity.render-pipelines.universal": "17.6.0",
     "jp.keijiro.klutter-tools": "2.6.0",
     "com.unity.modules.adaptiveperformance": "1.0.0",
+    "com.unity.modules.androidjni": "1.0.0",
     "com.unity.modules.audio": "1.0.0",
     "com.unity.modules.uielements": "1.0.0",
     "com.unity.modules.vectorgraphics": "1.0.0"

@@ -128,6 +128,11 @@ From there scores can be copied, renamed, backed up, or moved between devices.
 A file dropped into the folder simply appears in the score list, since the list
 is that folder read out rather than anything the app remembers.
 
+Android hides an app's own directory from every file manager on the phone, so
+there is no folder to hand over there; the System panel carries **Export** and
+**Import** instead, which move one score at a time through the system's file
+picker.
+
 ## Make It Your Own
 
 Jacquard was developed entirely with Unity and Claude Code, and everything

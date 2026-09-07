@@ -36,7 +36,7 @@ How it is built
 | [impl-score-plane.md] | What a lane owns, what a drag means, how the plane grows |
 | [impl-panels.md] | The rules every panel obeys, and what raises each one |
 | [impl-style.md] | The one ramp, the two profiles, and sizing by the inch |
-| [impl-files.md] | The two standing obligations on the reader, and the score folder |
+| [impl-files.md] | The two standing obligations on the reader, the score folder, and the one platform it cannot be handed to |
 | [impl-visualizer.md] | What nothing else may depend on |
 | [impl-web.md] | What the browser does differently |
 | [Branding/README.md] | The marks, and how they are cut from the type |

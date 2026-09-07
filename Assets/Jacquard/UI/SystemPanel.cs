@@ -65,6 +65,13 @@ namespace Jacquard.App {
 // the only button left. JacquardUI.BuildTransportRow argues where it went, and
 // JacquardUI.GuideUrl carries what used to be written here about the page it opens.
 //
+// Under that, on Android and nowhere else, stand the two that do the same errand where
+// that button cannot be built at all: Export and Import, one score out to a place the
+// user picks and one score back in over the top of what is on the plane. They are here
+// for the same reason the folder button is — where a score can be got at is a fact about
+// this machine — and they are what a platform that hides the app's own directory from
+// every file manager on it leaves to work with. ScoreTransfer carries that argument.
+//
 // It comes up in the middle of the screen, the way Global does and for the same reason:
 // nothing here is read against the plane, so there is no edge it wants to be near, and
 // the middle is what says a panel is not part of the arrangement around the score.
@@ -80,13 +87,22 @@ sealed class SystemPanel
     // used. refocus is the keyboard going back to the plane, which every panel with a
     // button on it has to give back.
     //
+    // export and import are two bare Actions, the same shape as refocus, and that is the
+    // whole of what this panel knows about them: not what a score is, nor what the format
+    // is, nor that there is a document picker or an Android at the other end. Handing over
+    // a Func<Project> and an Action<Project> instead would make this panel name the
+    // project, which is the one thing it is about not being about; handing over the app
+    // itself would invert that further. See ScoreTransfer for what they reach.
+    //
     // store is only read for where it keeps its files, and only on the platforms that
     // can show a folder; it is taken whatever the platform, since a constructor that
     // changes shape with the build target is a call site that has to know about
-    // platforms too.
-    public SystemPanel(ProjectStore store, Action<bool> apply, Action<bool> stage,
-                       Action refocus)
+    // platforms too. Which is the same rule the two above are taken under: they are
+    // arguments on every platform and the row that presses them is not.
+    public SystemPanel(ProjectStore store, Action export, Action import,
+                       Action<bool> apply, Action<bool> stage, Action refocus)
     {
+        (_export, _import) = (export, import);
         (_apply, _stage, _refocus) = (apply, stage, refocus);
 
         Root = Controls.Panel("System");
@@ -220,6 +236,43 @@ sealed class SystemPanel
         Root.Add(foot);
 #endif
 
+        // The same place and the same job on the one platform that cannot have the row
+        // above: a score out of the app and a score back into it, one file at a time,
+        // through the picker the system shows. Why Android gets these instead of a
+        // folder anybody can open is ScoreTransfer's argument and not this panel's.
+        //
+        // Gated at runtime rather than by an #if, exactly as the buffer rows two above
+        // are gated on DspBuffer.Supported. What that buys is a constructor whose shape
+        // does not change with the build target, which is the rule the paragraph over it
+        // states — and the condition is a compile time constant inside that property
+        // anyway, so nothing is paid for asking it here.
+        //
+        // Export before Import, the order Save and Load already stand in on the
+        // transport row: the thing that is done to what is in hand comes before the
+        // thing that replaces it.
+        //
+        // Sixty-two, which is the width the six-letter System button is drawn at — Save
+        // and Load are 46 at four letters. Both buttons fit the panel with room to spare
+        // in either control profile, so neither takes OnboardingPanel's marginRight of
+        // zero: that exists for a foot that fills its row, and this one does not.
+        if (ScoreTransfer.Supported)
+        {
+            // No caption over them and no dimming of Import while the lock is on, and
+            // both were weighed. A caption here would be the restart note's shape used
+            // for something it does not fit: that line is up only while two numbers
+            // disagree, and there is no state on this pair for a line to be true of.
+            // Dimming is what the transport row's Load does, and it can afford to
+            // because FollowTheLock already runs over that row every frame; reaching a
+            // button on this panel would mean giving the panel a per-frame hook of its
+            // own, for a window the trip to the picker closes anyway — the app goes to
+            // the background on the way out, which stops the sequence and gives the
+            // lock back before a score can arrive.
+            var transfer = Controls.Foot();
+            transfer.Add(Controls.Push("Export", () => { _export(); _refocus(); }, 62));
+            transfer.Add(Controls.Push("Import", () => { _import(); _refocus(); }, 62));
+            Root.Add(transfer);
+        }
+
         // The one line on this panel that is not a setting, and the only thing on the
         // screen that says which copy of the app is running. Nothing dresses it as a
         // control, because there is nothing to do to it: no caption column, no readout
@@ -273,6 +326,8 @@ sealed class SystemPanel
 
     // Private members
 
+    readonly Action _export;
+    readonly Action _import;
     readonly Action<bool> _apply;
     readonly Action<bool> _stage;
     readonly Action _refocus;

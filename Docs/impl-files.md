@@ -87,3 +87,33 @@ folder before it is used, and the folder is read again whenever the app comes ba
 front — because *away* is exactly where a file manager does its work, and both the System
 panel and iOS file sharing hand somebody that folder on purpose. See `ProjectStore` and
 `IosFileSharing`.
+
+One platform where the folder cannot be handed over
+---------------------------------------------------
+
+**Android is the exception, and it is not a choice.** Since API 30 the app's own directory
+under `Android/data` — which is what `Application.persistentDataPath` resolves to — is
+hidden from the Files app, from the document picker and from MTP, and hidden even from a
+file manager holding `MANAGE_EXTERNAL_STORAGE`. There is no folder to show and none to
+drop a file into. The two roads back were weighed and refused: a SAF tree grant takes
+every file access out of `System.IO` and into `ContentResolver` and hangs the whole store
+off a permission the user can revoke, and `MANAGE_EXTERNAL_STORAGE` is restricted by Play
+policy to file managers and backup tools.
+
+**What stands in its place is one file at a time.** Export writes the score in memory to
+wherever the picker is pointed; Import reads one back over the top of it. `ScoreTransfer`
+is the seam and argues its own shape, and the `.androidlib` under `Assets/Plugins/Android`
+is the other half of it.
+
+**An imported score is an unsaved score.** It goes in through the same seam a load goes
+in through — `JacquardApp.BringIn`, the turn of the piece, the same lock — and nothing
+about it reaches the score folder. `Save` is what decides which slot it ends up in, the
+same as for a score just written, and until then `Load` takes the file on disk back
+unchanged. So the rule above still holds where it is hardest to hold: the folder is
+authoritative, and on Android it is authoritative over a folder nothing outside the app
+can put a file into.
+
+**Either button stops the sequence**, because launching the picker backgrounds the app
+and that is `Sequencer.Stop` by way of `JacquardApp.GoQuietForTheBackground`. `Stop` ends
+in `SettleIfIdle`, so a pending switch lands and the editing lock is given back on the way
+out — which means an imported score always arrives at a stopped sequencer and never waits.

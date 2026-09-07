@@ -86,6 +86,7 @@ project**; it is remembered for the machine it was set on.
 | Buffer size | Reach for this if the sound bangs or drops out: how long a buffer the audio thread has to fill, from 256 frames — 5.3ms at 48kHz — up to 1024. It ships at 512, two stops up from the bottom, because the shortest buffer is one the audio thread has been caught not holding; the bottom stop is still there for a machine that holds it and wants the response back. A longer buffer survives a busy moment and costs that much delay between a Live FX button and what comes out. **On an iPhone or an iPad it ships at 1024, the top of the bar**, and that one is not about speed: a buffer shorter than the system's own breaks the audio track of the screen recorder, so a stop chosen below it here is one to come back up from before recording the screen. **Taken up at the next launch**, which the panel says while the two disagree |
 | Stage Mode | Starts **off**, and is last on the panel, under the settings rather than among them. For playing the app to a room rather than working in it: **Save goes from the row, the `?` goes with the rule in front of it, and a double click on a bar no longer opens a field to type in** — that last one is a text box that takes the keyboard, and while it has it the keys the plane answers to are going into a number. Nothing the piece is played with is touched: the transport, the tempo, the Live FX buttons, the plane and every bar as a bar all work as they always do, **a double click on a bar's name still takes the number back**, and Load stays, since reaching the next piece is part of playing a set. It is remembered for the machine, so an app put away mid-set and killed off screen comes back still in it — what says so is the gap where Save was |
 | Open score folder | Desktop only — shows the directory the scores are written to |
+| Export / Import | **Android only**, where the score folder cannot be reached from outside the app at all. Export writes what is on the plane to a file wherever the picker is pointed; Import reads one back **over the top of what is on the plane**. An imported score is an unsaved score — the score folder is not touched and the chooser still reads whatever it read before, so Load brings that one back. Either button sends the app to the background to show the picker, which stops the sequence |
 | Version | Which build of the app this is, at the foot of the panel. Nothing to set — it is there for saying which copy something happened on |
 
 **On a phone or a tablet, leaving the app stops the sequence.** Nothing about a run
@@ -134,6 +135,14 @@ into it appears in the score list, since that list is the folder read out rather
 anything the app remembers. In a Web build the path is the browser's own storage, so a
 save keeps across a reload but not across clearing the site's data — and there is nothing
 to open, so the button is not there.
+
+**On Android the folder cannot be reached at all**, by any file manager on the phone —
+that is the platform's own rule about an app's own directory and not a choice made here.
+What stands in for it is the **Export** and **Import** pair on the System panel: one score
+out to wherever the picker is pointed, one score back in over the top of what is on the
+plane. An imported score is an unsaved score, so the score folder and the chooser are
+untouched and Load takes the file back. Both buttons show the system picker, which means
+leaving the app for a moment — and so **either of them stops the sequence**.
 
 **Loading while the sequence is running does not stop it.** The score waits for the turn
 of the piece and the music carries straight on into it. While it waits, the plane and the

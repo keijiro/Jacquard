@@ -206,8 +206,14 @@ public sealed class JacquardApp : MonoBehaviour
         var project = Store.Load(out var message);
         Message = message;
 
-        if (project == null) return;
+        if (project != null) BringIn(project, message);
+    }
 
+    // A score in hand, onto the plane. Everything from the moment there is a project to
+    // put in, which is the half a load shares with an import: the two differ only in
+    // where the text came from and what there is to say about it.
+    void BringIn(CoreProject project, string message)
+    {
         // Before the request, since a score arriving while the transport is stopped
         // lands inside this call and gives the lock straight back.
         Editor.Locked = true;
@@ -217,6 +223,82 @@ public sealed class JacquardApp : MonoBehaviour
         // The file controls have nowhere to say anything but the console, so a load
         // that has not landed says so rather than reading as one that has.
         if (Sequencer.IsSwitchPending) Message = message + ", in at the turn of the piece";
+    }
+
+    // The two Android has instead of a score folder anybody can reach. What they are
+    // for, and why the folder cannot be handed over there, is ScoreTransfer's own
+    // argument; on every other platform the pair are calls that do nothing and the
+    // panel does not build the row.
+    //
+    // Neither is a file operation as far as this class is concerned. Export writes what
+    // Project holds, which is what the plane is showing — not gated on the lock, for the
+    // same reason Save is not. Import is, for the reason Load is: a score already on its
+    // way in is a request that cannot be taken back, and a second one would be a second
+    // score racing it to the same seam.
+    //
+    // What is worth knowing at the call site is that either of them stops the sequence,
+    // because either of them sends the app to the background. That is not this method's
+    // doing and there is nothing here to undo it — see ScoreTransfer.
+    public void Export()
+      => ScoreTransfer.Export(Store.Name + ProjectFormat.Extension,
+                              ProjectFormat.Write(Project));
+
+    public void Import()
+    {
+        if (Editor.Locked) return;
+
+        ScoreTransfer.Import();
+    }
+
+    // The other end of those two, once a frame while one of them is out.
+    //
+    // Nothing is said about a picker that was backed out of: that is a hand changing its
+    // mind, and an app that reported it would be reporting a decision as an event. What
+    // is said is the name the provider settled on rather than the name that was asked
+    // for, since a picker is free to make a name its own and the file on the phone is
+    // the one with the name it gave.
+    //
+    // An import goes in through BringIn, the same road a load takes, so an imported score
+    // is subject to the same seam and the same lock. It always lands at once in practice,
+    // because the trip to the picker stopped the sequencer on the way out — the tail
+    // BringIn adds is for the load that shares the method and not for this caller.
+    //
+    // A file that will not parse is not worth stopping for, and the sentence for it is
+    // the one ProjectStore.Load already writes for a file off disk that will not read.
+    // The console gets the exception as well, which is the road every other file failure
+    // here takes.
+    void FollowTheTransfer()
+    {
+        switch (ScoreTransfer.Poll(out var name, out var text, out var problem))
+        {
+            case Transfer.Exported: Message = "exported " + name; break;
+            case Transfer.Imported: TakeIn(name, text); break;
+            case Transfer.Failed: Message = problem; break;
+        }
+    }
+
+    // The parse, and then the same two lines a load ends on: what there is to say is
+    // said before the score is handed over, since BringIn is what adds the tail about
+    // the turn of the piece and it can only add it to a sentence that is already there.
+    void TakeIn(string name, string text)
+    {
+        CoreProject project;
+
+        try
+        {
+            project = ProjectFormat.Read(text);
+        }
+        catch (System.Exception error)
+        {
+            Debug.LogException(error);
+            Message = "could not read " + name + ": " + error.Message;
+            return;
+        }
+
+        var message = "imported " + name;
+        Message = message;
+
+        BringIn(project, message);
     }
 
     // The sequencer has changed hands. It did so ahead of the clock, by however much of
@@ -411,6 +493,10 @@ public sealed class JacquardApp : MonoBehaviour
         // First, because this is what moves the audio clock on a driver that has no
         // audio thread of its own, and everything below reads that clock.
         Synth.Pump();
+
+        // Before the switch, since what an import does is ask for one: a score that
+        // arrived this frame is then taken up in the same frame rather than the next.
+        FollowTheTransfer();
 
         // Next, because a score that has taken over is the score the rest of this frame
         // is about: the plane, the panels and the mix all read the project this puts in.

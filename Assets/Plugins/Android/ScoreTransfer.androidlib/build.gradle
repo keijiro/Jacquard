@@ -1,0 +1,48 @@
+// The library module, shipped rather than generated.
+//
+// Unity has a template for a `.androidlib` that ships none — `libTemplate.gradle` in
+// the Android module — and it does fill in a namespace and the three SDK numbers from
+// the project. So this file is not here because the generated one would be broken; it
+// is here because the numbers below are then in the repository where they can be read,
+// and because the Java level is not one the template sets at all.
+//
+// The numbers are pinned on purpose and are the only thing here that can rot. A
+// namespace AGP 8 requires and will not infer, the compile level of the Android module
+// this editor ships, the minimum the player settings already carry, and Java 17, which
+// is the JDK that module ships. A source level error in the Gradle step is what says
+// the last of those has moved.
+//
+// What shipping this file instead of taking the template costs is the `sourceSets`
+// block below, and it is not optional. Unity's convention puts a plugin's manifest at
+// the root of the folder and AGP's default looks for it under `src/main`, so the
+// template's one line is what joins the two — without it AGP finds no manifest, writes
+// an empty one from the namespace, and the activity is silently absent from the merged
+// manifest of a build that otherwise succeeds. The Java compiles either way, since the
+// sources are in AGP's own place and the template leaves `java.srcDirs` alone.
+
+apply plugin: 'com.android.library'
+
+android {
+    namespace 'jp.radiumsoftware.jacquard.scoretransfer'
+
+    sourceSets {
+        main {
+            manifest.srcFile 'AndroidManifest.xml'
+        }
+    }
+
+    compileSdk 36
+
+    defaultConfig {
+        minSdk 26
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError false
+    }
+}

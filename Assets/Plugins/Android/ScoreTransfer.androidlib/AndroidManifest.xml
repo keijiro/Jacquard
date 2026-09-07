@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The one activity this library adds, merged into the player's manifest.
+
+  There is no `package` attribute, which AGP 8 forbids outright, so `android:name`
+  is written out in full rather than as the usual leading dot. The namespace the
+  package would have supplied is in build.gradle instead.
+
+  Translucent and not `Theme.NoDisplay`. NoDisplay is the theme that looks right for
+  an activity with nothing to draw, and it throws: an activity wearing it has to be
+  finished before its first `onResume` returns, and this one has to outlive the
+  picker it launches. Translucent is the theme that lets it be invisible for as long
+  as it needs to be — which is why there is no flash of a blank screen on the way to
+  the picker.
+
+  The configuration changes are the list Unity's own activity declares, taken whole
+  rather than pruned to the ones a screen with nothing on it could care about. What is
+  wanted is not to survive a rotation looking right — there is nothing to look at — it
+  is not to be destroyed and recreated at all while the picker is up, and any change on
+  that list would do it.
+
+  Four things are deliberately absent, and all four look right, so each is worth a
+  line: `launchMode` — anything but the default risks the result being delivered to a
+  different instance than the one that asked; `taskAffinity` — a task of its own would
+  put a second card in Recents and take the picker out of the player's task with it;
+  `excludeFromRecents` and `noHistory` — the second of those finishes the activity the
+  moment it stops, which is exactly what launching a picker does, so the result would
+  arrive at nothing.
+
+  No permissions. A document the user picked comes back as a per-URI grant, which is
+  the whole reason this road exists where the storage permissions no longer lead
+  anywhere.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity
+            android:name="jp.radiumsoftware.jacquard.scoretransfer.ScoreTransferActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|fontScale|layoutDirection|density" />
+    </application>
+</manifest>
