@@ -225,6 +225,15 @@ whether or not the version moved. It is not iOS's build number and does not foll
 this count starts at the first upload Play accepted, which was 1.2.0's, so the two are
 briefly the same size and will not stay that way.
 
+`AndroidTargetSdkVersion` names 36 rather than the Auto it held, and the reason is what Auto
+means — the highest platform the editor finds installed. It resolved to 36 and not to the
+`android-37.0` sitting beside it in the SDK, because Unity 6.6 stops at 36; so Auto was
+giving the right answer for a reason outside this repository, and the first editor or SDK
+that moved would have changed it without saying so. Play takes no upload that targets a
+preview API level, so that would have arrived as a rejection at the end of a release rather
+than as anything a build could show. The number now has to be raised by hand, which Play's
+own August deadline forces every year regardless.
+
 **The upload key**, made once and out of the repository. Everything else under `Tools` and
 `Branding` can be rebuilt from what is committed here; this cannot.
 
