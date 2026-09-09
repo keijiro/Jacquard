@@ -240,6 +240,7 @@ own August deadline forces every year regardless.
 ```sh
 keytool -genkeypair -v -keystore ~/.jacquard/upload.keystore \
         -alias upload -keyalg RSA -keysize 2048 -validity 10950
+chmod 600 ~/.jacquard/upload.keystore
 ```
 
 Thirty years, which clears by a wide margin the October 2033 floor Play sets, so it is not a
@@ -253,12 +254,25 @@ a lost one is reset through Play support instead of ending the app. That is the 
 the iOS arrangement, and worth knowing before the file is treated as irreplaceable.
 
 **The bundle** is three variables and one call. `BuildAndroid.cs` says why the key is read
-from the environment rather than held in ProjectSettings.
+from the environment rather than held in ProjectSettings, and what the environment reads it
+from is the keychain — the same place the notarytool credential is kept, for the same
+reason. A password given on a command line is a password in a shell history, and this file
+is written for whoever is driving, which it says at the top is as likely to be an agent as a
+person: handed one in a conversation, an agent has put it in a transcript. So it goes in
+once, on the machine that holds the keystore, and `-w` with nothing after it prompts rather
+than reading an argument:
+
+```sh
+security add-generic-password -a jacquard -s jacquard-upload -w
+```
+
+Then, per release:
 
 ```sh
 export JACQUARD_UPLOAD_KEYSTORE=~/.jacquard/upload.keystore
 export JACQUARD_UPLOAD_ALIAS=upload
-export JACQUARD_UPLOAD_PASSWORD=<what keytool asked for>
+export JACQUARD_UPLOAD_PASSWORD=$(security find-generic-password \
+                                      -a jacquard -s jacquard-upload -w)
 
 "$UNITY" -batchmode -quit -projectPath . \
          -executeMethod Jacquard.Editor.BuildAndroid.BuildBundle \
