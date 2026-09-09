@@ -15,7 +15,7 @@ without fetching anything.
 Regenerating
 ------------
 
-Needs `fonttools` and nothing else.
+Needs `fonttools` and nothing else, bar the last row.
 
 | Script | Writes | Which then goes to |
 | --- | --- | --- |
@@ -23,9 +23,36 @@ Needs `fonttools` and nothing else.
 | `make_logo_png.py` | `logo-bar.png` | copy to `Assets/Branding/Logo.png` |
 | `make_icon.py` | `icon.png`, `icon-android.png`, `favicon.png` | copy the first two to `Assets/Branding/AppIcon.png` and `AppIconAndroid.png` |
 | `make_favicon_svg.py` | `favicon.svg` | with `favicon.png`, base64 into the two `<link rel="icon">` in `Assets/WebGLTemplates/Jacquard/index.html` |
+| `make_feature_graphic.py` | `feature-graphic.png` | uploaded to Google Play by hand |
 
 Only `jacquard-logo.svg` is committed from that column; the rest are intermediates
-whose used copy lives where the last column says, and they are ignored here.
+whose used copy lives where the last column says, and they are ignored here. The
+feature graphic is the one that is neither -- see below.
+
+The store graphic
+-----------------
+
+Google Play's feature graphic is 1024x500 of the app's own plane with the wordmark
+over it, and it takes two steps rather than one because the background is a
+capture and not a drawing. **Jacquard > Capture Score Plane** writes `plane.png`,
+which is the whole of sample4 at twice the size the interface is laid out at, and
+`make_feature_graphic.py` cuts the graphic out of that. Each of the two argues for
+itself where it lives: `Assets/Editor/PlaneCapture.cs` for why a plate is rendered
+rather than screenshotted, the script for what the crop takes, what the two washes
+over it are for, and why nothing is written on it but the name.
+
+What spans them is `plane.txt`, written beside the plate: the cell pitch and the
+scale it was captured at, so the crop can be written in the plane's own cells and
+neither file holds a second copy of the interface's metrics.
+
+That script wants Pillow as well as fontTools, which no other script here does,
+for the resample the reduction from the plate needs.
+
+Neither `plane.png` nor `feature-graphic.png` is committed. The plate is an
+intermediate like the rest of this folder's output; the graphic is not one, and it
+is still not committed, because the store listing lives in the store -- which is
+the argument the repository's own `.gitignore` makes for `/metadata/` and
+`/screenshots/`.
 
 The marks
 ---------

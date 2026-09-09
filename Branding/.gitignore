@@ -8,3 +8,15 @@ icon-android.png
 logo-bar.png
 favicon.png
 favicon.svg
+
+# The plate Jacquard > Capture Score Plane writes and the graphic cut out of it.
+# The plate is an intermediate like the rest of this list; the graphic is not one,
+# and it is still not committed -- the store listing lives in the store and not
+# here, which is the argument the repository's own .gitignore makes for
+# /metadata/ and /screenshots/.
+plane.png
+plane.txt
+feature-graphic.png
+
+# Left behind by importing jacquard_grid, which every script here does.
+__pycache__/
