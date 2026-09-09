@@ -212,6 +212,78 @@ sits at the end of a list of a dozen consoles, and a glance at the top of it say
 platform is absent and therefore on the default. It is not, and this paragraph exists
 because it was read that way once.
 
+Android, in brief
+-----------------
+
+The version string and `jp.radiumsoftware.jacquard` are shared with the other platforms. In
+Play Console the app is `4973120153919929800`, under developer `7251717009324613806`.
+
+Android carries a `versionCode` as well as a version, and the arrangement is the one iOS
+already has a paragraph for: Play tells two uploads apart by that integer and by nothing
+else, so `AndroidBundleVersionCode` in `ProjectSettings.asset` rises on every upload,
+whether or not the version moved. It is not iOS's build number and does not follow it —
+this count starts at the first upload Play accepted, which was 1.2.0's, so the two are
+briefly the same size and will not stay that way.
+
+**The upload key**, made once and out of the repository. Everything else under `Tools` and
+`Branding` can be rebuilt from what is committed here; this cannot.
+
+```sh
+keytool -genkeypair -v -keystore ~/.jacquard/upload.keystore \
+        -alias upload -keyalg RSA -keysize 2048 -validity 10950
+```
+
+Thirty years, which clears by a wide margin the October 2033 floor Play sets, so it is not a
+date anybody has to come back to. keytool prompts for the password and for the name to put
+on the certificate, and writes PKCS12 — which is why there is one password here and not two.
+`BuildAndroid.cs` argues that where it uses it.
+
+What signs what a device installs is Google's key rather than this one. Play App Signing
+holds that and re-signs every download, so this key authorises an upload and nothing more:
+a lost one is reset through Play support instead of ending the app. That is the opposite of
+the iOS arrangement, and worth knowing before the file is treated as irreplaceable.
+
+**The bundle** is three variables and one call. `BuildAndroid.cs` says why the key is read
+from the environment rather than held in ProjectSettings.
+
+```sh
+export JACQUARD_UPLOAD_KEYSTORE=~/.jacquard/upload.keystore
+export JACQUARD_UPLOAD_ALIAS=upload
+export JACQUARD_UPLOAD_PASSWORD=<what keytool asked for>
+
+"$UNITY" -batchmode -quit -projectPath . \
+         -executeMethod Jacquard.Editor.BuildAndroid.BuildBundle \
+         -logFile Build/logs/Android.log
+```
+
+`$UNITY` is the editor binary `Tools/package.sh` resolves for itself, and an editor open on
+the project will take the lock this needs — package.sh refuses to start in that case and
+says so, and this call has nothing to refuse with, so close the editor first.
+
+`Build/Android/Jacquard.aab` is what comes out, and it is the only thing Play takes.
+*Jacquard > Build Android* still writes the APK, which goes to a device and not to a store.
+Neither is archived and neither joins a GitHub release: the desktop pair are downloaded from
+this repository and Android is downloaded from Play, so the AAB has one destination and
+`Tools/package.sh` does not know it exists.
+
+**The upload is by hand.** There is no `asc` for this side — no CLI here drives Play — so the
+bundle goes up through Play Console, and so does everything the listing is made of. Internal
+testing takes an upload without review and is the cheapest way to learn that the signing and
+the bundle are right; production is a review that can take a week for a first release.
+
+Three of Play's obligations have no App Store equivalent and are the ones that will be
+unfamiliar rather than merely long: the **feature graphic**, 1024x500 and required of every
+listing; the **Data safety** form, which is a declaration in the console and not a file in
+the build, and which this app answers with nothing collected and nothing shared — there is
+no networking code in the project and the APK asks for no `INTERNET` permission; and the
+**content rating** questionnaire, which issues an IARC rating rather than accepting one.
+
+The listing is the store's and not this repository's, which is the argument `.gitignore`
+already makes for `/metadata/` and `/screenshots/`. Play holds a second copy of the same
+copy that is in `/metadata/`, written to its own limits — a short description of eighty
+characters that has no App Store counterpart, and screenshots Play wants between 16:9 and
+9:16 where the iOS captures are wider than either.
+
 The size of the Android app
 ---------------------------
 
