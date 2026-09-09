@@ -225,10 +225,10 @@ public sealed class JacquardApp : MonoBehaviour
         if (Sequencer.IsSwitchPending) Message = message + ", in at the turn of the piece";
     }
 
-    // The two Android has instead of a score folder anybody can reach. What they are
-    // for, and why the folder cannot be handed over there, is ScoreTransfer's own
-    // argument; on every other platform the pair are calls that do nothing and the
-    // panel does not build the row.
+    // The two that Android and the Web have instead of a score folder anybody can
+    // reach. What they are for, and why the folder cannot be handed over on either, is
+    // ScoreTransfer's own argument; on every other platform the pair are calls that do
+    // nothing and the panel does not build the row.
     //
     // Neither is a file operation as far as this class is concerned. Export writes what
     // Project holds, which is what the plane is showing — not gated on the lock, for the
@@ -236,9 +236,11 @@ public sealed class JacquardApp : MonoBehaviour
     // way in is a request that cannot be taken back, and a second one would be a second
     // score racing it to the same seam.
     //
-    // What is worth knowing at the call site is that either of them stops the sequence,
-    // because either of them sends the app to the background. That is not this method's
-    // doing and there is nothing here to undo it — see ScoreTransfer.
+    // What is worth knowing at the call site is that a press does not always stop the
+    // sequence. On Android, and in a browser on a phone, showing the picker sends the
+    // app to the background and that is Sequencer.Stop; a desktop browser's file dialog
+    // leaves the page running and stops nothing. Neither is this method's doing and
+    // there is nothing here to undo either — see ScoreTransfer.
     public void Export()
       => ScoreTransfer.Export(Store.Name + ProjectFormat.Extension,
                               ProjectFormat.Write(Project));
@@ -259,9 +261,10 @@ public sealed class JacquardApp : MonoBehaviour
     // the one with the name it gave.
     //
     // An import goes in through BringIn, the same road a load takes, so an imported score
-    // is subject to the same seam and the same lock. It always lands at once in practice,
-    // because the trip to the picker stopped the sequencer on the way out — the tail
-    // BringIn adds is for the load that shares the method and not for this caller.
+    // is subject to the same seam and the same lock. Where the picker backgrounds the app
+    // it always lands at once, because the trip stopped the sequencer on the way out; a
+    // desktop browser stops nothing, so the tail BringIn adds about the turn of the piece
+    // is one this caller can reach too and not only the load that shares the method.
     //
     // A file that will not parse is not worth stopping for, and the sentence for it is
     // the one ProjectStore.Load already writes for a file off disk that will not read.

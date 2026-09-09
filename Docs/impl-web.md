@@ -1,12 +1,14 @@
 Web
 ===
 
-What the browser does differently, in one place. Three of the four things that
+What the browser does differently, in one place. Four of the five things that
 matter here are written up where they belong and only pointed at from this file:
 the synth is pushed from `Update` rather than pulled by the pipeline
 ([impl-audio.md]), the chrome is sized in CSS pixels rather than by the inch
-([impl-style.md]), and a save reaches IndexedDB only because of the flag the
-page below sets ([impl-files.md]).
+([impl-style.md]), a save reaches IndexedDB only because of the flag the
+page below sets ([impl-files.md]), and Export and Import stand in for a score
+folder the browser has nothing to open ([impl-files.md], and the section at the
+foot of this one for the browser's own half of it).
 
 [impl-audio.md]: impl-audio.md
 [impl-style.md]: impl-style.md
@@ -71,4 +73,31 @@ what pays, and what does is the mass of engine managed code that runs every fram
 Toolkit above all. Two things would change the answer: a score large enough for
 scheduling to cost milliseconds, and a panel rebuilt every frame.
 
+Export and Import
+-----------------
+
+**The browser is the second platform with no score folder to hand over, and it gets the
+same pair of buttons Android has.** Why there is nothing to open here is
+[impl-files.md]'s to say, since it is the same argument on both platforms; what is the
+browser's own is in `Assets/Plugins/WebGL/JacquardScoreTransfer.jslib`, whose header
+carries the two readings the design rests on — that an import has to be opened with
+`showPicker()` rather than `click()`, because Unity runs a button's C# handler in a
+`requestAnimationFrame` task and WebKit's user gesture does not survive the hop, and that
+an export needs no gesture at all. `ScoreTransfer` is the seam and holds both platform
+arms.
+
+**It asks nothing of where the build is hosted.** A Blob, an object URL and a file input
+are all it uses, so this works on a page served from anywhere — which is the same thing
+the audio path goes out of its way to keep true, and `JacquardAudioOut.jslib` argues what
+it gave up for it.
+
+**Safari asks for permission before a site's first download, and the page cannot see it.**
+The click returns normally while the download waits behind a modal, so the app reports
+that the file was handed over and nothing more. [manual.md] carries it, because the reader
+is the only one who can see the prompt.
+
+**iOS Safari is untested.** There is no device here, and a phone's download prompt is
+likely to differ from the desktop's.
+
+[manual.md]: manual.md
 [releasing.md]: releasing.md

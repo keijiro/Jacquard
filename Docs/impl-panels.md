@@ -191,7 +191,7 @@ Where the rest is written
 | Why a bar's text field waits for the first edit | `ValueBar.BuildInput` |
 | Exchanging two channels, and why the group for it sits on the Channels panel | `ChannelsPanel`, `Project.SwapChannels` |
 | The DSP buffer setting, why it applies at the next launch, and where it starts on each platform | `DspBuffer`, `SystemPanel` |
-| The two rows that leave the app — the score folder on a desktop, Export and Import on Android | `SystemPanel`, `ScoreTransfer` |
+| The two rows that hand a score over — the score folder on a desktop, Export and Import on Android and the Web | `SystemPanel`, `ScoreTransfer` |
 | Why the guide is a button on the row rather than a row on a panel, and the page it opens | `JacquardUI.BuildTransportRow`, `JacquardUI.GuideUrl` |
 | What Stage Mode is for, and why it is remembered across a launch | `StageMode` |
 | What it takes off the transport row, and the pages it puts down with them | `JacquardUI.SetStageMode` |

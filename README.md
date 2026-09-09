@@ -128,10 +128,11 @@ From there scores can be copied, renamed, backed up, or moved between devices.
 A file dropped into the folder simply appears in the score list, since the list
 is that folder read out rather than anything the app remembers.
 
-Android hides an app's own directory from every file manager on the phone, so
-there is no folder to hand over there; the System panel carries **Export** and
-**Import** instead, which move one score at a time through the system's file
-picker.
+Android hides an app's own directory from every file manager on the phone, and in
+a browser the folder is storage the page keeps rather than a place on the machine,
+so there is no folder to hand over on either; the System panel carries **Export**
+and **Import** instead, which move one score at a time through the file picker the
+platform does show.
 
 ## Make It Your Own
 

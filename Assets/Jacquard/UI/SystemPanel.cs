@@ -65,12 +65,14 @@ namespace Jacquard.App {
 // the only button left. JacquardUI.BuildTransportRow argues where it went, and
 // JacquardUI.GuideUrl carries what used to be written here about the page it opens.
 //
-// Under that, on Android and nowhere else, stand the two that do the same errand where
-// that button cannot be built at all: Export and Import, one score out to a place the
-// user picks and one score back in over the top of what is on the plane. They are here
-// for the same reason the folder button is — where a score can be got at is a fact about
-// this machine — and they are what a platform that hides the app's own directory from
-// every file manager on it leaves to work with. ScoreTransfer carries that argument.
+// Under that, on Android and in the browser, stand the two that do the same errand
+// where that button cannot be built at all: Export and Import, one score out to a place
+// the user picks and one score back in over the top of what is on the plane. They are
+// here for the same reason the folder button is — where a score can be got at is a fact
+// about this machine — and they are what is left to work with on a platform whose score
+// folder cannot be handed to anybody: a phone that hides the app's own directory from
+// every file manager on it, a page whose folder is a database in the browser.
+// ScoreTransfer carries that argument.
 //
 // It comes up in the middle of the screen, the way Global does and for the same reason:
 // nothing here is read against the plane, so there is no edge it wants to be near, and
@@ -236,10 +238,11 @@ sealed class SystemPanel
         Root.Add(foot);
 #endif
 
-        // The same place and the same job on the one platform that cannot have the row
+        // The same place and the same job on the two platforms that cannot have the row
         // above: a score out of the app and a score back into it, one file at a time,
-        // through the picker the system shows. Why Android gets these instead of a
-        // folder anybody can open is ScoreTransfer's argument and not this panel's.
+        // through the picker the platform shows. Why Android and the Web get these
+        // instead of a folder anybody can open is ScoreTransfer's argument and not this
+        // panel's.
         //
         // Gated at runtime rather than by an #if, exactly as the buffer rows two above
         // are gated on DspBuffer.Supported. What that buys is a constructor whose shape
@@ -264,9 +267,11 @@ sealed class SystemPanel
             // Dimming is what the transport row's Load does, and it can afford to
             // because FollowTheLock already runs over that row every frame; reaching a
             // button on this panel would mean giving the panel a per-frame hook of its
-            // own, for a window the trip to the picker closes anyway — the app goes to
-            // the background on the way out, which stops the sequence and gives the
-            // lock back before a score can arrive.
+            // own — and what it would buy is saying in advance what a press already
+            // comes to anyway. Import is gated on the lock where it is called, so a
+            // press inside that window is dropped there and no score arrives. In a
+            // desktop browser the window is a real one, since the picker leaves the
+            // sequence running, and the control is still harmless in it.
             var transfer = Controls.Foot();
             transfer.Add(Controls.Push("Export", () => { _export(); _refocus(); }, 62));
             transfer.Add(Controls.Push("Import", () => { _import(); _refocus(); }, 62));

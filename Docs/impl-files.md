@@ -88,10 +88,14 @@ front — because *away* is exactly where a file manager does its work, and both
 panel and iOS file sharing hand somebody that folder on purpose. See `ProjectStore` and
 `IosFileSharing`.
 
-One platform where the folder cannot be handed over
----------------------------------------------------
+Two platforms where the folder cannot be handed over
+----------------------------------------------------
 
-**Android is the exception, and it is not a choice.** Since API 30 the app's own directory
+**Android and the Web are the exceptions, and neither is a choice.** They arrive at the
+same place from different directions, which is why each reason is worth stating as its
+own.
+
+**On Android the folder is hidden by the platform.** Since API 30 the app's own directory
 under `Android/data` — which is what `Application.persistentDataPath` resolves to — is
 hidden from the Files app, from the document picker and from MTP, and hidden even from a
 file manager holding `MANAGE_EXTERNAL_STORAGE`. There is no folder to show and none to
@@ -100,20 +104,37 @@ every file access out of `System.IO` and into `ContentResolver` and hangs the wh
 off a permission the user can revoke, and `MANAGE_EXTERNAL_STORAGE` is restricted by Play
 policy to file managers and backup tools.
 
-**What stands in its place is one file at a time.** Export writes the score in memory to
-wherever the picker is pointed; Import reads one back over the top of it. `ScoreTransfer`
-is the seam and argues its own shape, and the `.androidlib` under `Assets/Plugins/Android`
-is the other half of it.
+**In the browser the folder is not a place at all.** `persistentDataPath` there is a mount
+on IndexedDB — the runtime's own filesystem, reaching the browser's storage only through
+the flag [impl-web.md] argues for. It is a real path to the runtime and to nothing else on
+the machine: there is no folder for anybody to open, no file anybody can put into it, and
+clearing the site takes the lot.
+
+**What stands in its place, on both, is one file at a time.** Export writes the score in
+memory to wherever the picker is pointed; Import reads one back over the top of it.
+`ScoreTransfer` is the seam and argues its own shape; the other halves are the
+`.androidlib` under `Assets/Plugins/Android` and `JacquardScoreTransfer.jslib` under
+`Assets/Plugins/WebGL`, and each of those argues what its own platform makes of a picker.
 
 **An imported score is an unsaved score.** It goes in through the same seam a load goes
 in through — `JacquardApp.BringIn`, the turn of the piece, the same lock — and nothing
 about it reaches the score folder. `Save` is what decides which slot it ends up in, the
 same as for a score just written, and until then `Load` takes the file on disk back
 unchanged. So the rule above still holds where it is hardest to hold: the folder is
-authoritative, and on Android it is authoritative over a folder nothing outside the app
-can put a file into.
+authoritative, and on both of these it is authoritative over a folder nothing outside the
+app can put a file into.
 
-**Either button stops the sequence**, because launching the picker backgrounds the app
-and that is `Sequencer.Stop` by way of `JacquardApp.GoQuietForTheBackground`. `Stop` ends
-in `SettleIfIdle`, so a pending switch lands and the editing lock is given back on the way
-out — which means an imported score always arrives at a stopped sequencer and never waits.
+**Whether the press stops the sequence is where the two part.** On Android either button
+backgrounds the app, and that is `Sequencer.Stop` by way of
+`JacquardApp.GoQuietForTheBackground`. `Stop` ends in `SettleIfIdle`, so a pending switch
+lands and the editing lock is given back on the way out — which means an imported score
+always arrives at a stopped sequencer and never waits. A browser on a phone may hide the
+page for its picker and the same account holds there. A desktop browser's file dialog
+hides nothing: nothing pauses, `Stop` is never reached and the lock is still on, so **the
+Web is the one platform where an imported score can wait for the turn of the piece** the
+way a load does. Nothing is needed to make that safe. `Sequencer.SwitchTo` overwrites the
+one pending score, so a file arriving late can only take the place of a switch that had
+not landed yet — which is what `Load`, gated at press time in exactly the same way,
+already stands on.
+
+[impl-web.md]: impl-web.md
