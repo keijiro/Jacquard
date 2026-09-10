@@ -15,9 +15,9 @@ namespace Jacquard.Editor {
 // is the case that argument does not cover. What it needs is not a crop of the screen
 // but a plate larger than any screen this app runs on -- the whole plane at twice the
 // size the interface is laid out at, so a store's own artwork can be cut out of it and
-// come out sharp at whatever size that store asks for. There is no window that size to
-// screenshot, so the panel is pointed at a render texture instead and the plate is read
-// back off it.
+// come out sharp at whatever size that store asks for. There is no window that size, which
+// is what PanelPlate is for; this file is what the interface is made to look like before
+// the shutter.
 //
 // The same bargain the figures make is kept: what is captured is this app drawing its
 // own score, so a plate cannot drift from the interface the way a drawing of it would.
@@ -140,55 +140,15 @@ static class PlaneCapture
         var width = Mathf.CeilToInt(view.layout.width) * Scale;
         var height = Mathf.CeilToInt(view.layout.height) * Scale;
 
-        var target = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32,
-                                       RenderTextureReadWrite.sRGB);
+        // The clear PanelPlate paints is insurance here and nothing more: the plane covers
+        // the whole of a panel cut to its own size, so no pixel of this should survive to
+        // the plate. Which is why it has to be the same grey as the plane's ground — the
+        // one time it showed was a plate cut a fraction too large, and insurance that is a
+        // different colour from the thing it stands in for is a seam rather than a rescue.
+        Texture2D plate = null;
 
-        // Written over the asset and put back below rather than applied to a copy of it.
-        // Handing the document a different PanelSettings takes its tree off one panel and
-        // puts it on another, and what is being captured is a tree the app built by hand
-        // and holds references into; the asset is restored to the values it came with, so
-        // what is left behind is a file marked dirty and identical.
-        var scaleMode = settings.scaleMode;
-        var scale = settings.scale;
-        var texture = settings.targetTexture;
-        var clearing = settings.clearColor;
-        var clearValue = settings.colorClearValue;
-
-        // Constant pixel size for the length of the capture, because a plate is measured
-        // in cells and not in inches: the panel is at constant physical size on a screen,
-        // which is the right answer for a control under a fingertip and no answer at all
-        // for a texture nobody is holding.
-        settings.scaleMode = PanelScaleMode.ConstantPixelSize;
-        settings.scale = Scale;
-        settings.targetTexture = target;
-
-        // The plane covers the whole of a panel this size, so the clear is not what the
-        // ground is painted with -- it is there because a render texture starts out
-        // holding whatever the driver left in it, and a plate with one uncovered pixel of
-        // that is a plate with one pixel of somebody else's frame in it.
-        //
-        // Handed the linear value rather than the colour: a clear is written straight to
-        // an sRGB target and takes none of the conversion the interface's own colours
-        // take, so the colour itself comes out three times too light. Which only ever
-        // showed on a plate cut too large, and that is the point -- the insurance has to
-        // be the same grey as the thing it is standing in for.
-        settings.clearColor = true;
-        settings.colorClearValue = Background.linear;
-
-        // Two frames: one for the panel to take the texture and lay itself out against
-        // it, and one to draw. Then the end of that frame, since a runtime panel is
-        // repainted after everything this coroutine is resumed by.
-        yield return null;
-        yield return null;
-        yield return new WaitForEndOfFrame();
-
-        var plate = new Texture2D(width, height, TextureFormat.RGBA32, false);
-        var active = RenderTexture.active;
-
-        RenderTexture.active = target;
-        plate.ReadPixels(new Rect(0, 0, width, height), 0, 0);
-        plate.Apply();
-        RenderTexture.active = active;
+        yield return PanelPlate.Take(settings, width, height, Scale, Background,
+                                     taken => plate = taken);
 
         File.WriteAllBytes(PlatePath, plate.EncodeToPNG());
 
@@ -202,19 +162,11 @@ static class PlaneCapture
                           + $"columns {Mathf.RoundToInt((view.layout.width - Padding * 2 + StrideX - CellWidth) / StrideX)}\n"
                           + $"rows {Mathf.RoundToInt((view.layout.height - Padding * 2 + StrideY - CellHeight) / StrideY)}\n");
 
-        settings.scaleMode = scaleMode;
-        settings.scale = scale;
-        settings.targetTexture = texture;
-        settings.clearColor = clearing;
-        settings.colorClearValue = clearValue;
-
         view.style.backgroundColor = ground;
         foreach (var (element, display) in hidden) element.style.display = display;
         if (visualizer != null) visualizer.enabled = drawing;
 
         Object.Destroy(plate);
-        target.Release();
-        Object.Destroy(target);
 
         Debug.Log($"wrote {PlatePath} ({width}x{height}px at {Scale}x)");
     }
