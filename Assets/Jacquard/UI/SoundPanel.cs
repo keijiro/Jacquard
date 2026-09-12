@@ -425,7 +425,21 @@ public sealed class SoundPanel
 
     // Nothing to tell the sequencer either way: it reads the bank afresh every instant,
     // since a lock never outlives one.
-    void Set(int target, float value) => ParamTargets.Set(ref Patch(), target, value);
+    //
+    // The plot is repainted from here because this is the one path to the fifteen that
+    // does not pass through Commit. A lock row writes its tile and commits, and the
+    // score change comes back around through JacquardUI.OnChanged to Refresh, which
+    // shows the plot on its way out; the patch's own run writes the bank, which is not
+    // the score and has nothing to commit. So the six that reach the picture would move
+    // under a drag with the picture standing still — which is exactly what a waveform
+    // display must not do. Show is a struct compare on the other nine, so calling it on
+    // every step of every drag is what the guard in SoundPlot is for rather than a cost
+    // to be avoided here.
+    void Set(int target, float value)
+    {
+        ParamTargets.Set(ref Patch(), target, value);
+        ShowPlot();
+    }
 
     // The note a new tile would arrive as rather than a middle C, so a patch is heard
     // where the piece is being written: see ScoreEditor.PreviewRemembered, which owns
