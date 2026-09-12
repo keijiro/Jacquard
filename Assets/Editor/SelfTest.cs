@@ -31,6 +31,7 @@ static class SelfTest
         Tuning(log);
         Locks(log);
         Ranges(log);
+        Sound(log);
         Channels(log);
         Mutes(log);
         Swap(log);
@@ -1331,6 +1332,165 @@ static class SelfTest
               float.IsFinite(read.Patches[1].feedback),
               "release=" + read.Patches[1].carrierRelease +
               " feedback=" + read.Patches[1].feedback);
+    }
+
+    // The Sound panel, checked as far as it can be checked without a screen: what its
+    // table covers, and what the picture on it is drawn from. Beside Ranges because the
+    // two are about the same fifteen.
+    //
+    // Nothing here builds an element. What is worth checking about the plot is not the
+    // stroke but the note under it — six parameters reach it and nine do not, the two
+    // clocks stay apart, and the trace lands on silence — and every one of those is a
+    // claim about SoundPlot.Event and FmVoiceState, which need no panel to render.
+    static void Sound(System.Text.StringBuilder log)
+    {
+        // The one guarantee lost when the panel stopped being a loop over ParamTargets
+        // and became a hand-written placing: a target added to the synth and forgotten
+        // here would simply not be on the panel, and nothing else would notice.
+        var placed = new int[ParamTargets.Count];
+        var named = true;
+        var opened = new bool[3];
+        var headed = true;
+
+        foreach (var (where, group, caption, target) in SoundPanel.Fields)
+        {
+            if (target >= 0 && target < placed.Length) placed[target]++;
+            named &= !string.IsNullOrEmpty(caption);
+
+            // A null group joins the row to the one above it, so the first field of a
+            // column has to carry a heading or it joins nothing.
+            headed &= group != null || opened[(int)where];
+            opened[(int)where] = true;
+        }
+
+        var once = SoundPanel.Fields.Length == ParamTargets.Count;
+        foreach (var count in placed) once &= count == 1;
+
+        Check(log, "every target stands on the sound panel exactly once",
+              once && named && headed,
+              "fields=" + SoundPanel.Fields.Length +
+              " targets=" + ParamTargets.Count + " unplaced=" + Unplaced(placed) +
+              (named ? "" : " UNNAMED") + (headed ? "" : " UNHEADED"));
+
+        // The two clocks, which is the whole of the plot's design in one assertion. The
+        // same number of samples over two different stretches of note time: the
+        // oscillator is stepped by the loop, so it has to cross zero on the same sample
+        // indices either way, and the envelope is read off the argument, so it has to
+        // be a different envelope. Derive the time from a counter inside the voice and
+        // the second half fails; take the phase from the time and the first half does.
+        //
+        // The window stops short of the note so that both renders are still sounding at
+        // the end of it: a crossing cannot be counted through silence.
+        var moving = FmPatch.Default;
+        moving.modulatorRatio = 2.0f;
+        moving.modulationIndex = 4.0f;
+        moving.carrierRelease = 0.5f;
+
+        var far = Trace(moving, 2048, 0.4f);
+        var near = Trace(moving, 2048, 0.2f);
+
+        var crossings = Crossings(far);
+        var late = 2048 * 3 / 4;
+
+        Check(log, "the phase clock and the envelope clock are separate",
+              crossings.Count > 10 && Same(crossings, Crossings(near)) &&
+              Rms(far, late, 2048) < Rms(near, late, 2048) * 0.9f,
+              "crossings=" + crossings.Count + " vs " + Crossings(near).Count +
+              " tail=" + Rms(far, late, 2048) + " vs " + Rms(near, late, 2048));
+
+        // Six parameters reach the picture and the other nine do not, which is what
+        // makes a Level scrub cost a struct compare. Checked on the note rather than on
+        // the guard in Show, since the guard is only ever as true as the forcing the
+        // note is built with.
+        var plain = FmPatch.Default;
+        plain.modulationIndex = 3.0f;
+
+        var dressed = plain;
+        dressed.level = -20.0f;
+        dressed.pan = -0.8f;
+        dressed.unison = 1.0f;
+        dressed.transpose = -12.0f;
+        dressed.gateScale = 0.25f;
+        dressed.pitchSweep = 2.0f;
+        dressed.pitchDecay = 0.5f;
+        dressed.reverbSend = 1.0f;
+        dressed.delaySend = 1.0f;
+
+        var brighter = plain;
+        brighter.modulationIndex = 6.0f;
+
+        var reference = Trace(plain, 512, 0.3f);
+
+        Check(log, "the picture is a function of six parameters and no others",
+              Same(reference, Trace(dressed, 512, 0.3f)) &&
+              !Same(reference, Trace(brighter, 512, 0.3f)),
+              "nine moved, the picture " +
+              (Same(reference, Trace(dressed, 512, 0.3f)) ? "held" : "MOVED") +
+              "; the amount moved, the picture " +
+              (Same(reference, Trace(brighter, 512, 0.3f)) ? "HELD" : "moved"));
+
+        // The trace sits inside the envelope drawn behind it and ends on silence with
+        // the note, which is what lets the plot stroke both at full scale without
+        // normalising either: the level is forced to 0dB, so the envelope is the bound.
+        //
+        // To the millionth rather than to the bit, for the reason SoundPlot.TimeAt
+        // gives: the last sample lands on the note's duration to within a rounding of
+        // it, and a hair short of the end is where FmCurve.Fade is a ten-millionth below
+        // zero rather than the exact zero CarrierLevel's early return hands back. What
+        // the tolerance may not hide is a picture that ran *past* the note, so the last
+        // tenth of it has to still be carrying the note rather than the silence after.
+        var note = SoundPlot.Event(plain);
+        var whole = Trace(plain, 512, note.TotalDuration);
+        var inside = true;
+
+        for (var i = 0; i < whole.Length; i++)
+        {
+            var time = note.TotalDuration * (i / (whole.Length - 1.0f));
+            inside &= float.IsFinite(whole[i]) &&
+                      Mathf.Abs(whole[i]) <= note.CarrierLevel(time) + 0.0001f;
+        }
+
+        var tenth = whole.Length * 9 / 10;
+
+        Check(log, "the trace is bounded by its envelope and ends with the note",
+              inside && Mathf.Abs(whole[whole.Length - 1]) < 0.000001f &&
+              Rms(whole, tenth, whole.Length) > 0.01f,
+              "last=" + whole[whole.Length - 1] +
+              " last tenth=" + Rms(whole, tenth, whole.Length) +
+              (inside ? "" : " OUTSIDE"));
+
+        // And the lock reaches it. A lock row that moves FM amount and leaves the
+        // picture still would read as broken, so the patch the plot is handed is the
+        // channel's with ParamTile.ApplyTo run over it — the same call the sequencer
+        // makes. A lock holding nothing colours nothing, which is the other half.
+        var held = new AbsoluteParamTile();
+        held.Engage(ParamTargets.ModIndex, 9.0f);
+
+        var coloured = plain;
+        held.ApplyTo(ref coloured);
+
+        var untouched = plain;
+        new AbsoluteParamTile().ApplyTo(ref untouched);
+
+        Check(log, "a lock colours the picture and an empty one does not",
+              !Same(reference, Trace(coloured, 512, 0.3f)) &&
+              Same(reference, Trace(untouched, 512, 0.3f)),
+              "engaged=" + coloured.modulationIndex +
+              " released=" + untouched.modulationIndex);
+    }
+
+    // Which targets the panel's table missed, for the failure line. Nothing, on the
+    // day it passes.
+    static string Unplaced(int[] placed)
+    {
+        var missing = new System.Text.StringBuilder();
+
+        for (var target = 0; target < placed.Length; target++)
+            if (placed[target] != 1)
+                missing.Append(missing.Length > 0 ? "," : "")
+                       .Append(target).Append('x').Append(placed[target]);
+
+        return missing.Length > 0 ? missing.ToString() : "none";
     }
 
     // Two lanes on different channels, each with its own patch, playing the same
@@ -3089,6 +3249,68 @@ static class SelfTest
     }
 
     static int Seconds(float time) => (int)(time * SampleRate);
+
+    // What the Sound panel's plot renders, at whatever resolution a check asks for.
+    //
+    // The event is the plot's own, so what is checked is the forcing SoundPlot.Event
+    // does and not a second copy of it. The axis is the plain linear one, since what is
+    // being checked here is the voice and not where the picture chooses to spend its
+    // width — and n samples across t is the shape Render cannot take, because there the
+    // two clocks are one and here they are the point.
+    static float[] Trace(in FmPatch patch, int n, float t)
+    {
+        var buffer = new float[n];
+        var note = SoundPlot.Event(patch);
+        var voice = new FmVoiceState();
+
+        voice.Trigger(note, SampleRate);
+
+        for (var i = 0; i < n; i++)
+        {
+            // The position first and the time from it, which is the order the plot
+            // computes in and the whole of why the last sample lands exactly on t.
+            voice.Next(t * (i / (n - 1.0f)), out var lower, out var upper);
+            buffer[i] = lower + upper;
+        }
+
+        return buffer;
+    }
+
+    // Where the signal crosses zero upwards, as sample indices rather than as a count:
+    // the pitch is the loop's to decide, so two renders that differ only in how much
+    // note time they cover have to cross in the same places and not merely as often.
+    static System.Collections.Generic.List<int> Crossings(float[] buffer)
+    {
+        var found = new System.Collections.Generic.List<int>();
+
+        for (var i = 1; i < buffer.Length; i++)
+            if (buffer[i - 1] <= 0.0f && buffer[i] > 0.0f) found.Add(i);
+
+        return found;
+    }
+
+    // Bit for bit, which is what a claim that a parameter never reached the picture
+    // has to be: a tolerance here would pass a patch that moved it by a little.
+    static bool Same(float[] first, float[] second)
+    {
+        if (first.Length != second.Length) return false;
+
+        for (var i = 0; i < first.Length; i++)
+            if (first[i] != second[i]) return false;
+
+        return true;
+    }
+
+    static bool Same(System.Collections.Generic.List<int> first,
+                     System.Collections.Generic.List<int> second)
+    {
+        if (first.Count != second.Count) return false;
+
+        for (var i = 0; i < first.Count; i++)
+            if (first[i] != second[i]) return false;
+
+        return true;
+    }
 
     static float[] Render(in FmNoteEvent note, float seconds)
     {

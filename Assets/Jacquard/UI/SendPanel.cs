@@ -36,8 +36,8 @@ namespace Jacquard.App {
 //
 // This is the only panel whose contents the cursor has nothing to do with. Everything
 // else on screen answers to a cell — the Tile panel to the tile under the cursor, the
-// Sound panel to the channel a CHAN tile names, the Lock panel to what a lock holds —
-// because everything else is a property of something written on the plane. One reverb
+// Sound panel to the channel a CHAN tile names and to what a lock holds — because
+// everything else is a property of something written on the plane. One reverb
 // and one delay for the whole project are not: there is no cell that is the reverb, and
 // putting one on the plane would be inventing a tile for the sake of a rule.
 //
@@ -47,10 +47,12 @@ namespace Jacquard.App {
 //
 // It stands in a column of its own beside the cursor's, on the inside of it. A column of
 // its own because nothing here answers to a cell, and a panel that does not follow the
-// cursor cannot queue up behind panels that do; beside it because the two are read
-// together — how much of a channel goes to the reverb is a row of that channel's Sound
-// panel, and this is what it goes to, so the amount and the effect are a glance apart.
-// What it costs is the plane it covers, and only while it is up.
+// cursor cannot queue up behind panels that do; beside it because the far edge is the
+// one place a column is never covered by the cursor's, and the channels want that. It
+// was beside for a second reason once — that the amount and the effect it feeds were a
+// glance apart, the send being a row of the panel standing right there. The Sound panel
+// is in the middle of the screen now, so that sentence has gone and the position has
+// not. What it costs is the plane it covers, and only while it is up.
 //
 // Seven bars between the two effects and no more. The send amounts are not here: how
 // much of a channel goes to the reverb is a property of that channel, so it is in the

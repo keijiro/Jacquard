@@ -50,6 +50,14 @@ screen worth spending motion on, and everywhere else position on the ramp and th
 around it are still the whole of what carries meaning. The numbers and the arguments for
 them are `OnboardingShade`'s.
 
+**The waveform on the Sound panel is the obvious thing to have broken that**, and it does
+not. `SoundPlot` is repainted when one of the six parameters it depends on moves and at no
+other time — no clock, no scheduler, no per-frame callback — and what makes that
+structural rather than a promise is the cache guard: it keeps those six values and its own
+size, and returns at once when none of them has changed. The time axis is across the
+picture, not through it. A scrub on any of the other nine costs one struct compare a
+frame.
+
 What a thing is saying is said by **where it sits on the ramp** and by **how much air is
 around it**. Two consequences that reach every control:
 
@@ -74,6 +82,14 @@ nothing goes back to correct an element afterwards.
 Two things deliberately do not move: `Style`'s cell pitch, because the score already read
 right on the iPad and only the chrome did not; and the paddings, margins and dividers,
 because the growth is spent on the targets rather than on the air between them.
+
+**There are three caption-and-bar pairs, not one.** `LabelWidth` with the `BarWidth` a
+column panel leaves over is the column panels'; `FieldLabelWidth` with `FieldBarWidth` is
+the Sound panel's, which can come in by a sixth because the heading over each group
+carries half of every name under it; and the tempo bar is told `BarWidth` outright,
+because it stands in a run of buttons with nothing to be measured against. Everything
+wider is derived from those — `PanelWidth`, and `WidePanelWidth` out of four field columns
+and the gaps between them.
 
 **A scale on the panels is ruled out by what is coming.** Pinch zoom will put a
 continuous fractional scale on the plane's content, which makes the score's on-screen

@@ -17,45 +17,29 @@ namespace Jacquard.App {
 // else offers what it is and a way to remove it. There is no palette elsewhere on
 // the screen, so a button that is not on this panel cannot apply to this cell.
 //
-// Everything the cell decides is here, which is why the panel runs long: a channel
-// start carries the lane it heads and the sound that channel is voiced in as well as
-// its own three rows, and a lock carries a row for every parameter it could take hold
-// of. Those were panels of their own stacked under this one, each up only while this
-// one was showing a particular kind of tile — which is a group of this panel wearing a
-// frame, and a second header saying what the cursor had already said. What pays for the
-// length is that a column of panels scrolls.
+// Everything the cell decides used to be here, which is why the panel ran long: a
+// channel start carried the sound that channel is voiced in, and a lock carried a row
+// for every parameter it could take hold of. Those two are the Sound panel now — fifteen
+// synth parameters read across four columns with a picture of the voice among them
+// cannot stand in a 248-unit column, and the frame they got back is a shape rather than
+// a second header. What is left here is the tile's own rows, the lane a head carries,
+// the palette and Delete, which is thirty elements on the longest showing there is — a
+// channel start — and six on a lock, where all that is left is the header and Delete.
 //
-// What it cost is the reason for the shape of Refresh. The panel was 152 elements and
-// 122 of them were one of those two long groups — fifteen rows of eight for the sound,
-// fifteen rows for a lock. Built afresh on every click, a channel start came to 1.12 ms
-// and 451 KB of garbage, 357 KB of it the sound group alone. Which is a rebuild paying
-// for a picture that is the same picture: the fifteen parameters are the same fifteen in
-// the same order whichever tile the cursor is on, and all that differs is what they read
-// and write.
+// The measured argument for keeping a long group between showings went with the groups
+// it was about; see SoundPanel. What is left of it here is the shape of Refresh and its
+// early return, which are older than either group and are about the drag rather than
+// about the allocation: a control that edits the tile in place would otherwise pull
+// itself out from under the hand moving it.
 //
-// So the fields wait for their first edit and the two groups are kept, and between them a
-// channel start click is 85 KB and 0.31 ms, from 451 KB and 1.12 ms — the fields a
-// hundred and sixty-odd KB of it and the groups two hundred, and the forty-five elements
-// they took off the panel are three apiece for fifteen fields that were never opened. A
-// lock click is ten or twelve KB, from 212. What a click builds is thirty elements rather
-// than a hundred and fifty. The two arms are one session and one score apart and nothing
-// else: the reuse was defeated at runtime for the measurement, the three fields emptied
-// before each showing, which is what every showing used to do.
+// One half of that measurement stays, because it is about this file and not about the
+// groups. A bar's text field waits for its first edit — see ValueBar.BuildInput — which
+// is three elements apiece for fifteen fields that were never opened, and the reason a
+// showing here is counted in tens rather than in hundreds.
 //
-// What the reuse does not buy is the style resolution behind it, and that was worth
-// measuring rather than assuming. It is 30.4 KB either way, to the tenth of a KB, and the
-// time barely moves: UI Toolkit resolves style over a subtree handed back to it much as
-// over one built from nothing, and the text shaping goes the same way. Keeping the groups
-// permanently parented and hiding them with display instead takes that 30.4 KB to
-// nothing — measured, not guessed — and it is deliberately not done. What the Clear in
-// Refresh buys is that everything under _body is on screen and bound to the tile being
-// shown, which is the whole of why the sync path there can sweep the tree with no filter
-// and why ValueBar.SyncAll can argue against keeping a list at all. Hidden groups would
-// make both sweeps wrong by default; they would have the sync path — which a scrubbed bar
-// runs on every pointer-move frame — reach fifteen bars and fifteen rows through
-// forty-five and thirty; and they would leave a rule with no method to belong to, that a
-// hidden row must stay safe on a tile since deleted. Thirty kilobytes a click is the
-// cheaper thing to go on paying.
+// What the Clear in Refresh buys is that everything under _body is on screen and bound
+// to the tile being shown, which is the whole of why the sync path there can sweep the
+// tree with no filter and why ValueBar.SyncAll can argue against keeping a list at all.
 
 sealed class InspectorPanel
 {
@@ -77,15 +61,9 @@ sealed class InspectorPanel
     // the tile in place would otherwise pull itself out from under the drag that drove
     // it.
     //
-    // And rebuilt is less than it sounds even then. The two long groups — the sound
-    // under a channel start, the fifteen rows under a lock — are made on the first tile
-    // that calls for them and kept in fields afterwards; what a move onto another tile
-    // of the same kind does is clear the body, point the standing group at the new tile
-    // and add it back. So there are two paths through here and not one shape of work:
-    // the early return below, for a tile that is still the same tile, and the build,
-    // which for these two is itself only a re-binding. Everything else on the panel —
-    // the palette, a note's bars, a channel's steppers, the delete button — is short
-    // enough to be made again and is.
+    // Everything on this panel — the palette, a note's bars, a channel's steppers, the
+    // delete button — is short enough to be made again and is. The two runs that were
+    // not are on the Sound panel, where the argument for keeping them is written.
     public void Refresh(bool force = false)
     {
         var tile = _editor.Selected;
@@ -93,13 +71,8 @@ sealed class InspectorPanel
         // Two empty cells are not the same cell: one may take a tile and the other
         // only a lane, and neither has a tile to tell them apart by.
         var place = _editor.CanPlace;
-        // And a lock can change channels without moving: renumbering the CHAN above it
-        // does that, and so does dragging the lane under a different jump. Asked only
-        // for a lock, since nothing else here is built out of it.
-        var channel = tile is ParamTile ? _editor.Score.ChannelOf(lane) : 0;
 
-        if (!force && tile == _tile && lane == _lane && place == _place &&
-            channel == _channel)
+        if (!force && tile == _tile && lane == _lane && place == _place)
         {
             // The same tile, but its values may have changed from elsewhere — a
             // transpose from the keys, a load — so the bars still have to be pulled
@@ -117,14 +90,10 @@ sealed class InspectorPanel
             // side of the screen: the Channels panel can exchange two channels, which
             // leaves this the same ChannelTile object with a different number on it.
             _syncChannel?.Invoke();
-            // A lock row shows a bar and whether the lock is holding it, and the second
-            // of those is not a bar. Everything it shows can change without the row
-            // changing, which is why they are synced rather than built again.
-            foreach (var row in _body.Query<LockRow>().Build()) row.Sync();
             return;
         }
 
-        (_tile, _lane, _place, _channel) = (tile, lane, place, channel);
+        (_tile, _lane, _place) = (tile, lane, place);
 
         _body.Clear();
         Build(tile, lane);
@@ -139,7 +108,6 @@ sealed class InspectorPanel
     Tile _tile;
     Lane _lane;
     bool _place;
-    int _channel;
 
     // The bars are found again by a query over the body; these two are held onto
     // instead, and let go of whenever the body they stood in is cleared — they belong to
@@ -151,19 +119,11 @@ sealed class InspectorPanel
     // number that can move without this panel being rebuilt — see BuildChannel.
     System.Action _syncChannel;
 
-    // The three that do not. These outlive every clear of the body: made on the first
-    // tile that asks for them, detached and re-added afterwards. See BuildSound and
-    // BuildLock, and the paragraph on Refresh for what keeping them is worth.
-    VisualElement _sound;
-    LockGroup _lockAbsolute, _lockRelative;
-
     void Build(Tile tile, Lane lane)
     {
         _title.text = Title(tile);
 
         // The two that belong to one tile, and the readout that belongs to one of them.
-        // The three kept groups are deliberately not here: they are handed the new tile
-        // instead, which is the whole point of them.
         (_laps, _play, _syncChannel) = (null, null, null);
 
         // Free ground, whether that is a lane's own empty step or the terminator it
@@ -180,20 +140,18 @@ sealed class InspectorPanel
         // on it, so it is where the lane itself is worked on.
         if (_editor.Cell.Kind == CellKind.Head && lane != null) Section(BuildLane(lane));
 
-        // And under the lane, for the one head that names a channel, the sound that
-        // channel is voiced in.
-        if (tile is ChannelTile) Section(BuildSound());
-
         Section(BuildDelete());
     }
 
-    // Adds a section unless it turned out to hold nothing: a lock keeps everything it
-    // owns on the Lock panel, so what would go here is an empty box, and a section that
-    // carries air over it would leave that air behind.
+    // Adds a section unless it turned out to hold nothing: what would go here is an
+    // empty box, and a section that carries air over it would leave that air behind.
     //
-    // Which is now only about BuildTile, and there only about the flow tiles that have
-    // nothing to set — a jump, a terminator, a jump target. The kept groups always have
-    // their rows in them, so neither the sound nor a lock can ever arrive here empty.
+    // Which is only about BuildTile, and there about two things: the flow tiles that
+    // have nothing to set — a jump, a terminator, a jump target — and a lock, which now
+    // falls through that switch with nothing. Everything a lock decides is the fifteen
+    // rows and they are on the panel beside this one, so a PABS or a PREL cell leaves
+    // this panel with its header, nothing, and Delete. Which is the honest picture, and
+    // is the case this guard was written for in the first place.
     //
     // Nothing is drawn between two of them. What ends up on this panel is a list of
     // rows and a button under it, so the only break is the air the foot row carries;
@@ -257,14 +215,11 @@ sealed class InspectorPanel
     }
 
     // The controls belonging to the tile itself. A jump has none: there is nothing to
-    // set on one, since where it goes is drawn on the plane.
+    // set on one, since where it goes is drawn on the plane. Neither has a lock, which
+    // falls through this switch on purpose — everything it decides is the fifteen rows
+    // on the Sound panel, and Section drops what comes back empty.
     VisualElement BuildTile(Tile tile)
     {
-        // A lock's group is one of the two this panel keeps between showings, so it is
-        // handed back whole rather than filled into a box made here. Taken before the
-        // switch rather than as a case of it, since a case would have nothing to return.
-        if (tile is ParamTile param) return BuildLock(param);
-
         var body = new VisualElement();
 
         switch (tile)
@@ -276,134 +231,6 @@ sealed class InspectorPanel
         }
 
         return body;
-    }
-
-    // What one parameter lock takes hold of.
-    //
-    // The same list the sound group shows, in the same order and over the same ranges,
-    // because it is the same set: every field of the patch is a lock target. Reading a
-    // lock against the timbre it colours only works if the two are laid out alike.
-    //
-    // A row starts released and greyed, and reads out what the channel does without it.
-    // Moving its bar is what takes hold of that parameter — there is no separate step
-    // for arming one, since a value nobody set is not a lock — and clicking its name
-    // lets go again. Whatever is left grey is untouched by this tile, so a lock holding
-    // nothing at all does nothing at all, which is what a freshly placed one is.
-    //
-    // The heading carries the channel, which is the one thing here a lock cannot say for
-    // itself: the tile does not hold a number, and a branch lane borrows one from the
-    // jump that reaches it. It was the header of a panel of its own, standing under this
-    // one and up only while this one was showing a lock — a group of this panel wearing
-    // a frame, the same as the sound was.
-    //
-    // Being the same set in the same order as the sound group is also what lets the two
-    // be built the same way: fifteen rows that are the same fifteen rows whichever tile
-    // the cursor is on, so what moving between two locks changes is what they read and
-    // write and nothing about the run itself. Kept and pointed at the new tile, the way
-    // the sound group is and for the same measured reason.
-    VisualElement BuildLock(ParamTile tile)
-    {
-        var absolute = tile is AbsoluteParamTile;
-        var group = absolute ? _lockAbsolute : _lockRelative;
-
-        if (group == null)
-        {
-            group = new LockGroup(this, tile);
-            if (absolute) _lockAbsolute = group; else _lockRelative = group;
-        }
-
-        group.Apply(tile, _channel);
-        return group;
-    }
-
-    // What a lock row shows while nothing holds it: where the channel already stands for
-    // an absolute lock, and no shift at all for a relative one. Either way it is what the
-    // parameter does if this tile is left alone, which is also where a drag that takes
-    // hold of it starts from.
-    float Released(ParamTile tile, int target)
-      => tile is AbsoluteParamTile
-         ? ParamTargets.Get(_editor.Project.Patches[_channel], target) : 0.0f;
-
-    // One channel's timbre, under the tile that names the channel.
-    //
-    // It was a panel of its own standing under this one, which is a panel that could
-    // only ever be up while this one was showing a CHAN tile, headed with the number
-    // the row above it already gives. What it is instead is the last group of the tile
-    // it belongs to: the cursor is on the cell, and everything the cell decides is on
-    // the one panel, in the order the decisions are made — which lane, how it runs,
-    // how long it is, and then what it sounds like.
-    //
-    // What it lists is the parameter lock targets in their own order, and that is the
-    // whole patch: seeing what a lock can reach, and where the channel currently sits
-    // inside each range, is what makes a lock's amount mean something.
-    //
-    // The rows read the channel off the tile under the cursor rather than off a number
-    // of their own, so renumbering the CHAN cell moves the whole group to the other
-    // channel with nothing rebuilt. What widens that from a renumber to a different CHAN
-    // cell is only where the tile is read from: a field the panel already keeps rather
-    // than a value the rows closed over when they were made. So the group is made once
-    // and handed on, and moving between two CHAN cells is fifteen readouts changing
-    // rather than a hundred and twenty elements being built — see Refresh for what that
-    // is worth. The field has to hold the tile and never its number, or the renumber
-    // half of the promise above goes with it.
-    //
-    // A channel with no lane cannot be edited here, which costs nothing: it has no way
-    // of sounding either, and its patch is still saved and loaded with the rest.
-    VisualElement BuildSound()
-    {
-        if (_sound != null) { ValueBar.SyncAll(_sound); return _sound; }
-
-        _sound = new VisualElement();
-
-        _sound.Add(Controls.Heading("Sound", follows: true));
-
-        // Every bar sounds a note on the channel once its value has settled, which is
-        // the whole of the auditioning: a drag down a bar is one note rather than a
-        // burst of them, and a parameter is heard where it was left. There is no button
-        // beside it asking for the same note again — a bar that has just been moved has
-        // already played it, and one that has not is one nothing was asked about.
-        //
-        // And every name is double clicked to put its parameter back where a fresh patch
-        // holds it, which is the same gesture that lets a lock go of its target: a row
-        // taken back to saying nothing of its own. A whole patch cannot be reset in one
-        // press, and deliberately — a sound is arrived at one parameter at a time, and
-        // the way back from a dead end is the parameter that was last touched rather
-        // than everything that came before it.
-        for (var target = 0; target < ParamTargets.Count; target++)
-        {
-            var index = target;
-            _sound.Add(Controls.Bar(ParamTargets.Name(index), ParamRanges.Of(index),
-                                    () => ParamTargets.Get(Patch(), index),
-                                    value => Set(index, value),
-                                    Audition,
-                                    () => ParamTargets.Get(FmPatch.Default, index)));
-        }
-
-        return _sound;
-    }
-
-    // The bank hands out a reference, which is what lets a field be written in place
-    // and a lock target be pointed at.
-    //
-    // Which channel comes off the tile the panel is showing, which is what lets the
-    // sound group be handed from one CHAN cell to the next without being made again.
-    // The group is only ever on the panel while that tile is a CHAN tile, so the other
-    // branch cannot be reached from the UI — but a ref return has to point somewhere
-    // regardless, and the first channel is a place in the bank rather than a patch of
-    // this panel's own to keep and explain.
-    ref FmPatch Patch()
-      => ref _editor.Project.Patches[_tile is ChannelTile channel ? channel.Channel : 1];
-
-    // Nothing to tell the sequencer either way: it reads the bank afresh every instant,
-    // since a lock never outlives one.
-    void Set(int target, float value) => ParamTargets.Set(ref Patch(), target, value);
-
-    // The note a new tile would arrive as rather than a middle C, so a patch is heard
-    // where the piece is being written: see ScoreEditor.PreviewRemembered, which owns
-    // the argument along with the note it reads.
-    void Audition()
-    {
-        if (_tile is ChannelTile channel) _editor.PreviewRemembered(channel.Channel);
     }
 
     VisualElement BuildDelete()
@@ -620,9 +447,9 @@ sealed class InspectorPanel
 
     // Parameter ranges
     //
-    // What a synth parameter's bar covers comes from ParamRanges, which the Lock and
-    // Sound panels use. These are the ranges of the sequencer's own
-    // numbers, which nothing outside this panel has to know about.
+    // What a synth parameter's bar covers comes from ParamRanges, which the Sound panel
+    // uses. These are the ranges of the sequencer's own numbers, which nothing outside
+    // this panel has to know about.
 
     // The letter half of a pitch, read out as the letter and nothing else: the number
     // behind it is an index into the twelve and says nothing a name does not, which is
@@ -706,8 +533,8 @@ sealed class InspectorPanel
     // what keeps a switch that goes out of reach and comes back — the tile keeps the
     // bit, so the run shows it again exactly as it was left.
     //
-    // This is the older half of the argument the sound group and LockGroup now make at
-    // the length of a whole group: a run of elements that is the same run whatever the
+    // This is the older half of the argument the Sound panel's three runs now make at
+    // the length of a whole panel: a run of elements that is the same run whatever the
     // number behind it, pulled back into line by a Sync rather than made again.
     sealed class LapSwitches : VisualElement
     {
@@ -742,165 +569,6 @@ sealed class InspectorPanel
 
         readonly CycleGateTile _cycle;
         readonly Button[] _switches = new Button[CycleGateTile.MaxPeriod];
-    }
-
-    // The fifteen parameters one lock can take hold of, under the heading that says
-    // which channel they belong to.
-    //
-    // Kept between showings, and kept twice over. A bar's range is fixed when it is
-    // made, and the two kinds of lock do not share one: an absolute lock's bar runs over
-    // the target's own range and a relative one's over a shift either side of nothing,
-    // which is a different Low, High, Bipolar and Display. So one run of rows cannot
-    // serve both kinds — but two runs serve every lock in the score, since nothing else
-    // about a row depends on which tile it is showing.
-    sealed class LockGroup : VisualElement
-    {
-        public LockGroup(InspectorPanel panel, ParamTile tile)
-        {
-            _heading = Controls.Heading("");
-            Add(_heading);
-
-            for (var target = 0; target < ParamTargets.Count; target++)
-            {
-                _rows[target] = new LockRow(panel, tile, target);
-                Add(_rows[target]);
-            }
-        }
-
-        // Points the group at another lock of its own kind. The channel comes with it
-        // rather than off the tile, which does not hold one — see BuildLock.
-        public void Apply(ParamTile tile, int channel)
-        {
-            _heading.text = "Channel " + channel;
-            foreach (var row in _rows) row.Apply(tile);
-        }
-
-        readonly Label _heading;
-        readonly LockRow[] _rows = new LockRow[ParamTargets.Count];
-    }
-
-    // A parameter of a lock, held or not.
-    //
-    // An element of its own rather than a row plus a list of closures, for the reason
-    // ValueBar.SyncAll gives: the tree already knows what is on screen. Which is worth
-    // more now than it was when it only saved a list — being an element is what gives
-    // the row a Sync of its own and a tile it can be pointed at, and so what lets the
-    // group above it outlive the showing it was made in.
-    sealed class LockRow : VisualElement
-    {
-        public LockRow(InspectorPanel panel, ParamTile tile, int target)
-        {
-            (_panel, _tile, _target) = (panel, tile, target);
-
-            style.flexDirection = FlexDirection.Row;
-            style.alignItems = Align.Center;
-            style.flexShrink = 0;
-            style.marginBottom = Controls.Gap;
-
-            // The name is the control that lets go of the parameter, double clicked,
-            // and the hover is this row's rather than the caption's own because a held
-            // row already lights its name. See Controls.ActionCaption.
-            _caption = Controls.ActionCaption(ParamTargets.Name(target), Toggle, SetHover);
-            Add(_caption);
-
-            // An absolute lock holds a value the target could hold itself, so its bar
-            // is the target's own; a relative one holds a shift, and reads from the
-            // middle. Neither depends on whether the row is held, so taking hold of a
-            // parameter never rebuilds anything — and neither depends on which tile is
-            // being shown, only on its kind, which is the whole of why LockGroup is two
-            // groups and not one.
-            var range = tile is AbsoluteParamTile
-              ? ParamRanges.Of(target) : ParamRanges.Relative(target);
-
-            _bar = Controls.Bar(range, Get, Set);
-            _bar.style.flexGrow = 1;
-            Add(_bar);
-
-            Sync();
-        }
-
-        // Points the row at another lock. Only ever another of the same kind, since the
-        // bar's range was decided above and the two kinds do not share one.
-        //
-        // The naming is TileElement.Apply's, and so is the obligation behind it:
-        // anything this row shows that comes off the tile has to be written here, in the
-        // same edit that adds it. Today that is the two things Sync covers. A third,
-        // added later and left out, is the one failure this design can have and the one
-        // the compiler cannot see.
-        public void Apply(ParamTile tile)
-        {
-            _tile = tile;
-
-            // Or a row the pointer was over when the cursor moved elsewhere comes back
-            // lit: the group is detached rather than thrown away, so no PointerLeaveEvent
-            // is ever sent to it. The bar inside guards its own lift the same way, on
-            // DetachFromPanelEvent.
-            _hover = false;
-
-            Sync();
-        }
-
-        // Pulls the row back in line with the tile, in both of the things it shows: the
-        // number, and whether the lock is holding it.
-        public void Sync()
-        {
-            _bar.Sync();
-            UpdateAppearance();
-        }
-
-        // Private members
-
-        readonly InspectorPanel _panel;
-        readonly int _target;
-        readonly Label _caption;
-        readonly ValueBar _bar;
-
-        // Whichever lock the group is standing for now. See Apply.
-        ParamTile _tile;
-
-        bool _hover;
-
-        bool Engaged => _tile.IsEngaged(_target);
-
-        float Get() => Engaged ? _tile[_target] : _panel.Released(_tile, _target);
-
-        // Setting a value is what takes hold of the parameter. Nothing else does, which
-        // is what makes an untouched row mean untouched.
-        void Set(float value)
-        {
-            _tile.Engage(_target, value);
-            UpdateAppearance();
-            _panel._editor.Commit();
-        }
-
-        // Letting go is the only thing the name does that the bar cannot. Taking hold
-        // from it as well is worth having anyway: a parameter is sometimes wanted
-        // exactly where it already is, and there is no drag that says so.
-        void Toggle()
-        {
-            if (Engaged) _tile.Release(_target); else _tile.Engage(_target, Get());
-
-            Sync();
-            _panel._editor.Commit();
-        }
-
-        void SetHover(bool on)
-        {
-            _hover = on;
-            UpdateAppearance();
-        }
-
-        // A released row is dimmed whole, bar and all, the way the rails and a note's
-        // length label are dimmed: it is the same content, further back. The name lights
-        // under the pointer, since clicking it is the one thing here that a greyed
-        // control would otherwise say is not available.
-        void UpdateAppearance()
-        {
-            var engaged = Engaged;
-
-            style.opacity = engaged ? 1.0f : Style.DimmedOpacity;
-            _caption.style.color = engaged || _hover ? Style.NoteText : Style.Label;
-        }
     }
 }
 

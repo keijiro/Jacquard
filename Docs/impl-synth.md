@@ -23,8 +23,11 @@ adding a target is a one line change in three switches.
 
 Two consequences worth knowing before adding one:
 
-- **It costs a row on two panels**, and on a tablet a row is 33pt of a column a hand has
-  to drag. The screen is the real budget here, not the switch statements.
+- **It costs a row on one panel, three times over** — once for a channel's own patch and
+  once for each kind of lock — and that panel is four columns of grouped rows with a
+  picture among them rather than a list with room at the bottom. So a target arriving
+  also has to be given somewhere to stand, in `SoundPanel`'s table. The screen is the
+  real budget here, not the switch statements.
 - **A field the synth never sees still belongs here if it answers to a channel.** The
   transpose is spent by the sequencer before an event exists and has nothing mirroring it
   in `FmNoteEvent`, and it is in the patch anyway — because the sequencer reads the
@@ -33,11 +36,29 @@ Two consequences worth knowing before adding one:
 
 **The names on the panel are a player's and not the code's.** `ParamTargets`' constants
 and the file's keys keep the older spellings, since renaming those would make older files
-unopenable for the sake of a word on screen. The order is the order the panels read in,
-and it is argued in `ParamTargets`.
+unopenable for the sake of a word on screen. The names themselves are not in
+`ParamTargets` at all: a caption depends on the heading standing over it — *Decay* under
+*Pitch sweep* and *Decay* under *Frequency modulation* — so the caption and the heading
+are one decision and they are made together, in `SoundPanel`. The constants' order is no
+longer a reading order either; the reading order is that table.
+
+**`ParamTile.ApplyTo` is the one statement of how a lock reaches a patch.** The sequencer
+resolves an instant's locks through it and the Sound panel resolves the lock under the
+cursor through it, so the picture of what a lock does cannot disagree with what it does.
+A copy of that loop in the UI would be the second answer that drifts.
 
 What is settled at note-on is never smoothed
 --------------------------------------------
+
+**`FmVoiceState` has a second caller now, off the audio thread.** `SoundPlot` renders a
+note through `Trigger`/`Next` to draw it, which is what makes the picture the sound rather
+than a curve fitted to the parameters. What that asks of the voice is one thing, and it is
+a property to keep rather than an accident: **the phase clock and the envelope clock are
+separate in `Next`'s signature.** `Trigger` settles the phase increment from the sample
+rate and `Next` takes the elapsed note time as an argument, read by `PitchScale`,
+`ModulatorLevel` and `CarrierLevel` and by nothing else — so the plot can run the
+oscillator at a fixed rate while spending the width of the picture where the bars spend
+their travel. Deriving `time` from a counter inside the voice would take that with it.
 
 **A note event carries its whole timbre**, so nothing about a channel is left on the
 synth side and a voice reads its event once. That is what makes the send amounts, the

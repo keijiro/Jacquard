@@ -81,11 +81,14 @@ sealed class JacquardUI
         _view.TilesDropped += _editor.DropTiles;
         _view.LaneDropped += _editor.DropLane;
 
-        // The one panel the cursor answers to. What used to stand under it — the sound
-        // of the channel a CHAN tile names, the hold a lock has on one — are groups of
-        // it now: a panel that can only be up while this one is showing a particular
-        // kind of tile was a group of this one wearing a frame.
+        // The two panels the cursor answers to. One rule and two shapes of answer: what
+        // the cell is and what is done to it stays in a column beside the cursor, and
+        // the fifteen synth parameters a CHAN tile or a lock carries go in the middle,
+        // because four columns of grouped rows with a picture of the voice among them
+        // cannot stand in a 248-unit column. Neither is toggled and nothing raises
+        // either but the cursor.
         _inspector = new InspectorPanel(_editor);
+        _sound = new SoundPanel(_editor);
 
         // The effects are the project's, not a cell's, so they get a column of their
         // own rather than a slot in the cursor's. One panel with a heading over each
@@ -103,6 +106,20 @@ sealed class JacquardUI
         _leftEdge = PanelEdge(true, PanelColumn(_channels.Root));
         body.Add(_leftEdge);
         ShowChannels(false);
+
+        // The Sound panel's own layer, between the edges and the two switched panels in
+        // the middle, so that Global and System — which a hand deliberately asked for —
+        // draw over it.
+        //
+        // A layer of its own rather than a place in the stack below, for the reason
+        // OnboardingPanel has one: that stack takes turns being raised by a switch and
+        // centres as a pair when both are up, and this one is up whenever the cursor is
+        // on a CHAN or a lock, which is most of a session. Queued in there, pressing
+        // Global would shove it up by half the Global panel's height and pressing System
+        // would shove it again — a panel raised by the cursor cannot queue with panels
+        // raised by switches. See SoundPanel for what standing in the middle costs.
+        _soundCentre = PanelCentre(_sound.Root);
+        body.Add(_soundCentre);
 
         // In neither edge and not on the dock: what is set for the whole thing is read
         // against nothing on screen, so it comes up in the middle. So does what is not
@@ -300,6 +317,13 @@ sealed class JacquardUI
         _centre.style.right = safe.Right;
         _centre.style.bottom = safe.Bottom;
 
+        // The one layer here whose panel is wider than a phone's safe area, so this is
+        // what actually narrows it: the Sound panel's width is a maxWidth and its columns
+        // shrink into whatever these four leave. See SoundPanel.
+        _soundCentre.style.left = safe.Left;
+        _soundCentre.style.right = safe.Right;
+        _soundCentre.style.bottom = safe.Bottom;
+
         _front.style.left = safe.Left;
         _front.style.right = safe.Right;
         _front.style.bottom = safe.Bottom;
@@ -315,16 +339,20 @@ sealed class JacquardUI
     // and gives them back at the seam.
     //
     // What is held is what writes the score, and that is now asked per control rather
-    // than per panel: the plane, the panel a tile is edited on and the panel a lock is
-    // edited on, and then one group on the Channels panel. The rest of the mix — the
-    // sound, the sends, the eight mute rows, the tempo — and the live effects are left
-    // alone, since none of those writes the score and the point of holding on until the
-    // turn of the piece is to play across it.
+    // than per panel: the plane, the panel a tile is edited on, the Sound panel while it
+    // is showing a lock, and then one group on the Channels panel. The rest of the mix —
+    // the sound, the sends, the eight mute rows, the tempo — and the live effects are
+    // left alone, since none of those writes the score and the point of holding on until
+    // the turn of the piece is to play across it.
     //
     // The Channels panel is why the reading changed. It used to be wholly on the played
     // side of that line; the Swap group is not, so the panel is asked for its own answer
     // rather than being covered or left whole — see ChannelsPanel.SetLocked, which also
     // says why the shield has to go on the group and not on the panel around it.
+    //
+    // The Sound panel is the first thing to stand on both sides of that line rather than
+    // beside it: a lock writes the score and a channel's own timbre does not, and the
+    // same fifteen rows are both. So it answers for itself too — see SoundPanel.SetLocked.
     //
     // The Load button goes with them: a request cannot be taken back, so the switch that
     // made it says so rather than looking ready to make another.
@@ -339,6 +367,7 @@ sealed class JacquardUI
 
         _view.Locked = _locked;
         Controls.SetLocked(_inspector.Root, _locked);
+        _sound.SetLocked(_locked);
         _channels.SetLocked(_locked);
         _load.style.opacity = _locked ? Style.DimmedOpacity : 1.0f;
     }
@@ -688,11 +717,13 @@ sealed class JacquardUI
     // column of their own, and it goes beside the cursor's rather than in the far
     // corner.
     //
-    // Beside, because the two are read together. What a channel sends is a row of its
-    // Sound panel and what it is sent to is here, so the amount and the effect it feeds
-    // are a glance apart instead of a screen apart — and the left edge, which the send
-    // effects used to hold, is the one place a column can stand without ever being
-    // covered by the cursor's, which is what the channels want.
+    // Beside, because the left edge is the one place a column can stand without ever
+    // being covered by the cursor's, and that is what the channels want. It used to be
+    // beside for a second reason, that the two are read together — how much of a channel
+    // goes to the reverb was a row of the panel standing next to this one. That row is
+    // in the middle of the screen now, on the Sound panel, so the reason is gone and the
+    // position is not: a panel no cell answers to still cannot queue behind panels that
+    // do, and the far edge is still spoken for.
     //
     // What it costs is the plane under it, and only while it is up: a column of panels
     // that is down is a column of nothing, and this one is down until the Send FX
@@ -1001,6 +1032,10 @@ sealed class JacquardUI
     {
         _view.Rebuild();
         _inspector.Refresh();
+        // Everything that reaches the fifteen without moving the cursor: a load replacing
+        // Project.Patches, a renumber from the Tile panel's chooser, a Swap from the
+        // Channels panel, and a lock row's own Commit.
+        _sound.Refresh();
         // Not in OnCursorMoved, since nothing on the send panel answers to a cell. This
         // is for the one change that does reach it: a load, which arrives with effect
         // settings of its own.
@@ -1013,9 +1048,14 @@ sealed class JacquardUI
         _global.Refresh();
     }
 
-    // The one panel that shows whatever the cursor is on: the tile, the lane it heads,
-    // the sound it names and the hold it has on one, whichever of those the cell has.
-    void OnCursorMoved() => _inspector.Refresh();
+    // The two panels that show whatever the cursor is on: the tile and the lane it heads
+    // in the corner, and in the middle the sound of the channel it names or the hold a
+    // lock has on one.
+    void OnCursorMoved()
+    {
+        _inspector.Refresh();
+        _sound.Refresh();
+    }
 
     // The one thing that raises and lowers the send effects. It is the transport button
     // and nothing else, so the button's own look and what it shows are set in the same
@@ -1090,6 +1130,15 @@ sealed class JacquardUI
     // its rule are 46 of the 1114 units this row measures at the touch profile, by the
     // reading taken at the guide button below, and Save's width and gap go with them. So
     // the row still hangs off an iPad's right edge and is still dragged, by less.
+    //
+    // Nothing about the Sound panel is here, and that is worth a sentence rather than a
+    // silence, since a wide panel appearing in the middle of the screen mid-set is about
+    // as loud as this interface gets. The mode's test is an *and* — a control goes if
+    // pressing it by accident would cost something *and* a performance has no use for it
+    // — and changing a channel's patch mid-set is a performance use, so the second half
+    // fails and the panel stays. The one gesture on it the mode does take is the typing
+    // one, and that is gated inside ValueBar.OnPointerDown, so the new bars inherit it
+    // without being named here.
     //
     // Called from the panel when the switch moves and from the constructor for the state
     // the app was left in, which is why it reads its answer from the argument and keeps
@@ -1265,11 +1314,13 @@ sealed class JacquardUI
     readonly ScrollStrip _row;
     readonly VisualElement _leftEdge;
     readonly VisualElement _rightEdge;
+    readonly VisualElement _soundCentre;
     readonly VisualElement _centre;
     readonly VisualElement _dock;
     readonly VisualElement _front;
 
     readonly InspectorPanel _inspector;
+    readonly SoundPanel _sound;
     readonly SendPanel _send;
     readonly ChannelsPanel _channels;
     readonly GlobalPanel _global;

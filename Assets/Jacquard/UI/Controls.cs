@@ -86,9 +86,11 @@ static class Controls
     // the thing to hold rather than the numbers, since Width below is that ratio.
     public static float FontSize => Touch ? 13.0f : MouseFontSize;
 
-    // The caption column is as narrow as the longest parameter name will go, since a
-    // name that wraps or clips is worse than a bar that is a few pixels shorter. The
-    // name is "Reverb send".
+    // The caption column is as narrow as the longest caption will go, since a name
+    // that wraps or clips is worse than a bar that is a few pixels shorter. The name
+    // is "Step length". It was "Reverb send" until the fifteen synth parameters left
+    // for a panel of their own, and the two are the same eleven characters, so the
+    // number stands and only the sentence changed.
     public static float LabelWidth => Touch ? 88.0f : 74.0f;
 
     // Every panel is this wide.
@@ -107,6 +109,30 @@ static class Controls
     // is a bar wherever it stands, and the tempo was two thirds of the length of every
     // other one for no reason a hand can see.
     public static float BarWidth => PanelWidth - Inset * 2 - LabelWidth;
+
+    // The same two numbers again for the one panel that is not a column of rows.
+    //
+    // The Sound panel stands the fifteen synth parameters in four columns under
+    // headings, and a heading that says "Frequency modulation" is carrying half of
+    // what each caption underneath it used to say — so the column can come in by a
+    // sixth. The longest caption left on it is "Transpose", against "Step length" on a
+    // column panel.
+    //
+    // The bar is shorter than a column panel's for the reason a column panel's is as
+    // long as it is: what is left over. Four of these across is what makes the panel
+    // wide, and a bar only has to be long enough to read a number off and to see where
+    // in its range that number sits — a drag covers the whole range in 160 units of
+    // pointer travel whatever the bar's own length, so nothing about the feel of one is
+    // paid for here. See ValueBar.DragDistance.
+    public static float FieldLabelWidth => Touch ? 72.0f : 60.0f;
+    public static float FieldBarWidth => Width(88.0f);
+    public static float FieldWidth => FieldLabelWidth + FieldBarWidth;
+
+    // Four field columns across, the three gaps between them, and the panel's own two
+    // insets. 648 under a mouse and 760 on a touch screen, which is three times what a
+    // column panel is — derived rather than typed, so that a caption column widened by
+    // a longer name moves the panel with it.
+    public static float WidePanelWidth => Inset * 2 + FieldWidth * 4 + PanelGap * 3;
 
     // One row of controls, with the same air over and under them.
     public static float TransportRowHeight => RowHeight + (Touch ? 16.0f : 12.0f);
@@ -173,11 +199,21 @@ static class Controls
     public static Label Text(string text, float size, Color color)
       => TileElement.Text(text, size, color);
 
-    public static Label Caption(string text)
+    // width is for the panel that is not a column of rows: its caption column is its
+    // own, and it is passed here rather than written at the call site because the two
+    // profiles disagree about it. Defaulted rather than forked, so that width and
+    // flexShrink go on being decided in one place — see FieldLabelWidth for the column
+    // this is the other end of, and impl-style.md for the rule that no call site ever
+    // passes a profile-aware number.
+    //
+    // The caption never shrinks, whatever the row around it does. A panel narrowed into
+    // a phone's safe area takes it out of the bars beside these, since a bar a few
+    // pixels shorter still reads and a name with its tail cut off does not.
+    public static Label Caption(string text, float? width = null)
     {
         var label = Text(text, FontSize, Style.Label);
         label.style.unityTextAlign = TextAnchor.MiddleLeft;
-        label.style.width = LabelWidth;
+        label.style.width = width ?? LabelWidth;
         label.style.flexShrink = 0;
         return label;
     }
@@ -207,9 +243,9 @@ static class Controls
     // else lights the name under the pointer, since a name that does something has no
     // other way of saying so.
     public static Label ActionCaption(string text, Action action,
-                                      Action<bool> hover = null)
+                                      Action<bool> hover = null, float? width = null)
     {
-        var caption = Caption(text);
+        var caption = Caption(text, width);
         caption.pickingMode = PickingMode.Position;
         caption.style.height = RowHeight;
 
@@ -636,17 +672,22 @@ static class Controls
     // setter runs and the note sounds exactly as they do for a bar let go of by hand.
     // A row already sitting at that value is left alone and sounds nothing, since a bar
     // handed the number it already holds reports no change.
+    //
+    // captionWidth is the Sound panel's, whose caption column is narrower than a column
+    // panel's because the heading over each group carries half of every name under it.
+    // See Caption.
     public static VisualElement Bar(string caption, in ValueBar.Range range,
                                     Func<float> get, Action<float> set,
-                                    Action settled = null, Func<float> reset = null)
+                                    Action settled = null, Func<float> reset = null,
+                                    float? captionWidth = null)
     {
         var row = Row();
 
         var bar = Bar(range, get, set, settled);
         bar.style.flexGrow = 1;
 
-        row.Add(reset == null ? Caption(caption)
-                : ActionCaption(caption, () => bar.value = reset()));
+        row.Add(reset == null ? Caption(caption, captionWidth)
+                : ActionCaption(caption, () => bar.value = reset(), width: captionWidth));
         row.Add(bar);
 
         return row;

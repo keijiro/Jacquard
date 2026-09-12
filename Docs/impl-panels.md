@@ -20,15 +20,25 @@ The rules every panel obeys
 These are the ones to check a new panel against. Each is argued where it is implemented;
 the point of the list is that none of them is optional.
 
-**One panel shows what the cursor is on, and nothing is toggled.** The Tile panel keeps
-the corner and follows the cursor, and everything the cell decides is a group on it —
-the tile's rows, the lane a head carries, the sound of the channel a `CHAN` names, the
-parameters a lock takes hold of. There is no window to open, and so no state on screen
-that the score does not decide. The send effects are the one exception and are the
-exception because they have to be: one reverb for the whole project answers to no cell.
-The three onboarding pages are the other, and are the exception the opposite way round:
-what they are about is the interface rather than anything written on the plane, so there
-was never a cell for them to have followed. See `InspectorPanel` and `SendPanel`.
+**Two panels show what the cursor is on, and nothing is toggled.** The Tile panel keeps
+the corner and follows the cursor, and carries the tile's own rows and the lane a head
+carries. The Sound panel stands in the middle and carries the fifteen synth parameters,
+which is the sound of the channel a `CHAN` names and the hold a lock has on one. There is
+no window to open, and so no state on screen that the score does not decide.
+
+**The count is what changed, not the rule.** It was one panel, with the fifteen as two
+long groups on it. The honest reason for the second is the shape of what it holds: fifteen
+parameters read across four columns with a picture of the voice among them cannot stand in
+a 248-unit column, and the middle is the only place on this screen with room for something
+three times that wide. Both are still raised by nothing but the cursor and neither is
+toggled, so what a cell is answered by is still not a thing anybody opens. See
+`InspectorPanel`, `SoundPanel` and `SendPanel`.
+
+The send effects are the one exception to *nothing is toggled* and are the exception
+because they have to be: one reverb for the whole project answers to no cell. The three
+onboarding pages are the other, and are the exception the opposite way round: what they
+are about is the interface rather than anything written on the plane, so there was never
+a cell for them to have followed.
 
 **A panel's header is its subject, not its name** — *Note Tile*, *Channel Start Tile* —
 since which panel it is was never in doubt and the thing changes under the cursor.
@@ -45,7 +55,9 @@ answered. See `OnboardingPanel` and `Style.FrontLine`.
 
 **A panel is spaced out of three numbers** — `Controls.Gap`, `Controls.Inset`,
 `Controls.GroupGap` — and nothing in a panel is a number of its own; what is not one of
-the three is a stated subtraction from one. **A gap is carried below and to the right, by
+the three is a stated subtraction from one. A panel's *width* is the same arithmetic read
+the other way: the wide one is `Inset`, `PanelGap` and a caption column added up in
+`Controls.WidePanelWidth`, never a number typed at the panel. **A gap is carried below and to the right, by
 the thing above and to the left of it**, so anything wanting more than a gap adds only
 what is missing. A control that does not carry its gap is where this goes wrong: see the
 note on the tempo bar in `Controls`.
@@ -106,6 +118,7 @@ The panels, and what raises each
 | Panel | Raised by | Stands |
 | --- | --- | --- |
 | Tile | The cursor | Right column, outermost |
+| Sound | The cursor, on a `CHAN` or a lock | Centre, in a layer of its own under Global and System |
 | Send FX | Transport switch | Right column, inside the cursor's |
 | Channels | Transport switch | Left column |
 | Global | Transport switch | Centre |
@@ -187,7 +200,10 @@ Where the rest is written
 | --- | --- |
 | The bar: travel, tapers, the geometric ranges, the two bars a pitch takes | `ValueBar`, `ParamRanges` |
 | Cycle gate switches, and what a cell can show before the tile gives out | `InspectorPanel`, `TileIcons` |
-| Why the Sound group and the lock rows are re-bound rather than made again | `InspectorPanel.Refresh` |
+| Why the three runs of synth rows are re-bound rather than made again, and why the swap unit is a column | `SoundPanel` |
+| Where the fifteen stand on a panel that is not a list, and why the caption and the heading over it are one decision | `SoundPanel.Fields` |
+| What the waveform is drawn from, the two clocks, and why a scrub on nine of the fifteen repaints nothing | `SoundPlot` |
+| Why the sound rows are live under a pending load and the lock rows are shielded | `SoundPanel.SetLocked` |
 | Why a bar's text field waits for the first edit | `ValueBar.BuildInput` |
 | Exchanging two channels, and why the group for it sits on the Channels panel | `ChannelsPanel`, `Project.SwapChannels` |
 | The DSP buffer setting, why it applies at the next launch, and where it starts on each platform | `DspBuffer`, `SystemPanel` |

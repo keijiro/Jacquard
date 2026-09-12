@@ -30,17 +30,18 @@ Using it
 | New lane | Select bare ground, then New lane; delete a lane from its `CHAN` cell |
 | Stop or start a lane | Double click its `CHAN` cell, or Play on the panel that cell opens |
 | Branch | The `JUMP` button, which brings its `JDST` lane with it |
-| Details of a tile | The panel on the right follows the cursor; drag it up and down when it is longer than the screen |
+| Details of a tile | The panel on the right follows the cursor; drag it up and down when it is longer than the screen. On a `CHAN` cell or a lock a second panel opens in the middle of the screen with the sound on it, and both go when the cursor moves off |
 | Set a number | Drag its bar right or up, shift for fine; double click to type one, unless Stage Mode is on. A typed number may go past the ends of the bar, which is how a part is moved further or a tail held longer than the bar reaches; past what the synth will take it is held there, and the bar says which it was |
 | Take a number back | Double click its name: a lock lets go of that parameter, and a channel's sound goes back to where a fresh patch holds it |
-| Timbre | Select a `CHAN` cell, which puts its channel's sound on the Tile panel, under the lane |
-| Move a channel in pitch | Transpose, the first row of its sound, in semitones |
-| Thicken a channel | Unison, under Pan in its sound: above zero every note sounds twice, detuned apart and spread across the image. The image opens over the first three tenths and the rest of the bar goes on detuning |
+| Timbre | Select a `CHAN` cell, which opens the wide panel in the middle: the whole of that channel's sound at once, in four columns, with a picture of one note of it in the middle that redraws as the six parameters around it are dialled |
+| What a lock holds | Select a lock cell: the same wide panel opens, over the same four columns, and each row shows what the channel does until this lock takes hold of it. The picture is the sound the lock makes, not the channel's own |
+| Move a channel in pitch | Transpose, under *Note* at the left of its sound, in semitones |
+| Thicken a channel | Unison, under *Mix* at the right of its sound: above zero every note sounds twice, detuned apart and spread across the image. The image opens over the first three tenths and the rest of the bar goes on detuning |
 | Hold the piece to a key | The Global button opens the panel the Scale is set on, a switch per semitone laid out as a keyboard |
 | Silence a channel, or hear one alone | The Channels button opens a row per channel, with a Mute and a Solo switch on each; a solo overrules every mute, and both are saved with the score |
 | Go to a channel | Select on its row, which puts the cursor on the `CHAN` tile that names it |
 | Swap two channels | The Swap group under those rows: pick two numbers and press it, and the sound, the mute and every lane naming either number change places. The piece goes on sounding as it did, and pressing again puts it back. The one exception is channel 1: the turn of the piece is read off the first channel 1 lane, so swapping that number moves it, and a lane switched off can start or stop as the title changes hands |
-| Reverb and delay | The Send FX button opens the panel they are set on; how much of a channel reaches each is the last two rows of its sound |
+| Reverb and delay | The Send FX button opens the panel they are set on; how much of a channel reaches each is under *Sends* at the right of its sound |
 | Play the sequence by hand | The Live FX button opens a row of buttons that act while they are held |
 | Loudness and punch | The same Global panel holds the limiter; Threshold is the one that is played, and the make-up gain follows it so the mix gets louder as it gets harder |
 | How loud it all is | Volume, on the System panel: after everything else in the mix, so it makes the piece quieter without making it any softer. Tapered like a fader, and off at the bottom of its travel |

@@ -121,6 +121,33 @@ public abstract class ParamTile : Tile
         }
     }
 
+    // Colours a patch with everything this lock has taken hold of, in target order;
+    // the rest of the patch is not touched. So two locks in the same stack only
+    // disagree where they engage the same parameter, and there the one applied later
+    // wins by being applied later.
+    //
+    // It is here rather than in the sequencer because the sequencer is no longer the
+    // only thing that asks. The Sound panel draws the sound a lock makes, which means
+    // resolving the lock exactly the way the piece will resolve it — and a second copy
+    // of this loop in the UI is a second answer to what a lock does, which would drift
+    // the first time a third kind of lock or a third rule arrived. What the method
+    // needs is the tile and a patch, and whether the amount is a value or a shift is
+    // answerable here in place.
+    public void ApplyTo(ref FmPatch patch)
+    {
+        var absolute = this is AbsoluteParamTile;
+
+        for (var target = 0; target < ParamTargets.Count; target++)
+        {
+            if (!_engaged[target]) continue;
+
+            if (absolute)
+                ParamTargets.Set(ref patch, target, _amounts[target]);
+            else
+                ParamTargets.Add(ref patch, target, _amounts[target]);
+        }
+    }
+
     // Fills in a lock of whichever kind the caller made, since what a lock holds is
     // kept here and the kind is all a subclass adds.
     protected ParamTile CopyInto(ParamTile copy)

@@ -560,24 +560,10 @@ public sealed class Sequencer
     // there is nothing to resolve about where it applies: it writes the working patch,
     // and whoever comes later in the pass reads it.
     //
-    // Every parameter it has taken hold of is written, in target order; the rest of
-    // the patch is not touched, so two locks in the same stack only disagree where
-    // they engage the same parameter, and there the lower one wins by being read
-    // later.
-    void Apply(ParamTile param, int channel)
-    {
-        var absolute = param is AbsoluteParamTile;
-
-        for (var target = 0; target < ParamTargets.Count; target++)
-        {
-            if (!param.IsEngaged(target)) continue;
-
-            if (absolute)
-                ParamTargets.Set(ref _working[channel], target, param[target]);
-            else
-                ParamTargets.Add(ref _working[channel], target, param[target]);
-        }
-    }
+    // What it writes into that patch is the tile's own business, and is stated once in
+    // ParamTile.ApplyTo, which the Sound panel reads as well so that the picture of a
+    // lock's sound cannot disagree with the sound.
+    void Apply(ParamTile param, int channel) => param.ApplyTo(ref _working[channel]);
 
     // Private members
 

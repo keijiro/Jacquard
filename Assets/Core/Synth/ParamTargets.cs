@@ -17,11 +17,11 @@ namespace Jacquard {
 // is a property of the project.
 //
 // What is not free about that is the screen. Adding one here adds a row to the Sound
-// group and a row to a lock's, and on a tablet a row costs 33pt of a column that has
-// to be dragged to reach past the bottom of the screen — so a target arriving in this
-// list is a decision about how far a hand has to travel as much as it is one about
-// what a lock can say. It used to be a harder limit than that: the column did not
-// scroll at all, and a row past the screen was a control nobody could reach.
+// panel, three times over — once for a channel's own patch and once for each kind of
+// lock — and the panel is four columns of grouped rows with a picture among them
+// rather than a list with room at the bottom. So a target arriving in this list is a
+// decision about where on that panel it stands as much as it is one about what a lock
+// can say, and the answer is SoundPanel's table rather than this file's order.
 //
 // One of them is not addressed to the synth at all. The transpose is read by the
 // sequencer as it makes the note and never reaches a voice, which makes it the one
@@ -30,21 +30,24 @@ namespace Jacquard {
 // locking — a step that lifts one channel an octave is a lock the way a step that
 // throws one note into the reverb is.
 //
-// The order is the order the Sound and Lock panels read in. It opens with the note
-// itself, then the three that place it in the mix rather than shape it — how loud,
-// where, and how wide. The four FM parameters then run in the order a musician dials
-// them: what the modulator is tuned to, how much of it arrives, how much of itself it
-// hears, and how quickly all of that gets out of the way.
+// The order here is no longer a reading order. It was, while the fifteen stood in one
+// column on two panels; they stand in four columns under headings now, and which row
+// follows which is SoundPanel's table. What is left of the order is the grouping it
+// happens to carry — the note, then the three that place it in the mix, then the four
+// FM parameters in the order a musician dials them — and that grouping is why the
+// panel's two-across middle column still reads 5, 6, 7, 8 across and then down.
 //
-// The numbers these constants hold are an index into an array and nothing else: a
-// file names a target by its key, so inserting one at the front costs nothing but a
-// recompile.
+// Reordering these constants to match the panel is deliberately not done. The numbers
+// are an index into an array and nothing else, since a file names a target by its key,
+// so it is free as far as the format goes — but it is a diff across three switches and
+// the retirement machinery for the sake of a list nothing reads in order.
 //
-// The names are the musician's rather than the synthesis textbook's, and they do not
-// match the fields they address: an FM amount is a modulation index and an amp
-// envelope is the carrier's. The constants and the file keys keep the older
-// spellings, since renaming those would only be a way to make older files unopenable
-// for the sake of a caption.
+// There are no names here. A caption depends on the heading standing over it — Decay
+// under *Pitch sweep* and Decay under *Frequency modulation* are two rows a semitone
+// apart in meaning and the heading is the whole of what tells them apart — so the
+// caption and the heading are one decision and they are made together, in SoundPanel.
+// The constants and the file keys keep the older spellings, since renaming those would
+// only be a way to make older files unopenable for the sake of a word on screen.
 
 public static class ParamTargets
 {
@@ -65,14 +68,6 @@ public static class ParamTargets
     public const int DelaySend = 14;
 
     public const int Count = 15;
-
-    public static readonly string[] Names =
-      { "Transpose", "Level", "Pan", "Unison", "Gate ratio", "FM ratio",
-        "FM amount", "Feedback", "FM decay", "Amp attack", "Amp release",
-        "Pitch sweep", "Pitch decay", "Reverb send", "Delay send" };
-
-    public static string Name(int target)
-      => target >= 0 && target < Count ? Names[target] : "?";
 
     // Spelling used in a saved file, where a space would break the tokenizer.
     public static readonly string[] Keys =
