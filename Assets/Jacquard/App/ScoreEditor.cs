@@ -264,16 +264,6 @@ public sealed class ScoreEditor
     public void PreviewRemembered(int channel)
       => Preview(_notePitch, channel, _noteLength);
 
-    public void Transpose(int semitones)
-    {
-        if (Locked || Selected is not NoteTile note) return;
-
-        note.Note = Math.Clamp(note.Note + semitones, Pitch.Lowest, Pitch.Highest);
-        RememberNote(note);
-        Preview(note.Note);
-        Commit();
-    }
-
     // Lanes
 
     public void NewChannelLane()
@@ -433,9 +423,10 @@ public sealed class ScoreEditor
 
     // Keyboard
 
-    // What is left to the keys is moving about and the two edits worth repeating:
-    // deleting, and walking a note up or down. Putting a tile down is the panel's,
-    // so that there is one way of doing it and it is the one on screen.
+    // What is left to the keys is moving about, deleting, and asking to hear what is
+    // under the cursor. Every pitch is the panel's — the letter on its keyboard, the
+    // register on the bar under it — so that there is one way of arriving at a note
+    // and it is the one on screen.
     public bool HandleKey(KeyDownEvent evt)
     {
         // Every key here either edits the score or moves the cursor the panels that
@@ -443,23 +434,12 @@ public sealed class ScoreEditor
         // settled before this is asked and go on working.
         if (Locked) return false;
 
-        var shift = evt.shiftKey;
-        var command = evt.actionKey || evt.commandKey || evt.ctrlKey;
-
         switch (evt.keyCode)
         {
             case KeyCode.LeftArrow: View.MoveCursor(-1, 0); return true;
             case KeyCode.RightArrow: View.MoveCursor(1, 0); return true;
-
-            case KeyCode.UpArrow:
-                if (shift) Transpose(command ? 12 : 1);
-                else View.MoveCursor(0, -1);
-                return true;
-
-            case KeyCode.DownArrow:
-                if (shift) Transpose(command ? -12 : -1);
-                else View.MoveCursor(0, 1);
-                return true;
+            case KeyCode.UpArrow: View.MoveCursor(0, -1); return true;
+            case KeyCode.DownArrow: View.MoveCursor(0, 1); return true;
 
             case KeyCode.Delete:
             case KeyCode.Backspace:
@@ -472,12 +452,6 @@ public sealed class ScoreEditor
                 // it is the one audition the System panel's switch does not govern.
                 if (Selected is NoteTile note) Sound(note.Note);
                 return true;
-        }
-
-        switch (evt.character)
-        {
-            case '#': case '+': Transpose(1); return true;
-            case '-': Transpose(-1); return true;
         }
 
         return false;

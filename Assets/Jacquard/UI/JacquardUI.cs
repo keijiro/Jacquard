@@ -1163,8 +1163,8 @@ sealed class JacquardUI
         if (_editor.HandleKey(evt)) evt.StopPropagation();
     }
 
-    // Keeps typing working after a button has been pressed: a click moves the focus
-    // to the button, and the grid is where the keys are supposed to land.
+    // Keeps the keys working after a button has been pressed: a click moves the focus
+    // to the button, and the grid is where they are supposed to land.
     void Refocus() => _view.Focus();
 
     // Brings the cursor into view when it walks off the edge.

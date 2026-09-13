@@ -724,9 +724,9 @@ sealed class ValueBar : VisualElement, INotifyValueChanged<float>
     // Keyboard
 
     // Whichever element had the keyboard when a drag or an edit began, so that it can
-    // have it back afterwards. Here that is the score plane, where the letter keys
-    // write notes: tweaking a parameter must not quietly be the end of typing on the
-    // grid.
+    // have it back afterwards. Here that is the score plane, where the arrows walk the
+    // cursor and delete takes a tile away: tweaking a parameter must not quietly be the
+    // end of the keys the grid answers to.
     //
     // The last one seen is kept rather than replaced by whatever is focused now: a
     // click on a bar may well leave nothing focused at all, and the click before the
