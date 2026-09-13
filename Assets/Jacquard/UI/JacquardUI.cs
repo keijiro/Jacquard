@@ -53,6 +53,8 @@ sealed class JacquardUI
 
         SetFace(root, app.Font);
 
+        SwitchOffTheFocusRing(root);
+
         _row = BuildTransportRow();
         root.Add(_row);
 
@@ -1166,6 +1168,48 @@ sealed class JacquardUI
     // Keeps the keys working after a button has been pressed: a click moves the focus
     // to the button, and the grid is where they are supposed to land.
     void Refocus() => _view.Focus();
+
+    // Nothing on this screen is arrived at with the keyboard. Every control is pointed
+    // at, and the one element that wants the keys is the plane, which reads them off
+    // KeyDownEvent — so the focus ring is a way of losing the keyboard and no way of
+    // using it, and it is switched off for the whole screen.
+    //
+    // What made it a bug rather than a nicety: the Input System's UI map binds Navigate
+    // to the arrow keys, and a press raises a NavigationMoveEvent beside the key event
+    // rather than out of it, so stopping the key does not stop the navigation. The key
+    // arrives first, which is why the first arrow pressed looked right — it moved the
+    // cursor, and then the unanswered navigation walked the focus off the plane and into
+    // the nearest button on a panel. Every arrow after that walked it between buttons,
+    // and every other key went to a button that does not read keys, so the plane went
+    // dead until something was clicked. Submit and Cancel go with Move: Enter is bound
+    // to Submit and a focused button takes one as a click, so the key that auditions a
+    // note was also pressing whatever the ring had last arrived on.
+    //
+    // At the root and on the way down, so it holds wherever the keyboard happens to be
+    // rather than only while the plane has it — the guide button is left holding it on
+    // purpose, and the ring must not walk on from there either. Only navigation is taken:
+    // the keys the app answers to are KeyDownEvents and reach their handlers as they
+    // always did, the plane's among them and the Return and Escape a bar's number field
+    // reads while it is open.
+    static void SwitchOffTheFocusRing(VisualElement root)
+    {
+        // Stopped and disowned both, and the second is the one that does the work.
+        // Stopping keeps the event from the elements under this one, but the ring is not
+        // an element's answer to it: the focus controller reads the event beside the
+        // propagation and moves the focus whatever the tree did with it. Read off the
+        // running app rather than the documentation — with the stop alone the focus still
+        // left the plane for a panel button, and with IgnoreEvent it stays. It is what
+        // PreventDefault, which is obsolete here, says to use in its place.
+        void Swallow(EventBase evt)
+        {
+            evt.StopPropagation();
+            root.focusController.IgnoreEvent(evt);
+        }
+
+        root.RegisterCallback<NavigationMoveEvent>(Swallow, TrickleDown.TrickleDown);
+        root.RegisterCallback<NavigationSubmitEvent>(Swallow, TrickleDown.TrickleDown);
+        root.RegisterCallback<NavigationCancelEvent>(Swallow, TrickleDown.TrickleDown);
+    }
 
     // Brings the cursor into view when it walks off the edge.
     //

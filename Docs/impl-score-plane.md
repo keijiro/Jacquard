@@ -121,3 +121,4 @@ Where the rest is written
 | Framing the startup score, and where the cursor lands on it | `ScoreView.ShowScore` |
 | Why the lattice and the rails are written as vertices rather than filled paths | `ScoreView.FillRects` |
 | Why a cell is moved rather than made again | `ScoreView.Rebuild` |
+| Why the plane keeps the keyboard, and why UI Toolkit's focus ring is switched off | `JacquardUI.SwitchOffTheFocusRing`, `ValueBar.RememberKeyboard` |
