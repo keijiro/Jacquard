@@ -280,9 +280,11 @@ sealed class InspectorPanel
 
     // What one parameter lock takes hold of.
     //
-    // The same list the sound group shows, in the same order and over the same ranges,
-    // because it is the same set: every field of the patch is a lock target. Reading a
-    // lock against the timbre it colours only works if the two are laid out alike.
+    // The same list the sound group shows, in the same order, over the same ranges and
+    // under the same six headings, because it is the same set: every field of the patch
+    // is a lock target. Reading a lock against the timbre it colours only works if the
+    // two are laid out alike, and a heading the sound group has and this one does not is
+    // the two laid out differently. The names come from ParamTargets.Groups either way.
     //
     // A row starts released and greyed, and reads out what the channel does without it.
     // Moving its bar is what takes hold of that parameter — there is no separate step
@@ -290,17 +292,24 @@ sealed class InspectorPanel
     // lets go again. Whatever is left grey is untouched by this tile, so a lock holding
     // nothing at all does nothing at all, which is what a freshly placed one is.
     //
-    // The heading carries the channel, which is the one thing here a lock cannot say for
-    // itself: the tile does not hold a number, and a branch lane borrows one from the
-    // jump that reaches it. It was the header of a panel of its own, standing under this
-    // one and up only while this one was showing a lock — a group of this panel wearing
-    // a frame, the same as the sound was.
+    // Nothing here names the channel any more. A heading saying "Channel 3" stood over
+    // the rows for as long as this was a panel of its own — it was that panel's header,
+    // and a panel needs one — and it went on standing there after the panel became a
+    // group of this one, on the argument that the channel is the thing a lock cannot say
+    // for itself. It cannot, and it does not have to: the cursor is in a lane, the lane
+    // runs from a CHAN cell carrying the number, and a hand that wants the timbre those
+    // numbers colour is going to that cell anyway. What the line actually did was spend
+    // the top of the longest panel in the app on a fact the plane was already showing.
     //
-    // Being the same set in the same order as the sound group is also what lets the two
-    // be built the same way: fifteen rows that are the same fifteen rows whichever tile
-    // the cursor is on, so what moving between two locks changes is what they read and
-    // write and nothing about the run itself. Kept and pointed at the new tile, the way
-    // the sound group is and for the same measured reason.
+    // The channel is still read, and the rows are still pointed at it — see Released and
+    // the Refresh that notices a lock changing channels without moving. It is only not
+    // written down.
+    //
+    // Being the same set in the same order as the sound group is also what lets the
+    // two be built the same way: fifteen rows under six headings, the same fifteen
+    // whichever tile the cursor is on, so what moving between two locks changes is
+    // what they read and write and nothing about the run itself. Kept and pointed at
+    // the new tile, the way the sound group is and for the same measured reason.
     VisualElement BuildLock(ParamTile tile)
     {
         var absolute = tile is AbsoluteParamTile;
@@ -312,7 +321,7 @@ sealed class InspectorPanel
             if (absolute) _lockAbsolute = group; else _lockRelative = group;
         }
 
-        group.Apply(tile, _channel);
+        group.Apply(tile);
         return group;
     }
 
@@ -337,6 +346,14 @@ sealed class InspectorPanel
     // whole patch: seeing what a lock can reach, and where the channel currently sits
     // inside each range, is what makes a lock's amount mean something.
     //
+    // Under six headings rather than one, and the one is gone with them. "Sound" over
+    // fifteen rows named the group correctly and helped nobody: a hand on this panel is
+    // already on a CHAN cell and knows what the rows under the lane are, and what it is
+    // doing is looking for one of fifteen. Six names say which stretch of the column to
+    // look down, which is the job the single heading was not doing. Where they fall is
+    // ParamTargets.Groups, because where the list breaks is a fact about the order and
+    // the order is there.
+    //
     // The rows read the channel off the tile under the cursor rather than off a number
     // of their own, so renumbering the CHAN cell moves the whole group to the other
     // channel with nothing rebuilt. What widens that from a renumber to a different CHAN
@@ -355,8 +372,6 @@ sealed class InspectorPanel
 
         _sound = new VisualElement();
 
-        _sound.Add(Controls.Heading("Sound", follows: true));
-
         // Every bar sounds a note on the channel once its value has settled, which is
         // the whole of the auditioning: a drag down a bar is one note rather than a
         // burst of them, and a parameter is heard where it was left. There is no button
@@ -372,6 +387,12 @@ sealed class InspectorPanel
         for (var target = 0; target < ParamTargets.Count; target++)
         {
             var index = target;
+
+            // Every group opens one, the first included: the run of rows follows the
+            // lane's, so there is always something above for the gap to part it from.
+            var group = ParamTargets.GroupAt(index);
+            if (group != null) _sound.Add(Controls.Heading(group, follows: true));
+
             _sound.Add(Controls.Bar(ParamTargets.Name(index), ParamRanges.Of(index),
                                     () => ParamTargets.Get(Patch(), index),
                                     value => Set(index, value),
@@ -744,8 +765,8 @@ sealed class InspectorPanel
         readonly Button[] _switches = new Button[CycleGateTile.MaxPeriod];
     }
 
-    // The fifteen parameters one lock can take hold of, under the heading that says
-    // which channel they belong to.
+    // The fifteen parameters one lock can take hold of, under the six headings the sound
+    // group runs under.
     //
     // Kept between showings, and kept twice over. A bar's range is fixed when it is
     // made, and the two kinds of lock do not share one: an absolute lock's bar runs over
@@ -757,25 +778,26 @@ sealed class InspectorPanel
     {
         public LockGroup(InspectorPanel panel, ParamTile tile)
         {
-            _heading = Controls.Heading("");
-            Add(_heading);
-
             for (var target = 0; target < ParamTargets.Count; target++)
             {
+                // The first one stands under the panel's own header rather than under a
+                // row, which is the one way this differs from BuildSound: a lock's group
+                // opens the panel and the sound's follows the lane.
+                var group = ParamTargets.GroupAt(target);
+                if (group != null) Add(Controls.Heading(group, follows: target > 0));
+
                 _rows[target] = new LockRow(panel, tile, target);
                 Add(_rows[target]);
             }
         }
 
-        // Points the group at another lock of its own kind. The channel comes with it
-        // rather than off the tile, which does not hold one — see BuildLock.
-        public void Apply(ParamTile tile, int channel)
+        // Points the group at another lock of its own kind. Nothing but the rows to
+        // point: the headings say the same thing over every lock in the score.
+        public void Apply(ParamTile tile)
         {
-            _heading.text = "Channel " + channel;
             foreach (var row in _rows) row.Apply(tile);
         }
 
-        readonly Label _heading;
         readonly LockRow[] _rows = new LockRow[ParamTargets.Count];
     }
 

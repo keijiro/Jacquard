@@ -30,11 +30,25 @@ namespace Jacquard {
 // locking — a step that lifts one channel an octave is a lock the way a step that
 // throws one note into the reverb is.
 //
-// The order is the order the Sound and Lock panels read in. It opens with the note
-// itself, then the three that place it in the mix rather than shape it — how loud,
-// where, and how wide. The four FM parameters then run in the order a musician dials
-// them: what the modulator is tuned to, how much of it arrives, how much of itself it
-// hears, and how quickly all of that gets out of the way.
+// The order is the order the Sound and Lock panels read in, and it runs in six groups
+// rather than fifteen rows: the note, the mix, the FM, the two envelopes, and what is
+// sent on. Groups below carries their names, and both panels head each run with one.
+//
+// It opens with the two that are not about the timbre at all — which note the sequencer
+// makes and how much of its step that note holds — then the three that place the note
+// in the mix rather than shape it: how loud, where, and how wide. The four FM
+// parameters run in the order a musician dials them: what the modulator is tuned to,
+// how much of it arrives, how much of itself it hears, and how quickly all of that gets
+// out of the way. An envelope follows the thing it moves, and the sends go last because
+// they are the only two that leave the voice.
+//
+// The gate ratio moved up to sit beside the transpose, which is the one place the
+// grouping asked for more than a heading over the order that was already here. The two
+// belong together for the same reason FmPatch keeps the gate ratio at arm's length from
+// the oscillator settings around it: neither says anything about what a note sounds
+// like, only which note it is and how long it lasts. With the mix between them, a hand
+// reading down the list met a length dropped into the middle of three settings about
+// loudness, and the transpose was left opening the list on its own.
 //
 // The numbers these constants hold are an index into an array and nothing else: a
 // file names a target by its key, so inserting one at the front costs nothing but a
@@ -45,14 +59,27 @@ namespace Jacquard {
 // envelope is the carrier's. The constants and the file keys keep the older
 // spellings, since renaming those would only be a way to make older files unopenable
 // for the sake of a caption.
+//
+// A name is read under its heading and does not repeat it. The four FM rows each opened
+// with "FM" and the two sends each ended in "send", from when fifteen rows ran under one
+// name and a row had to say for itself which part of a patch it was: the heading says it
+// now, and a row saying it again is a caption arguing with the line above it. What is
+// left is the half that differs, which is the half being read.
+//
+// The pitch envelope's depth is the one row that could not simply drop its word. "Sweep"
+// alone names the gesture rather than how far it goes, and how far it goes is what the
+// number is. "Amount" would have said that, and says it four rows up for the FM — two
+// rows of one name in a panel answer a glance with whichever the eye reached first.
+// "Depth" is what a pitch envelope's range is called, and it carries a sign as naturally
+// as that range does.
 
 public static class ParamTargets
 {
     public const int Transpose = 0;
-    public const int Level = 1;
-    public const int Pan = 2;
-    public const int Unison = 3;
-    public const int Gate = 4;
+    public const int Gate = 1;
+    public const int Level = 2;
+    public const int Pan = 3;
+    public const int Unison = 4;
     public const int ModRatio = 5;
     public const int ModIndex = 6;
     public const int Feedback = 7;
@@ -67,16 +94,48 @@ public static class ParamTargets
     public const int Count = 15;
 
     public static readonly string[] Names =
-      { "Transpose", "Level", "Pan", "Unison", "Gate ratio", "FM ratio",
-        "FM amount", "Feedback", "FM decay", "Amp attack", "Amp release",
-        "Pitch sweep", "Pitch decay", "Reverb send", "Delay send" };
+      { "Transpose", "Gate ratio", "Level", "Pan", "Unison", "Ratio",
+        "Amount", "Feedback", "Decay", "Attack", "Release",
+        "Depth", "Decay", "Reverb", "Delay" };
 
     public static string Name(int target)
       => target >= 0 && target < Count ? Names[target] : "?";
 
+    // Where the order above breaks, as the target that opens each run and the name the
+    // panels head it with.
+    //
+    // Here rather than on the panel because it is a fact about the order and the order
+    // is here: a target inserted between two of these joins the group above it, which
+    // is a thing to settle while looking at the list it is going into rather than to
+    // find out from a screen. The panel only walks the list and asks each target
+    // whether a heading stands over it.
+    //
+    // A name says why those rows are together and never what they are — "Note" over a
+    // transpose and a gate ratio, not "Note settings" over two rows that already spell
+    // themselves. The envelopes are the two that take a second word, and they take it
+    // because their rows gave one up: Attack, Release, Depth and Decay each name a part
+    // of an envelope and none of them names an envelope, so the word is here or it is
+    // nowhere on the panel.
+    //
+    // The Sound panel and a lock's rows both read these, which is the same obligation
+    // the shared order already carries: the two are read against each other, so a break
+    // that is in one of them is in both.
+    public static readonly (int First, string Name)[] Groups =
+      { (Transpose, "Note"), (Level, "Mix"), (ModRatio, "FM"),
+        (CarAttack, "Amp envelope"), (PitchSweep, "Pitch envelope"),
+        (ReverbSend, "Sends") };
+
+    // The heading standing over this target, or null for one that falls under a heading
+    // already standing.
+    public static string GroupAt(int target)
+    {
+        foreach (var (first, name) in Groups) if (first == target) return name;
+        return null;
+    }
+
     // Spelling used in a saved file, where a space would break the tokenizer.
     public static readonly string[] Keys =
-      { "transpose", "level", "pan", "unison", "gate", "ratio", "index",
+      { "transpose", "gate", "level", "pan", "unison", "ratio", "index",
         "feedback", "moddecay", "carattack", "carrelease", "pitchsweep",
         "pitchdecay", "rsend", "dsend" };
 

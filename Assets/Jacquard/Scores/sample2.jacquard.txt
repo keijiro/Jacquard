@@ -37,7 +37,7 @@ lane 11 11 CHAN:2 div=16 on=1
   step GPRB:41 PREL:level,-2.3552 G1
 lane 11 15 CHAN:3 div=16 on=1
   step
-  step GPRB:7 PREL:level,-7.18044,gate,-3.95 G4/0.25
+  step GPRB:7 PREL:gate,-3.95,level,-7.18044 G4/0.25
   step
   step G4/0.25
   step
@@ -50,7 +50,7 @@ lane 11 15 CHAN:3 div=16 on=1
   step
   step G4/0.25
   step
-  step GPRB:7 PREL:level,-7.18044,gate,-3.95 G4/0.25
+  step GPRB:7 PREL:gate,-3.95,level,-7.18044 G4/0.25
   step
 lane 11 21 CHAN:4 div=16 on=1
   step G8/0.25

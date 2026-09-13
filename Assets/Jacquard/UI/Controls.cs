@@ -88,7 +88,9 @@ static class Controls
 
     // The caption column is as narrow as the longest parameter name will go, since a
     // name that wraps or clips is worse than a bar that is a few pixels shorter. The
-    // name is "Reverb send".
+    // name was "Reverb send", and is "Step length" and "Buffer size" now that the sends
+    // have dropped their word to the heading over them — the same eleven characters, so
+    // the column did not move with them.
     public static float LabelWidth => Touch ? 88.0f : 74.0f;
 
     // Every panel is this wide.
