@@ -44,18 +44,30 @@ namespace Jacquard.App {
 //
 // The pitch
 //
-// Pinned to A4 at 48kHz, which is 109.09 samples to the carrier's cycle and
-// deliberately not a round number of cycles across the plot. The reason is the feedback
-// loop: what FmPartial feeds back is the average of its last *two samples*, which is a
-// lowpass whose corner is a fraction of the sample rate and of nothing musical. At any
-// other samples-per-cycle the Feedback bar would be drawing a filter nobody can hear,
-// and the aliasing at ratio 8 and amount 12 would be a different amount of aliasing
-// from the one the voice actually has.
+// Pinned to A3 at 48kHz, which is 218.18 samples to the carrier's cycle and
+// deliberately not a round number of cycles across the plot. The reason it is pinned at
+// all is the feedback loop: what FmPartial feeds back is the average of its last *two
+// samples*, which is a lowpass whose corner is a fraction of the sample rate and of
+// nothing musical. At any samples-per-cycle the voice does not actually reach, the
+// Feedback bar would be drawing a filter nobody can hear, and the aliasing at ratio 8
+// and amount 12 would be a different amount of aliasing from the one the voice has.
+// Which is a reason to pin it to a real note and not a reason to prefer any one of
+// them.
 //
-// So the cycle count falls out rather than being chosen: N / 109.09, which at four
-// samples to the pixel is a dozen or so cycles across the middle column — thirteen on a
-// touch screen and eleven under a mouse. A narrower plot shows fewer cycles, which is
-// right.
+// A3 rather than the A4 this was pinned to first, because the pitch that reads is the
+// one whose *sidebands* survive the raster and not the one whose carrier does. At ratio
+// 8 the modulator sits eight times the note, which at A4 was 3520Hz — 13.6 samples to
+// its cycle and, at four samples to the pixel, three and a half pixels. A peak picked
+// out of every four of those is a moiré rather than the rasp the sound actually has, so
+// the top of the Ratio bar and the top of the Amount bar both drew a texture that was
+// the plot's and not the patch's. An octave down doubles both numbers and the bite
+// comes back as a shape. The carrier can afford it: there is no reading of this picture
+// that needs more cycles than fit.
+//
+// So the cycle count falls out rather than being chosen: N / 218.18, which at four
+// samples to the pixel is half a dozen or so across the middle column — under seven on
+// a touch screen and under six under a mouse. A narrower plot shows fewer cycles, which
+// is right.
 //
 // What reaches it
 //
@@ -149,11 +161,11 @@ public sealed class SoundPlot : VisualElement
     readonly List<Vector2> _trace = new();
     readonly List<Vector2> _envelope = new();
 
-    // The rate the phase clock is pinned to and the note it sounds. A4 and 48kHz
+    // The rate the phase clock is pinned to and the note it sounds. A3 and 48kHz
     // together are what fix the samples per cycle; see the header for why that number
     // and not a round count of cycles is the thing being held.
     const float SampleRate = 48000.0f;
-    const int PlotNote = 69;
+    const int PlotNote = 57;
 
     // Samples to the pixel. One pixel is one signed peak of the four, which is what
     // Visualizer.BuildTrace chose and argues for: a peak keeps the jaggedness a dense
