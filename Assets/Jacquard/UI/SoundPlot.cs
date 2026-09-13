@@ -64,10 +64,54 @@ namespace Jacquard.App {
 // comes back as a shape. The carrier can afford it: there is no reading of this picture
 // that needs more cycles than fit.
 //
+// That moiré was the first sighting of what the section below is about, met here one
+// patch at a time by moving the patch out of the raster's way. The octave stays
+// because the shape it buys is still the shape that reads; what it cannot do is follow
+// a hand that carries Amount to the top, and that is the other rule's to answer.
+//
 // So the cycle count falls out rather than being chosen: N / 218.18, which at four
 // samples to the pixel is half a dozen or so across the middle column — under seven on
 // a touch screen and under six under a mouse. A narrower plot shows fewer cycles, which
 // is right.
+//
+// What a column stands for
+//
+// The span of the four samples under it — their lowest and their highest, stroked as a
+// vertical from the one to the other — and not the loudest of the four.
+//
+// Where the wave is slower than the raster the two are the same reading. Measured over
+// the mouse profile's 308 columns: a fresh patch crosses zero twelve times across the
+// width and the old rule's polyline crossed it eleven, and the mean column spans 0.058
+// of the two that full scale is — a band a pixel thick, which is the line that was
+// always there.
+//
+// What sits above that is not a coarser version of the same picture. At ratio 8 and
+// amount 12 the signal crosses zero 687 times across those same 308 columns, and the
+// polyline crossed 161. A polyline with a point to the column cannot cross more than
+// once a column, so no rule was ever going to carry 687 of them; the complaint is that
+// 161 is not the first 161 either. It is a beat between the wave and the raster — a
+// slow shape the sound does not contain, drawn in the register a reader trusts most,
+// which is a worse failure than losing the detail and is the one being fixed.
+//
+// A span cannot do it. Whatever the column holds lies between its lowest and its
+// highest, so a wave too fine for the raster fills its own column and the picture goes
+// to vertical, which reads as the thing it is: a texture finer than the width. On the
+// same measurement the mean span at ratio 8 and amount 12 is 1.53 of 2 — three quarters
+// of the height, in nearly every column of the note.
+//
+// Taken this way round there is no threshold to cross and no second mode to be in,
+// which is the whole reason for preferring it to detecting the condition and drawing
+// something else. The band thickens before the line starts lying, and it thickens
+// smoothly: at amount 2 the span is already 0.54 while the polyline still tracks the
+// signal to a crossing, 101 against 102; at amount 4 it is 0.99 and the tracking has
+// gone, 203 against 239; at 12 it is the band above. So a hand on the Amount bar
+// watches the trace fill as it turns, which is the same event as the sound turning to
+// noise under it.
+//
+// What this does not do, and must not: the voice's own aliasing is signal. FM at ratio
+// 8 folds partials back down the spectrum and they are heard as the low tones they have
+// become, so they are drawn as the low tones they have become. What is taken out is the
+// raster's lie and nothing else.
 //
 // What reaches it
 //
@@ -96,7 +140,8 @@ namespace Jacquard.App {
 // Measured at the mouse profile's 1232, in the editor under Mono: a drag on one of the
 // six costs 0.14 ms a frame, and a drag on one of the other nine costs twenty
 // nanoseconds — a struct compare and a return, which is the guard doing the whole of
-// what it is for.
+// what it is for. That figure is from before the column became a span, which added a
+// compare to the sample and a point to the column and nothing else.
 
 public sealed class SoundPlot : VisualElement
 {
@@ -167,13 +212,14 @@ public sealed class SoundPlot : VisualElement
     const float SampleRate = 48000.0f;
     const int PlotNote = 57;
 
-    // Samples to the pixel. One pixel is one signed peak of the four, which is what
-    // Visualizer.BuildTrace chose and argues for: a peak keeps the jaggedness a dense
-    // FM tone actually has, where an average would flatten it to a hum. Four is what
-    // read well on a trial render of seven patches — the default, the opening voice, a
-    // hard bite, feedback at 2, ratio at 8, a half-second pad and a sub-unity wobble —
-    // every one of them filling the width with the FM decay visible as the shape
-    // relaxing into a sine.
+    // Samples to the pixel, which is the zoom and not a quality setting: the oscillator
+    // is stepped once per turn of the loop at the rate above, so this number alone says
+    // how much of the wave a column stands for. What the column then does with its four
+    // is the span, argued in the header, and that is a separate question from how many
+    // of them there are. Four is what read well on a trial render of seven patches —
+    // the default, the opening voice, a hard bite, feedback at 2, ratio at 8, a
+    // half-second pad and a sub-unity wobble — every one of them filling the width with
+    // the FM decay visible as the shape relaxing into a sine.
     const int Oversample = 4;
 
     // The gate the picture draws, which is a written-down constant and deliberately not
@@ -233,7 +279,8 @@ public sealed class SoundPlot : VisualElement
         return FmNoteEvent.FromPatch(patch, PlotNote, shape.Attack + NominalGate, 0);
     }
 
-    // Renders the note and keeps one point per pixel of each curve.
+    // Renders the note and keeps the envelope a point to the pixel and the trace the
+    // two ends of the pixel's span.
     void Rebuild()
     {
         _trace.Clear();
@@ -260,7 +307,8 @@ public sealed class SoundPlot : VisualElement
 
         var columns = Mathf.RoundToInt(size.x);
         var samples = columns * Oversample;
-        var peak = 0.0f;
+        var low = 0.0f;
+        var high = 0.0f;
         var hull = 0.0f;
 
         var voice = new FmVoiceState();
@@ -274,8 +322,16 @@ public sealed class SoundPlot : VisualElement
 
             voice.Next(time, out var lower, out var upper);
 
+            // The running values are opened on the column's first sample rather than
+            // cleared to zero after its last, which is the same book-keeping said once
+            // instead of twice — and a span opened at zero would be a span that always
+            // reaches the middle, which near a crest is most of the height of the
+            // picture.
+            var first = i % Oversample == 0;
+
             var value = lower + upper;
-            if (Mathf.Abs(value) > Mathf.Abs(peak)) peak = value;
+            low = first ? value : Mathf.Min(low, value);
+            high = first ? value : Mathf.Max(high, value);
 
             // Read off the same event on the same axis *and reduced the same way*,
             // which is what makes the trace sit inside the envelope by construction
@@ -285,35 +341,44 @@ public sealed class SoundPlot : VisualElement
             // point sample of a falling curve is not a bound on four samples of what it
             // bounds. Every sample here is the carrier's own amplitude — level is
             // forced to 0dB, so |lower + upper| is at most CarrierLevel(time) to within
-            // FastMath.Sin's four millionths — but the peak that wins a column is
-            // usually not the last one, and in the release the envelope is lower by
-            // then. A short tail is where that showed, since Fade drops by five times
-            // its own depth over its travel and a five millisecond release is squeezed
-            // into a few pixels.
+            // FastMath.Sin's four millionths — but the sample that stands furthest
+            // out in a column is usually not the last one, and in the release the
+            // envelope is lower by then. A short tail is where that showed, since Fade
+            // drops by five times its own depth over its travel and a five millisecond
+            // release is squeezed into a few pixels.
             //
             // Measured over the raster at 308 columns rather than argued: a fresh patch
             // stood 0.055 of full scale outside its own envelope and ratio 8 at amount
             // 12 stood 0.083 outside — a twelfth of the half-height, which is the line
             // several times over and exactly what reads as the trace escaping. With the
-            // peak taken it is 3.6e-6 on the same four patches, which is the sine's
-            // error and nothing else: the curve is a bound again.
+            // column's own peak taken it is 3.6e-6 on the same four patches, which is
+            // the sine's error and nothing else: the curve is a bound again.
             //
-            // A column's envelope is therefore the column's peak too. Exact rather than
-            // conservative: the curve rises, holds and falls, so its greatest value over
-            // four adjacent samples is one of the four. It costs a second CarrierLevel a
-            // sample, of which only the release's Exp is more than a compare.
+            // A column's envelope is therefore taken across the column too. Exact
+            // rather than conservative: the curve rises, holds and falls, so its
+            // greatest value over four adjacent samples is one of the four. It costs a
+            // second CarrierLevel a sample, of which only the release's Exp is more
+            // than a compare.
             var level = note.CarrierLevel(time);
-            if (level > hull) hull = level;
+            hull = first ? level : Mathf.Max(hull, level);
 
             if ((i + 1) % Oversample != 0) continue;
 
             var column = i / Oversample;
             var x = size.x * column / (columns - 1.0f);
 
-            _trace.Add(new Vector2(x, middle - peak * reach));
-            _envelope.Add(new Vector2(x, middle - hull * reach));
+            // Down the column on one and up it on the next, so the pen ends each column
+            // at the end its neighbour starts from and the raster is one stroke with no
+            // segment retracing another. The two points are the same two either way
+            // round; the alternation is only about what joins them.
+            var top = middle - high * reach;
+            var bottom = middle - low * reach;
+            var down = (column & 1) == 0;
 
-            (peak, hull) = (0.0f, 0.0f);
+            _trace.Add(new Vector2(x, down ? top : bottom));
+            _trace.Add(new Vector2(x, down ? bottom : top));
+
+            _envelope.Add(new Vector2(x, middle - hull * reach));
         }
 
         MarkDirtyRepaint();
@@ -353,7 +418,8 @@ public sealed class SoundPlot : VisualElement
 
     // Two polylines, one subpath each, so the tessellation ceiling ScoreView warns about
     // is nowhere in reach: what costs there is the number of subpaths a filled path
-    // holds, and this is a stroke of one.
+    // holds, and these are strokes of one apiece, whatever the trace's two points to
+    // the column make of its length.
     void Paint(MeshGenerationContext context)
     {
         if (_trace.Count < 2) return;

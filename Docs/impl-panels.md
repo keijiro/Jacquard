@@ -202,7 +202,7 @@ Where the rest is written
 | Cycle gate switches, and what a cell can show before the tile gives out | `InspectorPanel`, `TileIcons` |
 | Why the three runs of synth rows are re-bound rather than made again, and why the swap unit is a column | `SoundPanel` |
 | Where the fifteen stand on a panel that is not a list, and why the caption and the heading over it are one decision | `SoundPanel.Fields` |
-| What the waveform is drawn from, the two clocks, and why a scrub on nine of the fifteen repaints nothing | `SoundPlot` |
+| What the waveform is drawn from, the two clocks, why a column is a span rather than a peak, and why a scrub on nine of the fifteen repaints nothing | `SoundPlot` |
 | Why the sound rows are live under a pending load and the lock rows are shielded | `SoundPanel.SetLocked` |
 | Why a bar's text field waits for the first edit | `ValueBar.BuildInput` |
 | Exchanging two channels, and why the group for it sits on the Channels panel | `ChannelsPanel`, `Project.SwapChannels` |
