@@ -16,6 +16,7 @@ The chain, in order
 | Stage | Where the decision is written |
 | --- | --- |
 | Every voice, placed by its own pan | `FmVoicePool.Render` |
+| The watched channel's voices, tapped for the visualizer | `FmVoicePool.Render` — the same pass, a fifth destination nothing is heard through |
 | The two sends, in parallel and not in series | `DelayBus`, `ReverbBus` |
 | The dry sum, staged so full scale is four notes | `FmSynth.MasterGain` |
 | The limiter, one ceiling with its make-up derived | `Limiter` (the settings), `LimiterBus` (the gain) |
@@ -39,6 +40,16 @@ None of those has to know that anything downstream cares. The volume rides along
 although it is not the project's, because what the audio thread is owed is the settings
 as they stand.
 
+**The channel tap can only ever be a dry contribution.** One reverb and one delay serve
+all eight channels, so what is in either of those lines is a sum with no channel left in
+it and no way to split one back out — a per-channel tail would be a second reverb per
+channel. The tap is therefore taken where a channel still exists, at the voices, and what
+the visualizer draws is the dry share of the mix that channel is answerable for rather
+than the channel as it is heard. A part that lives mostly in its own tail draws smaller
+than it sounds. It is staged by the same `masterGain` as the mix on the way into the
+scope, which is what makes the two lines readable against one vertical axis; see
+`FmSynthScope.Write` and [impl-visualizer.md].
+
 **Where each setting lives is decided by whether it would mean anything to somebody the
 file is handed to.** The sends and the limiter are on `Project` and travel with the
 score; the volume is in `PlayerPrefs` and does not, because what a hand reaches for it
@@ -60,3 +71,5 @@ Why each is where it is, is in `GlobalPanel`, `SendPanel` and `SystemPanel`
 respectively; how a panel is built at all is [impl-panels.md].
 
 [impl-panels.md]: impl-panels.md
+
+[impl-visualizer.md]: impl-visualizer.md

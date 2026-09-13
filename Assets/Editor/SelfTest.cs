@@ -23,6 +23,7 @@ static class SelfTest
         SampleScores(log);
         Plane(log);
         Playback(log);
+        Stamping(log);
         Holding(log);
         Lanes(log);
         Switching(log);
@@ -43,6 +44,7 @@ static class SelfTest
         Reverb(log);
         Limiter(log);
         Volume(log);
+        Tap(log);
 
         Debug.Log(log.ToString());
     }
@@ -284,6 +286,96 @@ static class SelfTest
         // lane divides the bar the same way the main one does.
         Check(log, "a lock is gone by the next step", untouched > 0,
               untouched + " of " + notes.Count + " notes at the patch level");
+
+        // Every note of this score belongs to channel one, the branch lane's included:
+        // a branch has no channel head of its own and takes the runner's, so a stamp
+        // read off the lane rather than off the runner would leave those at zero.
+        var unstamped = 0;
+        var strayed = 0;
+
+        foreach (var note in notes)
+        {
+            if (note.channel == 0) unstamped++;
+            else if (note.channel != 1) strayed++;
+        }
+
+        Check(log, "every note came out stamped with its channel",
+              unstamped == 0 && strayed == 0,
+              unstamped + " unstamped and " + strayed + " on another channel, of " +
+              notes.Count);
+    }
+
+    // Which channel a note is stamped with, which is a question nothing downstream of
+    // the sequencer can answer for itself: the descent reads a channel's working patch
+    // and hands over an event, and from there on a note is a note. The visualizer's
+    // second trace is the one thing that asks, and it asks the synth rather than the
+    // score — so what has to hold is that the number the descent stamps and the number
+    // Score.ChannelOf gives for the lane that was selected are the same number.
+    //
+    // Two channels, because one channel cannot tell a stamp that works from a stamp
+    // that is always the same; and a branch off one of them, because a branch lane is
+    // the case where the two sides could disagree — the plane walks back to the jump to
+    // find a channel, the runner never lost one.
+    static void Stamping(System.Text.StringBuilder log)
+    {
+        const int sampleRate = 48000;
+
+        var project = new Project();
+        var score = project.Score;
+
+        var first = score.AddLane(1, 1, new ChannelTile { Channel = 1 }, 4);
+        first.Steps[0].Tiles.Add(new NoteTile { Note = 60 });
+
+        // Always taken, so the branch is reached on the first lap.
+        var jump = new JumpTile();
+        first.Steps[1].Tiles.Add(jump);
+
+        var second = score.AddLane(1, 6, new ChannelTile { Channel = 5 }, 4);
+        second.Steps[0].Tiles.Add(new NoteTile { Note = 72 });
+
+        var branch = score.AddLane(6, 3, new JumpDestTile(), 2);
+        branch.JumpSource = jump;
+        branch.Steps[0].Tiles.Add(new NoteTile { Note = 48 });
+
+        var sequencer = new Sequencer { Project = project };
+        var notes = new System.Collections.Generic.List<FmNoteEvent>();
+
+        sequencer.Play(0, 0);
+
+        // Four steps at 120bpm is a lap of each lane, and the branch sits inside it.
+        var length = (long)(4 * 60.0 / project.Tempo / 4.0 * sampleRate);
+        var window = sampleRate / 10;
+
+        for (var position = 0L; position < length; position += window)
+            sequencer.Schedule(position, window, sampleRate, notes);
+
+        // Each lane writes one pitch and no other lane writes it, so the note that came
+        // out of a lane is the note at its frequency. Nothing found comes back as a
+        // channel of -1, which fails the same check and says so in the log.
+        var top = Stamp(notes, 60);
+        var other = Stamp(notes, 72);
+        var branched = Stamp(notes, 48);
+
+        Check(log, "two channels are stamped apart", top == 1 && other == 5,
+              "C4 on " + top + " and C5 on " + other);
+
+        // The branch's note carries the channel of the lane that jumped to it, and the
+        // plane says the same thing about that lane: select it and the trace that comes
+        // up is the one these notes are on.
+        Check(log, "a branch's notes and the plane agree on the channel",
+              branched == 1 && score.ChannelOf(branch) == 1,
+              "stamped " + branched + ", plane says " + score.ChannelOf(branch));
+    }
+
+    // The channel of the one note at a pitch, or -1 for no such note.
+    static int Stamp(System.Collections.Generic.List<FmNoteEvent> notes, int note)
+    {
+        var frequency = Pitch.ToFrequency(note);
+
+        foreach (var sounded in notes)
+            if (Mathf.Abs(sounded.frequency - frequency) < 0.01f) return sounded.channel;
+
+        return -1;
     }
 
     // A lock lasts as long as the step it sits on, which says nothing at all while every
@@ -2848,6 +2940,87 @@ static class SelfTest
               jump < 0.01f && Mathf.Abs(swept[swept.Length - 1] - 0.5f) < 0.0001f,
               "worst step=" + jump + ", arrived at " + swept[swept.Length - 1]);
 
+    }
+
+    // The channel tap, which is the one destination of a voice that nothing is heard
+    // through. Everything else the pool does is audible the moment it is wrong; this is
+    // a line in a Burst job feeding a picture, so a tap taking the wrong channel, every
+    // channel, or none would sound exactly like a tap that works.
+    //
+    // Two notes at two levels on two channels, so that what is in the tap says which
+    // note it came from and not merely that something did.
+    static void Tap(System.Text.StringBuilder log)
+    {
+        RenderTap(1, out var dry, out var first);
+        RenderTap(5, out _, out var second);
+        RenderTap(0, out _, out var none);
+
+        // Half and whole, as the two notes were written. The dry mix has both in it
+        // either way, which is the other half of the claim: a tap is a reading and not
+        // a routing, so nothing about what is heard moves when the watch does.
+        Check(log, "the tap carries the watched channel and no other",
+              Mathf.Abs(first - 0.5f) < 0.01f && Mathf.Abs(second - 1.0f) < 0.01f,
+              "watching 1 gives " + first + ", watching 5 gives " + second +
+              ", against a dry peak of " + dry);
+
+        // Exactly zero, not nearly: the gain is one or zero, so an unwatched buffer is
+        // a buffer nothing was added to. This is the state the app rests in whenever
+        // the visualizer is down, and the straight line it keeps off the screen.
+        Check(log, "an unwatched tap stays silent", none == 0.0f, "peak=" + none);
+    }
+
+    // One buffer of the pool with two notes sounding, C on channel one at half level
+    // and another on channel five at full, rendered at the watch given. Hands back what
+    // reached the left of the dry mix and what reached the tap.
+    static void RenderTap(int watch, out float dry, out float tap)
+    {
+        const int frames = 1024;
+
+        var pool = new FmVoicePool
+          { voices = new NativeArray<FmVoiceState>(8, Allocator.Persistent),
+            queue = new NativeArray<FmNoteEvent>(8, Allocator.Persistent),
+            counters = new NativeArray<int>(FmVoicePool.CounterCount,
+                                            Allocator.Persistent) };
+
+        pool.Enqueue(Sounding(1, 440.0f, 0.5f));
+        pool.Enqueue(Sounding(5, 660.0f, 1.0f));
+
+        var dryL = new NativeArray<float>(frames, Allocator.Persistent);
+        var dryR = new NativeArray<float>(frames, Allocator.Persistent);
+        var reverbIn = new NativeArray<float>(frames, Allocator.Persistent);
+        var delayIn = new NativeArray<float>(frames, Allocator.Persistent);
+        var tapIn = new NativeArray<float>(frames, Allocator.Persistent);
+
+        pool.Render(dryL, dryR, reverbIn, delayIn, tapIn, watch, frames, 0, SampleRate);
+
+        dry = Peak(dryL);
+        tap = Peak(tapIn);
+
+        dryL.Dispose();
+        dryR.Dispose();
+        reverbIn.Dispose();
+        delayIn.Dispose();
+        tapIn.Dispose();
+
+        pool.voices.Dispose();
+        pool.queue.Dispose();
+        pool.counters.Dispose();
+    }
+
+    // A plain sine at a level, long enough to fill the buffer and stamped with a
+    // channel. No modulation and no attack, so the peak the tap is read at is the level
+    // it was written with rather than a number an envelope arrived at.
+    static FmNoteEvent Sounding(int channel, float frequency, float level)
+      => new FmNoteEvent
+        { channel = channel, frequency = frequency, level = level, duration = 1.0f,
+          modulatorRatio = 1.0f, modulatorDecay = 1.0f, carrierRelease = 0.01f };
+
+    static float Peak(NativeArray<float> buffer)
+    {
+        var loudest = 0.0f;
+        for (var i = 0; i < buffer.Length; i++)
+            loudest = Mathf.Max(loudest, Mathf.Abs(buffer[i]));
+        return loudest;
     }
 
     // Rendering helpers

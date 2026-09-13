@@ -45,6 +45,7 @@ struct FmSynthCore
     public NativeArray<float> dryR;
     public NativeArray<float> reverbIn; // What the notes sent to the reverb
     public NativeArray<float> delayIn;  // What they sent to the delay
+    public NativeArray<float> tapIn;    // What the watched channel's notes put in
     public NativeArray<float> outL;     // Wet, then the finished mix
     public NativeArray<float> outR;
 
@@ -76,6 +77,7 @@ struct FmSynthCore
         dryR = new NativeArray<float>(frames, Allocator.Persistent);
         reverbIn = new NativeArray<float>(frames, Allocator.Persistent);
         delayIn = new NativeArray<float>(frames, Allocator.Persistent);
+        tapIn = new NativeArray<float>(frames, Allocator.Persistent);
         outL = new NativeArray<float>(frames, Allocator.Persistent);
         outR = new NativeArray<float>(frames, Allocator.Persistent);
 
@@ -95,6 +97,7 @@ struct FmSynthCore
         if (dryR.IsCreated) dryR.Dispose();
         if (reverbIn.IsCreated) reverbIn.Dispose();
         if (delayIn.IsCreated) delayIn.Dispose();
+        if (tapIn.IsCreated) tapIn.Dispose();
         if (outL.IsCreated) outL.Dispose();
         if (outR.IsCreated) outR.Dispose();
 
@@ -126,6 +129,7 @@ struct FmSynthCore
           dryR = dryR,
           reverbIn = reverbIn,
           delayIn = delayIn,
+          tapIn = tapIn,
           outL = outL,
           outR = outR,
           bufferStart = bufferStart,
@@ -161,6 +165,7 @@ struct FmSynthCore
         public NativeArray<float> dryR;
         public NativeArray<float> reverbIn;
         public NativeArray<float> delayIn;
+        public NativeArray<float> tapIn;
         public NativeArray<float> outL;
         public NativeArray<float> outR;
 
@@ -178,12 +183,20 @@ struct FmSynthCore
                 dryR[frame] = 0.0f;
                 reverbIn[frame] = 0.0f;
                 delayIn[frame] = 0.0f;
+                tapIn[frame] = 0.0f;
                 outL[frame] = 0.0f;
                 outR[frame] = 0.0f;
             }
 
-            pool.Render(dryL, dryR, reverbIn, delayIn, frameCount, bufferStart,
-                        sampleRate);
+            // Read once for the whole buffer rather than per voice, so that a buffer
+            // is entirely one channel's: the main thread can move the selection under
+            // this job, and a tap that changed its mind halfway would be two channels
+            // spliced at a frame boundary. Also the only read of it there is — see
+            // FmSynthScope, which is where the lack of a handshake is argued.
+            var watch = scope.Watch;
+
+            pool.Render(dryL, dryR, reverbIn, delayIn, tapIn, watch, frameCount,
+                        bufferStart, sampleRate);
 
             // In parallel rather than in series. Feeding the delay's repeats into the
             // reverb is a good sound and would be one line, but it is also a decision
@@ -225,7 +238,7 @@ struct FmSynthCore
             // and the volume is not part of that: it says how loud the thing is being
             // played, and a drawing that dimmed because somebody turned it down would
             // be reporting the room rather than the piece.
-            scope.Write(outL, outR, frameCount);
+            scope.Write(outL, outR, tapIn, masterGain, frameCount);
 
             // And the volume last of all, on a mix that is already inside full scale.
             // See OutputBus for why it is walked to rather than set.

@@ -6,11 +6,20 @@ namespace Jacquard.App {
 
 // The mix, drawn behind the score.
 //
-// One thing, and it is the synth rather than the sequence: the finished output as a
-// trace across the middle of the screen. What the sequence is doing is already on the
-// plane — the playheads say which step each runner is on — and what it is doing is not
-// the same question as what came out. A gate that did not fire, a limiter closing on a
-// kick: neither of those is visible on the plane and both of them are visible here.
+// Two lines at most, and both of them the synth rather than the sequence: the finished
+// output as a trace across the middle of the screen, and over it — when there is one to
+// draw — the share of that output one channel is answerable for. What the sequence is
+// doing is already on the plane — the playheads say which step each runner is on — and
+// what it is doing is not the same question as what came out. A gate that did not fire,
+// a limiter closing on a kick: neither of those is visible on the plane and both of them
+// are visible here.
+//
+// Nothing here knows what a channel is, and that is deliberate rather than incidental.
+// The scope carries a second ring and a flag saying whether anything is being kept in
+// it, so the question asked here is "is the synth tapping something", never "which lane
+// is selected" — the one that decides that is JacquardApp, which is also where every
+// other reading of the score is turned into something the audio side can hold. So the
+// second trace is a nameless second line and this file stays a drawing of the synth.
 //
 // It is drawn rather than laid out, which is why it is not on the UI panel with
 // everything else. A trace is a few hundred columns rebuilt every frame, and UI Toolkit
@@ -32,11 +41,12 @@ namespace Jacquard.App {
 // The geometry is built from nothing every frame and that is the right shape for it:
 // the picture genuinely differs every frame, so there is no rebuild here paying for a
 // picture that is the same picture. At the 512 columns every device this ships to
-// reaches, a frame is 511 ribbon quads — 2044 vertices and 3066 indices. What has been
-// taken out of it is the part that was *not* new every frame: a colour space conversion
-// that ran once a column for a result in which only the alpha moved, an index buffer
-// that spelled the same three thousand numbers out again, and the trigger's habit of
-// fetching every sample twice.
+// reaches, a frame is 511 ribbon quads — 2044 vertices and 3066 indices — and twice that
+// while a second trace is up, which is the whole of what the second one costs on this
+// side. What has been taken out of it is the part that was *not* new every frame: a
+// colour space conversion that ran once a column for a result in which only the alpha
+// moved, an index buffer that spelled the same three thousand numbers out again, and
+// the trigger's habit of fetching every sample twice.
 
 [RequireComponent(typeof(JacquardApp))]
 public sealed class Visualizer : MonoBehaviour
@@ -86,6 +96,7 @@ public sealed class Visualizer : MonoBehaviour
         // run in declaration order and a converted colour declared above the colour it
         // converts comes out black without saying so.
         _traceColor = Shaded(TraceColor);
+        _channelColor = Shaded(ChannelColor);
     }
 
     void LateUpdate()
@@ -119,7 +130,31 @@ public sealed class Visualizer : MonoBehaviour
         _vertices.Clear();
         _colors.Clear();
 
-        BuildTrace(scope, synth.SampleRate, halfWidth, halfHeight, pixel);
+        // Where the window starts is not simply "as far back as it reaches". A trace
+        // hung off the write cursor slides by whatever the buffer size happens to be
+        // every frame, so a held note comes out as a smear travelling sideways; hung
+        // off the last rising zero crossing before that point, the same note stands
+        // still and what moves is only what actually changed. Which is a scope's
+        // trigger, and it is worth the dozen lines it takes for the same reason it is
+        // on the front of an oscilloscope.
+        //
+        // Taken here rather than inside a trace because both traces take it, and it
+        // reads the mix whichever of them is being drawn: it is the shared origin of
+        // time for the two lines, and a channel triggering on itself would slide the
+        // mix about underneath it every time the selection moved.
+        var span = Mathf.Clamp((int)(Window * synth.SampleRate), 64, scope.Length / 2);
+        var start = Trigger(scope, span);
+
+        BuildTrace(scope, false, start, span, _traceColor, halfWidth, halfHeight, pixel);
+
+        // Over the mix rather than under it, which is the whole of the layering: one
+        // mesh, alpha blended with no depth test, so the quads added last are the ones
+        // on top. And only when there is something in the tap — an untapped ring is
+        // silence, and silence draws a straight bright line across the middle that says
+        // nothing and cannot be ignored.
+        if (scope.Watch != 0)
+            BuildTrace(scope, true, start, span, _channelColor,
+                       halfWidth, halfHeight, pixel);
 
         // The trace adds vertices four at a time, so the index buffer follows from the
         // vertex count and nothing else.
@@ -152,20 +187,13 @@ public sealed class Visualizer : MonoBehaviour
 
     // The trace
 
-    // The output, across the middle, one column of the mesh per few samples.
-    //
-    // Where the window starts is not simply "as far back as it reaches". A trace hung
-    // off the write cursor slides by whatever the buffer size happens to be every
-    // frame, so a held note comes out as a smear travelling sideways; hung off the last
-    // rising zero crossing before that point, the same note stands still and what moves
-    // is only what actually changed. Which is a scope's trigger, and it is worth the
-    // dozen lines here for the same reason it is on the front of an oscilloscope.
-    void BuildTrace(FmSynthScope scope, int sampleRate, float halfWidth,
-                    float halfHeight, float pixel)
+    // One ring of the scope, across the middle, one column of the mesh per few samples.
+    // Which ring is the whole of what `tapped` says: the window, the origin and the
+    // geometry are the same either way, and the second line differs from the first only
+    // in where its samples come from and what colour they are drawn in.
+    void BuildTrace(FmSynthScope scope, bool tapped, int start, int span, Color color,
+                    float halfWidth, float halfHeight, float pixel)
     {
-        var span = Mathf.Clamp((int)(Window * sampleRate), 64, scope.Length / 2);
-        var start = Trigger(scope, span);
-
         var columns = Mathf.Clamp(Mathf.RoundToInt(halfWidth * 2.0f / pixel / 3.0f),
                                   64, MaxColumns);
 
@@ -185,7 +213,7 @@ public sealed class Visualizer : MonoBehaviour
 
             for (var i = from; i < to || i == from; i++)
             {
-                var sample = scope.At(i);
+                var sample = tapped ? scope.TapAt(i) : scope.At(i);
                 if (Mathf.Abs(sample) > Mathf.Abs(value)) value = sample;
             }
 
@@ -193,7 +221,7 @@ public sealed class Visualizer : MonoBehaviour
             var point = new Vector2(x, Mathf.Clamp(value, -1.0f, 1.0f) * height);
 
             if (column > 0)
-                Ribbon(previous, point, thickness, Fade(_traceColor, column, columns));
+                Ribbon(previous, point, thickness, Fade(color, column, columns));
 
             previous = point;
         }
@@ -303,6 +331,7 @@ public sealed class Visualizer : MonoBehaviour
     Material _material;
     Mesh _mesh;
     Color _traceColor;
+    Color _channelColor;
 
     readonly List<Vector3> _vertices = new();
     readonly List<Color> _colors = new();
@@ -329,6 +358,26 @@ public sealed class Visualizer : MonoBehaviour
     // number looks like — the 0.16 it started at read 102 — is a background that argues
     // with the score in front of it.
     static readonly Color TraceColor = Style.Fade(Style.NoteLine, 0.10f);
+
+    // The watched channel, over the top of that. It is the one colour here that has two
+    // sides to answer to: under the mix's own brightness the second line disappears into
+    // the first, and far over it the wash stops being a wash — and this one is on screen
+    // exactly while a lane is selected, which is when the eye is on the plane rather
+    // than on the background.
+    //
+    // Placed against the same blend the figure above was measured from, which the two
+    // readings recorded there are enough to check. In linear light the result is
+    // a·0.81 + (1-a)·0.009; encoded back to sRGB that puts 0.10 at 84 against the 86
+    // read off the screenshot, and the 0.16 that was tried and rejected at 104 against
+    // 102 — good to a couple of counts across the range in question. This alpha comes
+    // out at 119, which is 33 clear of the mix where the mix is 6 clear of the lattice.
+    //
+    // 0.16 was rejected for a trace that is always on, and this one is not: it is the
+    // answer to a lane having been chosen, and it goes when the choice does. That is the
+    // whole of the argument for being over it, and the arithmetic cannot finish it —
+    // whether 119 still reads as background with a cell being edited in front of it is a
+    // screenshot rather than a calculation.
+    static readonly Color ChannelColor = Style.Fade(Style.NoteLine, 0.22f);
 }
 
 } // namespace Jacquard.App

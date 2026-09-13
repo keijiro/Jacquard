@@ -494,7 +494,7 @@ public sealed class Sequencer
                     output.Add(FmNoteEvent.FromPatch(
                       _working[channel],
                       Project.SoundingPitch(_working[channel], note.Note),
-                      note.Length * stepSeconds, startSample));
+                      note.Length * stepSeconds, startSample, channel));
                     break;
 
                 // Where the runner goes next, decided here but taken afterwards:

@@ -10,12 +10,28 @@ rather than the sequence, so nothing about the score, the mix or the timing is d
 here or read from here — and it may be removed outright. Anything that starts reading
 `FmSynthScope` for a purpose other than drawing has broken that.
 
-Three consequences that reach outside it
-----------------------------------------
+Five consequences that reach outside it
+---------------------------------------
 
 **It reads the mix and not the monitoring level.** The scope is written where the mix is
 finished, ahead of the output volume — see [impl-mix.md] — so a hand turning the piece
 down does not turn the drawing down with it.
+
+**Both lines are on one vertical axis.** The channel's tap is staged by the same
+`masterGain` the mix is, in `FmSynthScope.Write` and nowhere else, so the second line is
+literally the share of the first that channel is worth and the two can be compared by
+eye. It is the dry share only — [impl-mix.md] says why a per-channel tail is not
+available at all.
+
+**The rule at the top of this page is standing, and one line in `JacquardApp.Update`
+is what stands it up.**
+The second trace is a channel's, and a channel is a fact about the score, so the choosing
+is done where every other reading of the score is turned into something the audio side
+can hold: the app asks `FmSynth.WatchChannel` for the channel under the selection, or for
+nothing when there is no selection or the visualizer is down. What `Visual` sees is a
+second ring on the scope and a flag saying whether the synth is filling it. Moving that
+decision into the visualizer would be the first time this part of the app read the score,
+and it is the whole of what keeps that rule true rather than aspirational.
 
 **The camera draws to the backbuffer, and it takes two settings to keep it there.** The
 camera's HDR flag is off in `SceneBuilder` and `DefaultRenderer.asset` holds its

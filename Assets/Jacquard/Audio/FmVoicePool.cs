@@ -10,15 +10,21 @@ namespace Jacquard.App {
 // per sample maths is FmVoiceState's job, on the engine-free side, and what this
 // adds is the part that genuinely needs a container — which buffer frames a note
 // covers, and which voice it gets.
+//
+// Public only so that the self test can reach it. Everything in here runs inside a
+// Burst job, where nothing can be measured from the outside, so the one way to know
+// what a gain in the inner loop did is to allocate a pool, render a buffer and read the
+// arrays — which is what the buses beside it are rendered through too. Nothing in the
+// app itself reaches it but FmSynthCore.
 
-struct FmVoicePool
+public struct FmVoicePool
 {
     public NativeArray<FmVoiceState> voices;
     public NativeArray<FmNoteEvent> queue; // Scheduled notes, in no order
     public NativeArray<int> counters;
 
     const int Count = 0, Dropped = 1, Stolen = 2, Cancelled = 3, Late = 4, Started = 5;
-    internal const int CounterCount = 6;
+    public const int CounterCount = 6;
 
     public int dropped => counters[Dropped];
     public int stolen => counters[Stolen];
@@ -67,11 +73,18 @@ struct FmVoicePool
     // active voices into the two sides of the dry bus, at the pair of gains their pan
     // asks for, and — in the proportion each note asks for — into the two send buses.
     //
-    // A voice is rendered once and split four ways rather than being rendered again
-    // per destination, and every gain it is split at is read off the note, which means
-    // all of them are fixed for the life of the voice. That is the whole reason
+    // A voice is rendered once and split five ways rather than being rendered again
+    // per destination, and four of the five gains it is split at are read off the note,
+    // which means those are fixed for the life of the voice. That is the whole reason
     // neither a pan nor a send needs smoothing: what moves when the Sound panel moves
     // is the next note, never this one.
+    //
+    // The fifth is the scope's tap, and it is the one gain a note does not carry. What
+    // the note carries is which channel it came from; the gain is that answer against a
+    // question asked from outside — which channel is being watched — so it is one or
+    // zero and it is settled once per voice per buffer like the rest. Nothing is heard
+    // through it: the tap is a fifth destination of the dry signal and it leaves by the
+    // scope rather than by the mix.
     //
     // The sends take the voice unpanned. Each of those buses is a mono feed into an
     // effect that builds a stereo image of its own, so a tail that also leaned to the
@@ -84,8 +97,18 @@ struct FmVoicePool
     // The two halves of a pair are rendered at two positions, so each needs its own
     // pair of gains; everything downstream of that is the arrangement there always
     // was, with a gain per destination fixed for the life of the voice.
+    //
+    // This is not the voice slot row coming back. What that drew was the pool — a row
+    // of slots in the order the allocator happened to fill them, which is an internal
+    // fact about this file and not a fact about the piece — and it paid for that with
+    // per-sample work in every buffer whether or not anything was drawing. What is
+    // drawn here is a share of the mix, named by something the player chose; the gain
+    // is zero across every voice while nothing is watched, and nothing is watched while
+    // the visualizer is down. What is left in that state is one multiply-add a frame
+    // per sounding voice against a gain of zero.
     public void Render(NativeArray<float> dryL, NativeArray<float> dryR,
                        NativeArray<float> reverbIn, NativeArray<float> delayIn,
+                       NativeArray<float> tap, int watch,
                        int frameCount, long bufferStart, float sampleRate)
     {
         var bufferEnd = bufferStart + frameCount;
@@ -137,6 +160,12 @@ struct FmVoicePool
             note.UnisonGains(out var lowerL, out var lowerR,
                              out var upperL, out var upperR);
 
+            // Hoisted beside them and for the same reason: the note's channel holds
+            // still and so does the question, so the answer is one comparison a voice
+            // rather than one a sample. A watch of zero matches no note, since zero is
+            // what a note with no channel behind it carries.
+            var tapGain = note.channel == watch ? 1.0f : 0.0f;
+
             for (var frame = 0; frame < frameCount; frame++)
             {
                 // Elapsed note time. The subtraction stays small even for a long
@@ -156,6 +185,7 @@ struct FmVoicePool
                 dryR[frame] += lower * lowerR + upper * upperR;
                 reverbIn[frame] += sample * note.reverbSend;
                 delayIn[frame] += sample * note.delaySend;
+                tap[frame] += sample * tapGain;
             }
 
             voices[i] = voice;

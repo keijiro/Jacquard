@@ -92,6 +92,21 @@ public sealed class FmSynth : System.IDisposable
     // where the lack of any handshake between the two is argued.
     public FmSynthScope Scope => _backend.Scope;
 
+    // Asks the render job to keep one channel's share of the dry mix beside the mix
+    // itself, for anything drawing the two together. Zero asks for nothing, which is
+    // the state the synth is in whenever nobody is drawing.
+    //
+    // Held rather than scheduled, like the send effects and for the same reason: there
+    // is no sample position at which a question about what is being looked at could
+    // mean anything. The backend's Scope is a copy of the struct, but the arrays inside
+    // it are the ones the job holds, so a write through the copy lands where the job
+    // will read it.
+    public void WatchChannel(int channel)
+    {
+        var scope = _backend.Scope;
+        if (scope.IsCreated) scope.Watch = channel;
+    }
+
     // Called once a frame. On the Web it is the entire engine; under the pipeline the
     // audio thread asks for what it needs and this is left watching the clock for a
     // deadline that thread missed, which is the one thing it cannot report itself.
