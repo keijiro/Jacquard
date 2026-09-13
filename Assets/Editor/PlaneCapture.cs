@@ -63,7 +63,7 @@ static class PlaneCapture
             return;
         }
 
-        var app = Object.FindFirstObjectByType<App.JacquardApp>();
+        var app = Object.FindAnyObjectByType<App.JacquardApp>();
 
         if (app == null)
         {
