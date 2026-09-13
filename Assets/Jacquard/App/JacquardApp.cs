@@ -537,6 +537,25 @@ public sealed class JacquardApp : MonoBehaviour
             _fx = fx;
         }
 
+        // And which channel the visualizer's second trace is of, which is decided here
+        // for the same reason the effect settings are: it is a reading of the score, and
+        // the visualizer is the one part of the app that is not allowed to take one. It
+        // draws the synth and nothing else — see Docs/impl-visualizer.md — so what it
+        // gets is a channel the synth was already asked to keep, and the asking is the
+        // app's. Nothing in Visual learns what a lane or a channel is.
+        //
+        // The visualizer's own switch is part of the question rather than a separate
+        // one. Turning it off used to lower a MonoBehaviour and leave the synth paying
+        // for a picture nobody was looking at; a watch of zero is the audio side being
+        // told that too.
+        //
+        // Unconditional, unlike the fx above: this is one int into a NativeArray, which
+        // is cheaper than the comparison that would save it.
+        var lane = Editor.SelectedLane;
+
+        Synth.WatchChannel(lane != null && Visualizer != null && Visualizer.enabled
+                           ? Project.Score.ChannelOf(lane) : 0);
+
         Status = Synth.GetStatus();
         _ui.Update();
 

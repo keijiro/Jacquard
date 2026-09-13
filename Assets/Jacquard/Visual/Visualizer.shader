@@ -9,11 +9,10 @@ HLSLINCLUDE
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
 // Nothing but the colour the mesh was built with. Everything about what is drawn —
-// where a column of the waveform sits, how far a voice slot has risen, how far the
-// ends of the trace are faded out — is decided on the CPU and arrives as vertices and
-// vertex colours, because all of it is a reading of the mix rather than a shape: there
-// is no parameter here a shader could interpolate that the geometry does not already
-// carry.
+// where a column of a waveform sits, which of the two traces it belongs to, how far the
+// ends of it are faded out — is decided on the CPU and arrives as vertices and vertex
+// colours, because all of it is a reading of the mix rather than a shape: there is no
+// parameter here a shader could interpolate that the geometry does not already carry.
 
 void Vert(float4 position : POSITION,
           float4 color : COLOR,

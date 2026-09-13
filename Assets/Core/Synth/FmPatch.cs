@@ -230,6 +230,15 @@ public struct FmNoteEvent
     public float duration; // Gate length in seconds; release follows it
     public int priority;   // Higher priority wins when voices are stolen
 
+    // Which channel the note came from, 1..8, or 0 for a note with no channel behind
+    // it at all. Nothing about the sound is decided by it and nothing downstream mixes
+    // by it: a voice renders identically whatever this says. It is here because a
+    // channel does not exist anywhere past the sequencer — the descent reads the
+    // working patch of a channel and then hands over an event, and from there on a
+    // note is a note — so anything wanting to ask which of the eight a sounding voice
+    // belongs to has to be told at the one moment the answer is still known.
+    public int channel;
+
     public float modulatorRatio;
     public float modulationIndex;
     public float feedback;
@@ -471,7 +480,8 @@ public struct FmNoteEvent
     // Builds an event from a resolved patch. The patch has already had every
     // parameter lock applied to it by the time this is called.
     public static FmNoteEvent FromPatch(in FmPatch patch, int note,
-                                        float gateSeconds, long startSample)
+                                        float gateSeconds, long startSample,
+                                        int channel)
     {
         // Converted once. Both of the things that read a level read the same number:
         // what comes out of the voice, and how hard the pool fights to keep it.
@@ -479,6 +489,7 @@ public struct FmNoteEvent
 
         return new FmNoteEvent
         { startSample = startSample,
+          channel = channel,
           frequency = Pitch.ToFrequency(note),
           level = level,
           pan = Math.Clamp(patch.pan, -1.0f, 1.0f),

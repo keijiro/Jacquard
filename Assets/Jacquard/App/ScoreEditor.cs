@@ -398,7 +398,7 @@ public sealed class ScoreEditor
         var length = steps * 60.0f / Math.Max(Project.Tempo, 1.0f) / 4.0f;
 
         Synth.Schedule(FmNoteEvent.FromPatch(patch, Project.SoundingPitch(patch, note),
-                                             length, start));
+                                             length, start, channel));
     }
 
     public void Commit()
