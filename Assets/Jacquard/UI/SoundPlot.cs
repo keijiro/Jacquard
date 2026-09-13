@@ -88,10 +88,10 @@ namespace Jacquard.App {
 //
 // The cost is roughly 60 to 100 flops a sample — two FastMath.Sin in FmPartial.Next, an
 // Exp in ModulatorLevel which early-outs entirely at a decay of 0 or 1 and a fresh patch
-// sits at 1, an Exp in the release only, and the pitch compare, which is the one the
-// forced pitchDecay of zero turns into a compare and a return. At the touch profile's
-// 1456 samples that is about 145k flops a redraw, against the 0.4 ms a channel-start
-// showing already costs.
+// sits at 1, an Exp in the release only and paid twice there since the envelope takes a
+// peak of its own, and the pitch compare, which is the one the forced pitchDecay of zero
+// turns into a compare and a return. At the touch profile's 1456 samples that is about
+// 145k flops a redraw, against the 0.4 ms a channel-start showing already costs.
 //
 // Measured at the mouse profile's 1232, in the editor under Mono: a drag on one of the
 // six costs 0.14 ms a frame, and a drag on one of the other nine costs twenty
@@ -261,6 +261,7 @@ public sealed class SoundPlot : VisualElement
         var columns = Mathf.RoundToInt(size.x);
         var samples = columns * Oversample;
         var peak = 0.0f;
+        var hull = 0.0f;
 
         var voice = new FmVoiceState();
         voice.Trigger(note, SampleRate);
@@ -276,18 +277,43 @@ public sealed class SoundPlot : VisualElement
             var value = lower + upper;
             if (Mathf.Abs(value) > Mathf.Abs(peak)) peak = value;
 
+            // Read off the same event on the same axis *and reduced the same way*,
+            // which is what makes the trace sit inside the envelope by construction
+            // rather than by a second calculation.
+            //
+            // The envelope used to be point-sampled at the last of the four, and a
+            // point sample of a falling curve is not a bound on four samples of what it
+            // bounds. Every sample here is the carrier's own amplitude — level is
+            // forced to 0dB, so |lower + upper| is at most CarrierLevel(time) to within
+            // FastMath.Sin's four millionths — but the peak that wins a column is
+            // usually not the last one, and in the release the envelope is lower by
+            // then. A short tail is where that showed, since Fade drops by five times
+            // its own depth over its travel and a five millisecond release is squeezed
+            // into a few pixels.
+            //
+            // Measured over the raster at 308 columns rather than argued: a fresh patch
+            // stood 0.055 of full scale outside its own envelope and ratio 8 at amount
+            // 12 stood 0.083 outside — a twelfth of the half-height, which is the line
+            // several times over and exactly what reads as the trace escaping. With the
+            // peak taken it is 3.6e-6 on the same four patches, which is the sine's
+            // error and nothing else: the curve is a bound again.
+            //
+            // A column's envelope is therefore the column's peak too. Exact rather than
+            // conservative: the curve rises, holds and falls, so its greatest value over
+            // four adjacent samples is one of the four. It costs a second CarrierLevel a
+            // sample, of which only the release's Exp is more than a compare.
+            var level = note.CarrierLevel(time);
+            if (level > hull) hull = level;
+
             if ((i + 1) % Oversample != 0) continue;
 
             var column = i / Oversample;
             var x = size.x * column / (columns - 1.0f);
 
             _trace.Add(new Vector2(x, middle - peak * reach));
-            // Read off the same event on the same axis, so the two curves cannot drift
-            // apart and the trace sits inside the envelope by construction rather than
-            // by a second calculation.
-            _envelope.Add(new Vector2(x, middle - note.CarrierLevel(time) * reach));
+            _envelope.Add(new Vector2(x, middle - hull * reach));
 
-            peak = 0.0f;
+            (peak, hull) = (0.0f, 0.0f);
         }
 
         MarkDirtyRepaint();
