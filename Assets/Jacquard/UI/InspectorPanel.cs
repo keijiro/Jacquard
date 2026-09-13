@@ -660,15 +660,28 @@ sealed class InspectorPanel
     // twelve; the last note is still typed.
     static readonly ValueBar.Range OctaveRange = ValueBar.Integer(0.0f, 8.0f);
 
-    // A length in steps. Dragging lands on quarters of one, since that is where a note
-    // either fits the grid or deliberately overlaps the step after it, and it reaches
-    // eight where the tile allows sixty-four: a note that long is typed, not scrubbed.
+    // A length in steps. Dragging lands on twentieths of one. Quarters reached the
+    // lengths that sit on the grid and nothing in between, and the lengths worth
+    // scrubbing for are the ones that do not sit on it: a tail held a little short of
+    // the next step, or a little past it, which on quarters was a jump from touching
+    // the step to covering half of it.
+    //
+    // A twentieth rather than the tenth this was first cut to, because it divides the
+    // quarter it replaces and a tenth does not. On tenths the quarter-step notes the
+    // sample scores are full of read out as 0.3 over a value of 0.25 — a bar that lies
+    // until it is touched and then snaps the note to make itself true. Every length
+    // written before this change is still a stop on this one, and the two decimals a
+    // bar prints by default hold a twentieth exactly.
+    //
+    // The bottom of the bar is the quarter it has always been, which is a multiple of
+    // the new quantum and so still a stop on it, and it reaches eight where the tile
+    // allows sixty-four: a note that long is typed, not scrubbed.
     //
     // The unit is printed because this and the channel's gate ratio are the same
     // multiplication on the step, and the step is what tells them apart: this one
     // counts them, that one takes a percentage of what this one counted.
     static readonly ValueBar.Range LengthRange =
-      new ValueBar.Range(0.25f, 8.0f, snap: 0.25f, unit: "steps");
+      new ValueBar.Range(0.25f, 8.0f, snap: 0.05f, unit: "steps");
 
     // Whole percents. The wedge on the cell cannot show a tenth of one anyway, and any
     // percentage at all is still allowed by typing it.
