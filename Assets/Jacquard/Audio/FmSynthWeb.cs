@@ -74,7 +74,7 @@ sealed class FmSynthWeb : IFmSynthBackend
 
         _core.masterGain = masterGain;
         _core.Allocate(SampleRate, BlockFrames, maxVoices, queueCapacity);
-        _core.scope = FmSynthScope.Create(ScopeFrames, maxVoices);
+        _core.scope = FmSynthScope.Create(ScopeFrames);
 
         // A managed array crosses to JavaScript as an offset into the WebAssembly
         // heap, which is why the mix is copied out of its NativeArrays rather than

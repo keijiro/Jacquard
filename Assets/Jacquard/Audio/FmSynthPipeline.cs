@@ -42,7 +42,7 @@ sealed class FmSynthPipeline : IFmSynthBackend
         // pipeline: this is memory the main thread reads, so the main thread is what
         // owns it. A NativeArray is a handle, so the copy the audio side is given is
         // the same memory.
-        _scope = FmSynthScope.Create(ScopeFrames, maxVoices);
+        _scope = FmSynthScope.Create(ScopeFrames);
 
         // The buffer is the grain everything about timing is measured in up here — the
         // finest a note can be placed, and what one lost buffer moves the clock by — so

@@ -36,9 +36,9 @@ struct FmSynthCore
     public LimiterBus limiter;
     public OutputBus output;
 
-    // Where the finished mix and the state of the pool are left for anything drawing
-    // them. Owned by the driver rather than by this: it is allocated on the main thread,
-    // which is the side that reads it, and Release below leaves it alone.
+    // Where the finished mix is left for anything drawing it. Owned by the driver
+    // rather than by this: it is allocated on the main thread, which is the side that
+    // reads it, and Release below leaves it alone.
     public FmSynthScope scope;
 
     public NativeArray<float> dryL;     // Every voice, placed by its own pan
@@ -182,8 +182,8 @@ struct FmSynthCore
                 outR[frame] = 0.0f;
             }
 
-            pool.Render(dryL, dryR, reverbIn, delayIn, scope.levels, frameCount,
-                        bufferStart, sampleRate);
+            pool.Render(dryL, dryR, reverbIn, delayIn, frameCount, bufferStart,
+                        sampleRate);
 
             // In parallel rather than in series. Feeding the delay's repeats into the
             // reverb is a good sound and would be one line, but it is also a decision

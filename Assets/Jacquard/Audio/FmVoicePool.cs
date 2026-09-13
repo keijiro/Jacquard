@@ -84,16 +84,9 @@ struct FmVoicePool
     // The two halves of a pair are rendered at two positions, so each needs its own
     // pair of gains; everything downstream of that is the arrangement there always
     // was, with a gain per destination fixed for the life of the voice.
-    //
-    // levels is the one thing written here that nothing downstream reads: how loud each
-    // slot was over this buffer, for whoever is drawing the pool. It is a level and not
-    // a flag because a voice is not on or off — it is somewhere in its envelope — and
-    // it is taken from the samples themselves rather than from the envelope, so what is
-    // drawn is what came out.
     public void Render(NativeArray<float> dryL, NativeArray<float> dryR,
                        NativeArray<float> reverbIn, NativeArray<float> delayIn,
-                       NativeArray<float> levels, int frameCount, long bufferStart,
-                       float sampleRate)
+                       int frameCount, long bufferStart, float sampleRate)
     {
         var bufferEnd = bufferStart + frameCount;
 
@@ -127,17 +120,9 @@ struct FmVoicePool
 
         var dt = 1.0f / sampleRate;
 
-        var watched = levels.IsCreated;
-
         for (var i = 0; i < voices.Length; i++)
         {
-            if (!voices[i].Active)
-            {
-                // A slot that has finished has to say so, or the last level it was
-                // seen at would stand there for good.
-                if (watched) levels[i] = 0.0f;
-                continue;
-            }
+            if (!voices[i].Active) continue;
 
             // NativeArray hands out copies, so read, render and write back.
             var voice = voices[i];
@@ -151,8 +136,6 @@ struct FmVoicePool
             // beside a second pair of zeroes for a half that is never rendered.
             note.UnisonGains(out var lowerL, out var lowerR,
                              out var upperL, out var upperR);
-
-            var loudest = 0.0f;
 
             for (var frame = 0; frame < frameCount; frame++)
             {
@@ -169,8 +152,6 @@ struct FmVoicePool
                 // with nowhere to put a position takes.
                 var sample = lower + upper;
 
-                if (watched) loudest = math.max(loudest, math.abs(sample));
-
                 dryL[frame] += lower * lowerL + upper * upperL;
                 dryR[frame] += lower * lowerR + upper * upperR;
                 reverbIn[frame] += sample * note.reverbSend;
@@ -178,8 +159,6 @@ struct FmVoicePool
             }
 
             voices[i] = voice;
-
-            if (watched) levels[i] = loudest;
         }
     }
 

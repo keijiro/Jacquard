@@ -34,12 +34,6 @@ public struct FmSynthScope
     [NativeDisableContainerSafetyRestriction]
     public NativeArray<int> cursor;
 
-    // How loud each voice slot was over the last buffer, or nothing at all if it is
-    // free. A level rather than a flag: a voice is not on or off, it is somewhere in
-    // its envelope, and the whole reason to draw the pool is to see that happen.
-    [NativeDisableContainerSafetyRestriction]
-    public NativeArray<float> levels;
-
     public bool IsCreated => wave.IsCreated;
 
     public int Length => wave.Length;
@@ -56,21 +50,15 @@ public struct FmSynthScope
         return wave[index < 0 ? index + length : index];
     }
 
-    public float Level(int slot) => levels[slot];
-
-    public int Slots => levels.Length;
-
-    public static FmSynthScope Create(int frames, int voices)
+    public static FmSynthScope Create(int frames)
       => new FmSynthScope
         { wave = new NativeArray<float>(frames, Allocator.Persistent),
-          cursor = new NativeArray<int>(1, Allocator.Persistent),
-          levels = new NativeArray<float>(voices, Allocator.Persistent) };
+          cursor = new NativeArray<int>(1, Allocator.Persistent) };
 
     public void Dispose()
     {
         if (wave.IsCreated) wave.Dispose();
         if (cursor.IsCreated) cursor.Dispose();
-        if (levels.IsCreated) levels.Dispose();
     }
 
     // Called at the end of a render, with the mix as it will be heard.

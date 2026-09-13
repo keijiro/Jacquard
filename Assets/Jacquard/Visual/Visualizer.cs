@@ -6,13 +6,11 @@ namespace Jacquard.App {
 
 // The mix, drawn behind the score.
 //
-// Two things, and both of them are the synth rather than the sequence: the finished
-// output as a trace across the middle of the screen, and the voice pool as a row of
-// slots along the bottom. What the sequence is doing is already on the plane — the
-// playheads say which step each runner is on — and what it is doing is not the same
-// question as what came out. A gate that did not fire, a note that lost its voice to a
-// louder one, a limiter closing on a kick: none of that is visible on the plane and all
-// of it is visible here.
+// One thing, and it is the synth rather than the sequence: the finished output as a
+// trace across the middle of the screen. What the sequence is doing is already on the
+// plane — the playheads say which step each runner is on — and what it is doing is not
+// the same question as what came out. A gate that did not fire, a limiter closing on a
+// kick: neither of those is visible on the plane and both of them are visible here.
 //
 // It is drawn rather than laid out, which is why it is not on the UI panel with
 // everything else. A trace is a few hundred columns rebuilt every frame, and UI Toolkit
@@ -34,11 +32,11 @@ namespace Jacquard.App {
 // The geometry is built from nothing every frame and that is the right shape for it:
 // the picture genuinely differs every frame, so there is no rebuild here paying for a
 // picture that is the same picture. At the 512 columns every device this ships to
-// reaches, a frame is 511 ribbon quads and up to twenty-four slot quads — 2140 vertices
-// and 3210 indices. What has been taken out of it is the part that was *not* new every
-// frame: a colour space conversion that ran once a column for a result in which only
-// the alpha moved, an index buffer that spelled the same three thousand numbers out
-// again, and the trigger's habit of fetching every sample twice.
+// reaches, a frame is 511 ribbon quads — 2044 vertices and 3066 indices. What has been
+// taken out of it is the part that was *not* new every frame: a colour space conversion
+// that ran once a column for a result in which only the alpha moved, an index buffer
+// that spelled the same three thousand numbers out again, and the trigger's habit of
+// fetching every sample twice.
 
 [RequireComponent(typeof(JacquardApp))]
 public sealed class Visualizer : MonoBehaviour
@@ -102,12 +100,12 @@ public sealed class Visualizer : MonoBehaviour
         if (!scope.IsCreated) return;
 
         // The scope travels by value from here down rather than by `in`, which looks
-        // like the wrong way round and is not. None of At, Level, Head, Length or Slots
-        // is a readonly member, so `in` obliges the compiler to copy the whole struct —
-        // three NativeArrays, each carrying a safety handle in the editor — before every
-        // one of the several thousand reads a frame, where by value it is one copy per
-        // call. The pipeline hands the scope over by value already, so this is a copy of
-        // a copy and there is nothing here for `in` to protect.
+        // like the wrong way round and is not. None of At, Head or Length is a readonly
+        // member, so `in` obliges the compiler to copy the whole struct — both of its
+        // NativeArrays, each carrying a safety handle in the editor — before every one
+        // of the several thousand reads a frame, where by value it is one copy per call.
+        // The pipeline hands the scope over by value already, so this is a copy of a
+        // copy and there is nothing here for `in` to protect.
 
         // What the camera can see, which is what everything below is measured in: an
         // orthographic size is the half height, and the aspect gives the rest.
@@ -122,10 +120,9 @@ public sealed class Visualizer : MonoBehaviour
         _colors.Clear();
 
         BuildTrace(scope, synth.SampleRate, halfWidth, halfHeight, pixel);
-        BuildSlots(scope, halfWidth, halfHeight, pixel);
 
-        // Everything above adds vertices four at a time, so the index buffer follows
-        // from the vertex count and nothing else.
+        // The trace adds vertices four at a time, so the index buffer follows from the
+        // vertex count and nothing else.
         var quads = _vertices.Count / 4;
         GrowIndices(quads);
 
@@ -230,54 +227,10 @@ public sealed class Visualizer : MonoBehaviour
         return start;
     }
 
-    // The pool
-    //
-    // One slot per voice, in the order the pool holds them, along the bottom edge. The
-    // order means nothing musically — a note takes whatever slot is free — and that is
-    // precisely what makes the row worth drawing: it fills up as a chord is struck and
-    // empties as the tails run out, so how close the pool is to being full is something
-    // that can be seen rather than read off the voice count in the status line.
-    //
-    // The height is the square root of the level, which is the one place here that
-    // anything is bent. A peak amplitude spends most of its life in the bottom quarter
-    // of its range, so a bar drawn straight off one is a bar that flickers just above
-    // the floor and says nothing about how loud the voice is.
-    void BuildSlots(FmSynthScope scope, float halfWidth, float halfHeight,
-                    float pixel)
-    {
-        var slots = scope.Slots;
-        if (slots == 0) return;
-
-        if (_levels == null || _levels.Length != slots) _levels = new float[slots];
-
-        var width = halfWidth * 2.0f / slots;
-        var bar = width * SlotWidth;
-        var tallest = halfHeight * SlotHeight;
-        var floor = -halfHeight;
-
-        // A level falls no faster than this, so that a note shorter than a frame is
-        // still seen and a decay is watched rather than blinked at.
-        var fall = Time.deltaTime / SlotFall;
-
-        for (var slot = 0; slot < slots; slot++)
-        {
-            var level = Mathf.Clamp01(scope.Level(slot));
-            _levels[slot] = Mathf.Max(level, _levels[slot] - fall);
-
-            var height = Mathf.Sqrt(_levels[slot]) * tallest;
-            if (height < pixel) continue;
-
-            var centre = -halfWidth + (slot + 0.5f) * width;
-
-            Quad(new Vector2(centre - bar * 0.5f, floor),
-                 new Vector2(centre + bar * 0.5f, floor + height), SlotColor);
-        }
-    }
-
     // Geometry
     //
-    // Both of these add exactly four vertices in the order the index pattern expects,
-    // and that is the whole of the contract between them and GrowIndices below.
+    // This adds exactly four vertices in the order the index pattern expects, and that
+    // is the whole of the contract between it and GrowIndices below.
 
     // A segment of the trace, as a box between two points. Thickness is vertical rather
     // than perpendicular to the segment, which on a trace of a few hundred columns is a
@@ -291,16 +244,6 @@ public sealed class Visualizer : MonoBehaviour
         _vertices.Add(new Vector3(from.x, from.y + half, Depth));
         _vertices.Add(new Vector3(to.x, to.y + half, Depth));
         _vertices.Add(new Vector3(to.x, to.y - half, Depth));
-
-        for (var i = 0; i < 4; i++) _colors.Add(color);
-    }
-
-    void Quad(Vector2 low, Vector2 high, Color color)
-    {
-        _vertices.Add(new Vector3(low.x, low.y, Depth));
-        _vertices.Add(new Vector3(low.x, high.y, Depth));
-        _vertices.Add(new Vector3(high.x, high.y, Depth));
-        _vertices.Add(new Vector3(high.x, low.y, Depth));
 
         for (var i = 0; i < 4; i++) _colors.Add(color);
     }
@@ -346,11 +289,6 @@ public sealed class Visualizer : MonoBehaviour
     // keeps one palette for both. Called once, from Awake: the colour space cannot
     // change under a running app, and reading QualitySettings and taking three pows for
     // it once a column was answering a settled question five hundred times a frame.
-    //
-    // Only the trace comes through here. The slots are drawn from the sRGB numbers
-    // below as they stand, which is what the 73 recorded there was measured against —
-    // so sending them the same way is a change to the picture rather than to its cost,
-    // and it is left to hand.
     static Color Shaded(Color color)
     {
         var shade = QualitySettings.activeColorSpace == ColorSpace.Linear
@@ -364,7 +302,6 @@ public sealed class Visualizer : MonoBehaviour
     JacquardApp _app;
     Material _material;
     Mesh _mesh;
-    float[] _levels;
     Color _traceColor;
 
     readonly List<Vector3> _vertices = new();
@@ -384,19 +321,14 @@ public sealed class Visualizer : MonoBehaviour
     const float TraceHeight = 0.42f;  // Of the half height, at full scale
     const float FadeWidth = 0.12f;    // Of the width, at either end
 
-    const float SlotWidth = 0.4f;   // Of a slot's share of the width
-    const float SlotHeight = 0.16f; // Of the half height, at full level
-    const float SlotFall = 0.4f;    // Seconds from full to nothing
-
-    // Both alphas look far too small to be visible and are not, because the blend
-    // happens in linear light where the background is 0.009 and this colour is 0.81.
-    // They are what they are because they were measured rather than picked: the faintest
-    // thing the plane draws is its lattice, which comes out at a luminance of 80 in a
-    // screenshot, and a tenth of an alpha here lands the trace at 86 with the slots
-    // under it at 73. Anything approaching what these numbers look like — the 0.16 they
-    // started at read 102 — is a background that argues with the score in front of it.
+    // The alpha looks far too small to be visible and is not, because the blend happens
+    // in linear light where the background is 0.009 and this colour is 0.81. It is what
+    // it is because it was measured rather than picked: the faintest thing the plane
+    // draws is its lattice, which comes out at a luminance of 80 in a screenshot, and a
+    // tenth of an alpha here lands the trace at 86. Anything approaching what that
+    // number looks like — the 0.16 it started at read 102 — is a background that argues
+    // with the score in front of it.
     static readonly Color TraceColor = Style.Fade(Style.NoteLine, 0.10f);
-    static readonly Color SlotColor = Style.Fade(Style.NoteLine, 0.07f);
 }
 
 } // namespace Jacquard.App
