@@ -64,6 +64,12 @@ player's names rather than the code's.
 through for the model, and once more when it settles for whatever should sound. See
 `ValueBar`, and `ScoreEditor.Preview` for what a settled bar is allowed to play.
 
+**A semitone is chosen on a keyboard, not on a bar.** The two places one is — which
+semitones the piece is allowed to land on, the letter half of a note's pitch — stand the
+same twelve boxes in the same places, and a hand that has found F# on one has found it on
+both. What a press does is the panel's own business; the shape is not. See `Keys`, and
+`InspectorPanel.BuildNote` for the half of a pitch that stays a bar.
+
 **A bar's range is where its travel is spent, not what the parameter is allowed to be.**
 A drag stays inside it; a typed number does not, and is held instead to whatever the
 model keeps of it — `ParamTargets.Bound` for a synth parameter, which is wider wherever
@@ -185,7 +191,8 @@ Where the rest is written
 
 | | |
 | --- | --- |
-| The bar: travel, tapers, the geometric ranges, the two bars a pitch takes | `ValueBar`, `ParamRanges` |
+| The bar: travel, tapers, the geometric ranges | `ValueBar`, `ParamRanges` |
+| The twelve keys, and the two panels that stand them up | `Keys`, `GlobalPanel`, `InspectorPanel.BuildNote` |
 | Cycle gate switches, and what a cell can show before the tile gives out | `InspectorPanel`, `TileIcons` |
 | Why the Sound group and the lock rows are re-bound rather than made again | `InspectorPanel.Refresh` |
 | Why a bar's text field waits for the first edit | `ValueBar.BuildInput` |

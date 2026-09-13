@@ -104,7 +104,9 @@ sealed class InspectorPanel
             // The same tile, but its values may have changed from elsewhere — a
             // transpose from the keys, a load — so the bars still have to be pulled
             // back in line with it. The lap switches go the same way, and one of the
-            // things that moves them is the Period bar standing over them.
+            // things that moves them is the Period bar standing over them; so does a
+            // note's keyboard, where a transpose moves the lit key with the tile under
+            // the cursor never having changed.
             //
             // The Play switch above all, since the thing that moves it most is a double
             // click on the very cell this panel is showing: the tile is the same tile, so
@@ -112,6 +114,7 @@ sealed class InspectorPanel
             // over a cell that had just gone grey.
             ValueBar.SyncAll(_body);
             _laps?.Sync();
+            _pitchKeys?.Sync();
             SyncPlay();
             // And the channel number beside it, for the same reason and from the other
             // side of the screen: the Channels panel can exchange two channels, which
@@ -141,10 +144,11 @@ sealed class InspectorPanel
     bool _place;
     int _channel;
 
-    // The bars are found again by a query over the body; these two are held onto
+    // The bars are found again by a query over the body; these three are held onto
     // instead, and let go of whenever the body they stood in is cleared — they belong to
     // one tile, and the next showing builds its own.
     LapSwitches _laps;
+    Keys _pitchKeys;
     Button _play;
 
     // A chooser paints once and when it is stepped, so the one on a CHAN tile shows a
@@ -161,10 +165,11 @@ sealed class InspectorPanel
     {
         _title.text = Title(tile);
 
-        // The two that belong to one tile, and the readout that belongs to one of them.
+        // The three that belong to one tile, and the readout that belongs to one of
+        // them.
         // The three kept groups are deliberately not here: they are handed the new tile
         // instead, which is the whole point of them.
-        (_laps, _play, _syncChannel) = (null, null, null);
+        (_laps, _pitchKeys, _play, _syncChannel) = (null, null, null, null);
 
         // Free ground, whether that is a lane's own empty step or the terminator it
         // grows from. What such a cell is for is the tile that goes on it.
@@ -207,8 +212,9 @@ sealed class InspectorPanel
 
     // The panel's own header, which says what is under the cursor rather than which
     // panel this is. A cell that holds nothing is the only thing here that is not a
-    // tile, and the pitch is left out of a note's: the bar underneath spells it, and
-    // a header that changed as a pitch was dragged would be a second readout.
+    // tile, and the pitch is left out of a note's: the two controls underneath say it
+    // between them — the lit key is the letter and the bar is the register — and a
+    // header that moved as either one was worked would be a second readout of both.
     static string Title(Tile tile) => tile == null ? "Empty Cell" : Name(tile) + " Tile";
 
     // In words, not in tokens. The four character codes are how a tile is spelled in
@@ -439,35 +445,59 @@ sealed class InspectorPanel
         return row;
     }
 
-    // A pitch is two bars and not one, because the two halves of it are set for
-    // different reasons and a single bar serves neither. Eighty-four semitones over the
-    // hundred and sixty pixels a drag covers is under two pixels a note, so landing on
-    // the note meant was a matter of luck, and moving an octave meant carrying the bar
-    // most of the way across the panel. Split, a semitone is thirteen pixels and an
-    // octave is eighteen, and the letter can be changed without disturbing the register
-    // or the register without disturbing the letter — which is how a pitch is thought
-    // about anyway, and how the cell has always drawn one.
+    // A pitch is set in two halves, because the two are chosen in different ways: a
+    // letter is picked out of twelve, and a register is moved up and down. It was one
+    // bar over all eighty-four semitones, which at under two pixels a note made landing
+    // on the note meant a matter of luck and made an octave a drag most of the way
+    // across the panel; then two bars, which put a semitone thirteen pixels apart and an
+    // octave eighteen.
     //
-    // Neither bar holds anything. They read the two halves off the one note number and
-    // write it back together, so the tile is unchanged and so is the file: what is
-    // stored is still one MIDI note. The bar being dragged pulls its partner along with
-    // it through the Refresh that Touch runs, and a drag survives that because it is
-    // measured from where the hand went down rather than from the value.
+    // The letter is now a keyboard, and that ends the arithmetic for it. Thirteen pixels
+    // is a target a hand can hit, but it is still a target counted from one end of a run
+    // of twelve identical steps; on a keyboard C# is a box in a place a hand already
+    // knows, and the two missing blacks are what say which box. It is the same twelve
+    // the scale stands on the Global panel, deliberately, though a press there allows a
+    // semitone and a press here chooses one: whoever has found F# on either has found it
+    // on both. See Keys.
     //
-    // The class bar stops at B rather than turning the octave over. A drag on a bar is
-    // clamped to its own travel, so a carry could never come from one anyway, and the
-    // octave is the next row down.
+    // Nothing carries. A key sets the letter and leaves the register alone, which is what
+    // the class bar had to be clamped at B to manage, and the register is a bar because a
+    // register is moved by one rather than picked out of nine.
     //
-    // The note is heard where a drag ends rather than at every semitone it crosses: a
-    // scrub over an octave is twelve notes on top of each other and none of them the one
-    // being chosen. A typed pitch sounds straight away, since it never passed through
-    // the eleven others.
+    // Neither half holds anything. They read the two off the one note number and write it
+    // back together, so the tile is unchanged and so is the file: what is stored is still
+    // one MIDI note. Each is pulled onto what the other wrote through the Refresh that
+    // Touch runs — a drag on the bar survives that because it is measured from where the
+    // hand went down rather than from the value, and the keyboard is relit from the note
+    // it has just written.
+    //
+    // A key sounds its note as it lands, where the bar waits for the drag to settle. A
+    // press passes through nothing on its way to the note; a scrub over an octave is
+    // twelve notes on top of each other and none of them the one being chosen. That is
+    // the half of this the class bar could not do, and typing a letter as a number — 9
+    // for A — is the half of it that has gone: it was the one control here that asked a
+    // table of a user. The register is still typed, which is how the highest note there
+    // is gets asked for at all; see OctaveRange.
     void BuildNote(VisualElement body, NoteTile note)
     {
-        body.Add(Controls.Bar("Note", NoteRange, () => Pitch.ToClass(note.Note),
-                              value => SetPitch(note, Pitch.ToOctave(note.Note),
-                                                Mathf.RoundToInt(value)),
-                              () => _editor.Preview(note.Note)));
+        _pitchKeys = new Keys(degree => degree == Pitch.ToClass(note.Note),
+                              degree => Act(() =>
+                              {
+                                  SetPitch(note, Pitch.ToOctave(note.Note), degree);
+                                  _editor.Preview(note.Note);
+                              }));
+
+        // A group gap above and below, which the same run on the Global panel does not
+        // ask for: there it stands between two headings and both carry that air
+        // themselves. Here it is the panel's header over it and the register's bar
+        // under it with a row's gap either side, and twelve boxes that size read as
+        // packed against them. The top is the subtraction the panel's spacing rule
+        // asks for, since the header has already carried a gap; the bottom replaces
+        // the one Keys carries rather than adding to it.
+        _pitchKeys.style.marginTop = Controls.GroupGap - Controls.Gap;
+        _pitchKeys.style.marginBottom = Controls.GroupGap;
+
+        body.Add(_pitchKeys);
 
         body.Add(Controls.Bar("Octave", OctaveRange, () => Pitch.ToOctave(note.Note),
                               value => SetPitch(note, Mathf.RoundToInt(value),
@@ -483,7 +513,7 @@ sealed class InspectorPanel
     }
 
     // Where the two halves are put back together, so that the clamp and what follows it
-    // are written once rather than once per bar.
+    // are written once rather than once on the keyboard and once on the bar.
     void SetPitch(NoteTile note, int octave, int pitchClass)
     {
         note.Note = Mathf.Clamp(Pitch.FromParts(octave, pitchClass),
@@ -645,19 +675,11 @@ sealed class InspectorPanel
     // Sound panels use. These are the ranges of the sequencer's own
     // numbers, which nothing outside this panel has to know about.
 
-    // The letter half of a pitch, read out as the letter and nothing else: the number
-    // behind it is an index into the twelve and says nothing a name does not, which is
-    // the one case Range.Display exists for. Typing still goes through that number, the
-    // same as the pitch bar these two replaced.
-    static readonly ValueBar.Range NoteRange =
-      ValueBar.Integer(0.0f, 11.0f,
-                       value => Pitch.ToClassName(Mathf.RoundToInt(value)));
-
     // The register half, which stops one short of the plane's own top. C9 is the highest
     // note there is and it is the only one in its octave, so a bar reaching it would
     // spend a twelfth of its travel on a stop where eleven of the twelve letters are
-    // refused and the bar above snaps back to C. Every octave this one covers takes all
-    // twelve; the last note is still typed.
+    // refused and the keyboard over it goes back to C on its own. Every octave this one
+    // covers takes all twelve; the last note is still typed.
     static readonly ValueBar.Range OctaveRange = ValueBar.Integer(0.0f, 8.0f);
 
     // A length in steps. Dragging lands on twentieths of one. Quarters reached the

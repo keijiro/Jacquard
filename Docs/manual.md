@@ -15,7 +15,7 @@ Using it
 | --- | --- |
 | Move the cursor | Click a cell, or the arrow keys |
 | Write a note | The `NOTE` button the Tile panel offers on a free cell |
-| Set a note's pitch | Note and Octave on the Tile panel — the letter and the register on a bar each, so either moves without disturbing the other. Note stops at B rather than turning the octave over. Both can be typed by the number behind the name: 0 for C, 11 for B |
+| Set a note's pitch | The keyboard on the Tile panel for the letter, Octave under it for the register, so either moves without disturbing the other. A key sounds the note as it lands, and sets the letter without carrying into the register. The octave reaches 8 on its bar; C9, the highest note there is, is typed |
 | Transpose a note | Shift+up/down for a semitone, add command for an octave, which rewrites the tile |
 | Hear the note under the cursor | Return, which sounds it whatever the Audition switch says |
 | Add a gate or a lock | The buttons the Tile panel offers on a free cell |
