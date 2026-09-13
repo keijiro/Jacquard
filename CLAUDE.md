@@ -76,6 +76,20 @@ Working on it
 - **Jacquard > Rebuild Main Scene** — regenerates the scene from `SceneBuilder`.
 - The project is meant to be driveable from the Unity CLI, so a change can be built, run
   and read back without a hand on the editor.
+- Starting a worktree, copy the main worktree's `Library` into it before Unity opens
+  there, with `cp -c`. Run it from inside the new worktree, and let git name the source
+  rather than a relative path: worktrees usually land beside `main`, but where the tool
+  that made them chose to put them is not something this file can promise.
+
+  ```
+  cp -Rc "$(git rev-parse --path-format=absolute --git-common-dir)/../Library" Library
+  ```
+
+  A fresh worktree with no `Library` reimports the whole project on first open, which is
+  minutes of waiting for a tree that is a few files different from one already imported.
+  `-c` asks APFS for a copy-on-write clone, so the copy costs neither the time nor the
+  disk of a real one — the two `Library` folders share their blocks until Unity rewrites
+  a file, and only what it rewrites is paid for.
 
 Two rules the format has cost mistakes for, both in `Docs/impl-files.md`: a target
 leaving `ParamTargets` belongs in `ProjectFormat.Retired` in the same change, and a
