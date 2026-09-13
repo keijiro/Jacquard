@@ -179,6 +179,14 @@ sealed class ChannelsPanel
                                        index => { set(index + 1); SyncSwap(); });
         stepper.style.marginBottom = 0;
         stepper.style.flexGrow = 1;
+        // Half of what the row has, and not half plus what the digit standing in it is
+        // worth. A grown box is laid out from its basis up, and a basis left at auto is
+        // the content: the digit is inside the content, Jura's figures are not all one
+        // width, and stepping 1 to 8 therefore widened one half and pushed the mark
+        // between the two — and the far arrows with it — sideways by a hair. Zero takes
+        // the digit out of the sum, so what each side gets is half of the free space
+        // and the same half whatever is showing.
+        stepper.style.flexBasis = 0;
         return stepper;
     }
 
