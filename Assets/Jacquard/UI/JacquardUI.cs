@@ -1080,10 +1080,11 @@ sealed class JacquardUI
     }
 
     // The other setting on that panel this screen has to be told about, and the only one
-    // that takes something off it. The two controls go rather than dim, which is the same
+    // that takes something off it. What it takes goes rather than dims, which is the same
     // line the score folder's button is on the other side of: a dimmed control says *not
-    // now* and these are *not here* — there is no press that would bring either back, and
-    // a row of grey buttons somebody keeps trying is worse than a row without them.
+    // now* and these are *not here* — there is no press that would bring any of them
+    // back, and a row of grey buttons somebody keeps trying is worse than a row without
+    // them.
     //
     // display: none rather than visibility, so the row closes over the gap. What is left
     // is a chooser standing straight against Load, which is the score controls reading as
@@ -1103,6 +1104,13 @@ sealed class JacquardUI
         _save.style.display = display;
         _guideRule.style.display = display;
         _guide.style.display = display;
+
+        // And one group off a panel, which is the mode reaching past this row for the
+        // first time. It is passed on rather than done here for the reason the lock is
+        // passed on: which control on that panel writes the piece is the panel's own
+        // reading, and it has already made it once — see ChannelsPanel.SetStageMode,
+        // where the same group is argued against the same test.
+        _channels.SetStageMode(on);
 
         // And the three pages go down with the button the last of them points at. This is
         // the live half of that — somebody throwing the switch while the pages are up on a

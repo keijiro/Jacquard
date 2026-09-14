@@ -90,21 +90,21 @@ free ground.
 
 **Stage Mode takes controls away, and one test decides which.** A control goes while the
 app is set to play if pressing it by accident during a performance would cost something
-*and* a performance has no use for it. That is Save, the guide, and the text field a
-double click opens on a bar; it is not Load, which is how a set reaches its next piece,
-and it is nothing the piece is played with — the transport, the live effects, the plane,
-a bar as a bar, and the double click on a bar's *name*, which drops a lock mid-piece and
-is a gesture a set is built on however loudly it lands. The two halves are an *and*, and
-the second is what keeps the mode from reaching into the instrument. Anything else brought
-under the mode is argued against that test, and lands in the manual's table in the same
-change. See `StageMode`.
+*and* a performance has no use for it. That is Save, the guide, the text field a double
+click opens on a bar, and the Swap group on the Channels panel; it is not Load, which is
+how a set reaches its next piece, and it is nothing the piece is played with — the
+transport, the live effects, the plane, a bar as a bar, and the double click on a bar's
+*name*, which drops a lock mid-piece and is a gesture a set is built on however loudly
+it lands. The two halves are an *and*, and the second is what keeps the mode from
+reaching into the instrument. Anything else brought under the mode is argued against
+that test, and lands in the manual's table in the same change. See `StageMode`.
 
 **What it takes it removes rather than dims.** No press brings any of them back while the
 mode is on, so a dimmed control would say *not now* where the truth is *not here* — the
 same line the score folder's button is on the other side of, being absent on a platform
-with no folder to show rather than present and grey. Removal also closes the row over the
-gap, which is what leaves the score controls reading as the two things a set does with a
-file.
+with no folder to show rather than present and grey. Removal also closes the layout over
+the gap: the row reads as the two things a set does with a file, and the Channels panel
+ends at its eighth row rather than under a rule with nothing left to head.
 
 The panels, and what raises each
 --------------------------------
@@ -202,6 +202,7 @@ Where the rest is written
 | Why the guide is a button on the row rather than a row on a panel, and the page it opens | `JacquardUI.BuildTransportRow`, `JacquardUI.GuideUrl` |
 | What Stage Mode is for, and why it is remembered across a launch | `StageMode` |
 | What it takes off the transport row, and the pages it puts down with them | `JacquardUI.SetStageMode` |
+| Why the Swap group is what it takes off a panel, and why the panel decides that | `ChannelsPanel.SetStageMode` |
 | The three pages a first launch opens on, and how their pictures are taken | `OnboardingPanel` |
 | Darkening everything but the control a page names, while those pages are up | `OnboardingShade` |
 | Scrolling a row or a column that holds more than the screen | `ScrollStrip` |

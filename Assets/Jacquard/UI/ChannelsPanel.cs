@@ -37,6 +37,9 @@ namespace Jacquard.App {
 // it is played rather than set — a mute writes nothing that a file would notice — so the
 // panel as a whole stayed live while a load waited on the lap line, and that is now true
 // of every control here except one. The group alone is put out of reach; see SetLocked.
+// It is the same one control Stage Mode takes off the panel, which is not a coincidence
+// but the same reading twice: what the two of them are looking for is the control here
+// that writes the piece, and there is one. See SetStageMode.
 //
 // It stands in the top left, which is the one corner the cursor's panels never reach,
 // and it is raised by a switch on the transport row like everything else there. A mute
@@ -86,6 +89,20 @@ sealed class ChannelsPanel
     // the whole panel would find this group's shield already standing, take it for its
     // own and cover nothing — see Controls.SetLocked.
     public void SetLocked(bool locked) => Controls.SetLocked(_swap, locked);
+
+    // And takes the group off the panel for as long as the app is set to play. It answers
+    // both halves of the test that mode chooses by: a swap is heard the moment it lands,
+    // since eight channels exchange their sound under whatever is already running, and it
+    // is a thing done to a piece while the piece is being made rather than anything a set
+    // is played with. Nothing else here is on that side of the line — a mute and a solo
+    // are played, and Select only moves the cursor. See StageMode.
+    //
+    // Gone rather than dimmed, the way the transport row's two go: no press brings it
+    // back while the mode is on, so a grey group would say *not now* where the truth is
+    // *not here*. It also leaves the panel ending where its eighth row does, rather than
+    // under a rule with nothing left to head.
+    public void SetStageMode(bool on)
+      => _swap.style.display = on ? DisplayStyle.None : DisplayStyle.Flex;
 
     // Private members
 
