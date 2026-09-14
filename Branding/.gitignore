@@ -26,3 +26,8 @@ shots/
 
 # Left behind by importing jacquard_grid, which every script here does.
 __pycache__/
+
+# The user guide's pictures, written by Jacquard > Capture Guide Pictures. They are
+# intermediates here the way the icon and the logo bar are: the copy being used is the
+# one in the jacquard-doc repository, which is where the page that shows them is.
+guide/
