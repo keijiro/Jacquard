@@ -112,7 +112,18 @@ off the app's whole processed history rather than off one version's.
 The path, as far as it has been walked:
 
 - *Jacquard > Build iOS* writes the Xcode project. `BuildIos.cs` says why it is a menu item
-  and why it appends rather than replaces.
+  and why it appends rather than replaces. **From a command line it needs `-buildTarget
+  iOS`.** The three post-processes that shape the generated project — the symbol stripping,
+  the encryption answer, the file sharing — each sit under `#if UNITY_IOS`, which is settled
+  when the editor compiles its own assemblies rather than when `BuildPlayer` is handed a
+  target. So a build run straight after `Tools/package.sh`, which leaves the editor on a
+  desktop target, compiles all three out and writes a project with none of them in it. And
+  nothing says so: the log reads `Succeeded`, `0 errors`, the version and the build number
+  are right, and the project opens and archives. 1.3.0 was built that way first, and what
+  caught it was reading the result rather than the exit code — `STRIP_STYLE` in the
+  pbxproj, `ITSAppUsesNonExemptEncryption` and the two file-sharing keys in `Info.plist`.
+  Worth a look once per release, since the flag is the kind of thing a copied command line
+  loses.
 - `asc xcode archive --scheme Jacquard`, then `asc xcode export`. The scheme name is worth
   reading twice: Unity calls the *target* `Unity-iPhone` and the scheme after the product,
   so the obvious guess is the one name xcodebuild will not take.
@@ -289,10 +300,41 @@ Neither is archived and neither joins a GitHub release: the desktop pair are dow
 this repository and Android is downloaded from Play, so the AAB has one destination and
 `Tools/package.sh` does not know it exists.
 
-**The upload is by hand.** There is no `asc` for this side — no CLI here drives Play — so the
-bundle goes up through Play Console, and so does everything the listing is made of. Internal
-testing takes an upload without review and is the cheapest way to learn that the signing and
-the bundle are right; production is a review that can take a week for a first release.
+**The upload is one command.** `gplay release` creates the edit, uploads the bundle, sets the
+track's release notes, validates and commits — the whole of what Play Console is otherwise
+clicked through for.
+
+```sh
+gplay validate --package jp.radiumsoftware.jacquard --track production \
+               --bundle Build/Android/Jacquard.aab --release-notes @<notes.json>
+gplay release  --package jp.radiumsoftware.jacquard --track production \
+               --bundle Build/Android/Jacquard.aab --release-notes @<notes.json> --wait
+```
+
+Read the validate report before the release. It answers the one thing about the bundle that
+cannot be read off the AAB by hand — the `versionCode` Unity actually wrote, which is an
+integer in a protobuf manifest rather than a string anything can grep — and it is where the
+release notes are found to be wrong while that still costs nothing.
+
+Two things about those notes. `--release-notes` takes plain text inline, but **a file after
+`@` has to be JSON**, an array of `{language, text}`; handed a plain-text file it stops with
+`invalid release notes JSON`. And **Play's notes stop at 500 characters** where the App
+Store's stop at 4,000, so one text cannot serve both: 1.3.0's iOS notes are 1,477 characters
+and its Play notes are the same release cut to 469.
+
+`gplay release` also takes `--listings-dir` and `--screenshots-dir`, and a release does not
+pass them. The reason is the last paragraph of this section, and a local directory handed to
+either flag is the push it warns about — a description reverted, silently, which is the
+accident the iOS half keeps `metadata pull` in front of. The bundle and the notes are what a
+release has to say.
+
+`gplay tracks releases list --track production` is what it looks like afterwards: the new
+release sits at `IN_REVIEW` beside the last one still `PUBLISHED`, and they change places
+when it clears.
+
+Internal testing takes an upload without review and is the cheapest way to learn that the
+signing and the bundle are right; production is a review that can take a week for a first
+release. `--track internal` is that, and `gplay promote` moves it up afterwards.
 
 Three of Play's obligations have no App Store equivalent and are the ones that will be
 unfamiliar rather than merely long: the **feature graphic**, 1024x500 and required of every
