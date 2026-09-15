@@ -19,7 +19,8 @@ sequencing.
 - [Web version](https://www.keijiro.tokyo/jacquard-web/)
 - [User guide](https://www.keijiro.tokyo/jacquard-doc/)
 
-<a href="https://apps.apple.com/app/id6804390464"><img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us" width="160" alt="Download on the App Store"></a>
+<a href="https://apps.apple.com/app/id6804390464"><img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us" width="160" align="middle" alt="Download on the App Store"></a>
+<a href="https://play.google.com/store/apps/details?id=jp.radiumsoftware.jacquard"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" width="206" align="middle" alt="Get it on Google Play"></a>
 
 ## Basic Concepts
 
