@@ -2,8 +2,8 @@
   "dependencies": {
     "com.unity.burst": "2.0.0",
     "com.unity.device-simulator.devices": "1.0.1",
-    "com.unity.inputsystem": "1.20.0",
-    "com.unity.pipeline": "0.6.0-exp.1",
+    "com.unity.inputsystem": "1.20.1",
+    "com.unity.pipeline": "0.10.0-exp.1",
     "com.unity.render-pipelines.universal": "17.6.0",
     "jp.keijiro.klutter-tools": "2.6.0",
     "com.unity.modules.adaptiveperformance": "1.0.0",
